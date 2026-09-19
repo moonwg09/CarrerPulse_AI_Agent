@@ -1,0 +1,36 @@
+# Environment / Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Node.js
+node_modules/
+dist/
+
+# Gradle / Java
+.gradle/
+build/
+out/
+
+# IntelliJ
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# local environment snapshot
+/ai/environment-full.yml
+
+# old backend backup
+/backend-old/
