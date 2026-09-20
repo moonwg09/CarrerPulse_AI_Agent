@@ -1,0 +1,7 @@
+pymupdf>=1.24
+python-docx>=1.1
+numpy>=1.26
+rank-bm25>=0.2.2
+sentence-transformers>=3.0      # 선택: 없으면 대체 임베딩 사용
+langgraph>=0.2                  # 선택: 없으면 순차 실행으로 대체
+google-generativeai>=0.8        # 선택: API 키 없으면 모의 응답
