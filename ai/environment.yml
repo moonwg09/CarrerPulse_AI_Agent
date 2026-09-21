@@ -7,5 +7,14 @@ dependencies:
   - python=3.11.16
   - pip
   - pip:
+      # 팀 기준 (변경 시 협의)
       - fastapi==0.141.1
       - uvicorn==0.53.0
+      # RAG·Agent 추가 (2026-09 / RAG 담당)
+      - numpy==2.1.3
+      - rank-bm25==0.2.2
+      - langgraph==0.6.7
+      - google-generativeai==0.8.5
+      # 선택 설치 — 없으면 대체 구현으로 동작한다
+      # - sentence-transformers==3.4.1   # 실제 임베딩(bge-m3). 약 2GB
+      # - chromadb==0.6.3                # 벡터 저장소 교체 시
