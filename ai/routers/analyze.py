@@ -6,16 +6,17 @@ Spring이 호출하는 엔드포인트를 모아 둔다.
 import os
 from datetime import date
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from agent import build_graph
 from agent.tools import compare_requirement
 from rag import store
 from rag.judge import match_rate
+from rag.parser import MAX_FILE_BYTES, ParseError
 from schemas.analyze_schema import (
     CompareRequest, CompareResponse, ComparisonResult, DeleteDocumentResponse,
     DroppedLine, EvidenceRef, GuideLine, GuideRequest, GuideResponse,
-    IndexDocumentRequest, IndexDocumentResponse,
+    IndexDocumentRequest, IndexDocumentResponse, IndexFileRequest,
 )
 
 router = APIRouter(prefix="/analyze", tags=["analyze"])
@@ -32,9 +33,65 @@ def _to_evidence_refs(hits):
             for score, e in hits]
 
 
+def _parse_error(e: ParseError) -> HTTPException:
+    """추출 실패를 HTTP 응답으로 바꾼다 (DOC-03, DOC-11)."""
+    # 형식·크기 위반은 사용자가 고칠 수 있는 문제이므로 400, 그 외 추출 실패는 422로 구분한다.
+    status = 400 if e.code in ("UNSUPPORTED_FORMAT", "FILE_TOO_LARGE") else 422
+    return HTTPException(status_code=status, detail={"code": e.code, "message": e.message})
+
+
+@router.post("/documents/upload", response_model=IndexDocumentResponse)
+async def index_uploaded_file(
+    user_id: int = Form(...),
+    document_id: int = Form(...),
+    doc_type: str = Form(..., description="이력서 / 자기소개서 / 포트폴리오"),
+    consented: bool = Form(True),
+    file: UploadFile = File(..., description="PDF 또는 DOCX 파일"),
+):
+    """서류 파일을 받아 텍스트를 추출하고 색인한다 (PAR-01 → PAR-06·07).
+
+    Spring이 사용자 업로드 파일을 그대로 전달하는 경로다.
+    """
+    # 파일 전체를 메모리로 읽는다. 10MB 제한이 있어 부담되지 않는다(DOC-03).
+    content = await file.read()
+    try:
+        result = store.index_file(
+            user_id=user_id, document_id=document_id, doc_type=doc_type,
+            source=content, filename=file.filename or "", consented=consented,
+            size_bytes=len(content))
+    except ParseError as e:
+        raise _parse_error(e)
+
+    return IndexDocumentResponse(
+        document_id=document_id, evidence_ids=result["evidence_ids"],
+        evidence_count=len(result["evidence_ids"]), embedding_mode=store.embedding_mode(),
+        extraction_method=result["extraction_method"], page_count=result["page_count"])
+
+
+@router.post("/documents/path", response_model=IndexDocumentResponse)
+def index_file_by_path(req: IndexFileRequest):
+    """저장된 파일 경로를 받아 추출·색인한다 (두 서버가 같은 저장소를 볼 때)."""
+    # 경로가 없거나 읽을 수 없으면 추출 단계에서 실패 사유가 돌아온다(DOC-11).
+    try:
+        result = store.index_file(
+            user_id=req.user_id, document_id=req.document_id, doc_type=req.doc_type,
+            source=req.file_path, filename=req.file_path, consented=req.consented)
+    except ParseError as e:
+        raise _parse_error(e)
+
+    return IndexDocumentResponse(
+        document_id=req.document_id, evidence_ids=result["evidence_ids"],
+        evidence_count=len(result["evidence_ids"]), embedding_mode=store.embedding_mode(),
+        extraction_method=result["extraction_method"], page_count=result["page_count"])
+
+
 @router.post("/documents", response_model=IndexDocumentResponse)
 def index_document(req: IndexDocumentRequest):
-    """서류 텍스트를 색인한다 (PAR-06·07 저장, RAG-01 준비)."""
+    """추출된 텍스트를 색인한다 (시험·시연용).
+
+    실제 서비스 경로는 /documents/upload 또는 /documents/path 이며,
+    이 엔드포인트는 파일 없이 흐름을 확인할 때 사용한다.
+    """
     # 동의하지 않은 자료는 분석하지 않는다(DOC-01). 색인은 하되 검색에서 제외된다.
     evidence_ids = store.index_document(
         user_id=req.user_id, document_id=req.document_id,
@@ -127,4 +184,5 @@ def health():
     """AI 분석 기능의 상태. Spring 헬스체크와 시연 점검에 쓴다."""
     return {"status": "ok", "embedding_mode": store.embedding_mode(),
             "agent_mode": _agent_mode,
-            "gemini": "configured" if os.environ.get("GEMINI_API_KEY") else "mock"}
+            "gemini": "configured" if os.environ.get("GEMINI_API_KEY") else "mock",
+            "supported_files": ["pdf", "docx"], "max_file_mb": MAX_FILE_BYTES // 1024 // 1024}

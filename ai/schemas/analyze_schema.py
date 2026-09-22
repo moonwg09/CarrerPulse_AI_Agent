@@ -13,8 +13,20 @@ DocType = Literal["이력서", "자기소개서", "포트폴리오"]
 TriggerType = Literal["user_request", "schedule", "condition"]
 
 
+class IndexFileRequest(BaseModel):
+    """파일 경로로 색인 요청 (B안 - 서버가 같은 저장소를 볼 때).
+
+    파일 업로드 방식을 쓰려면 POST /analyze/documents/upload 를 사용한다.
+    """
+    user_id: int
+    document_id: int
+    doc_type: DocType
+    file_path: str = Field(min_length=1, description="서버가 읽을 수 있는 파일 경로 (PDF·DOCX)")
+    consented: bool = Field(default=True, description="자료 이용 동의 여부 (DOC-01)")
+
+
 class IndexDocumentRequest(BaseModel):
-    """서류 색인 요청. 파일 추출(PAR-01)은 Spring이 수행하고 텍스트만 보낸다."""
+    """추출된 텍스트로 색인 요청 (시험·시연용 경로)."""
     user_id: int
     document_id: int
     doc_type: DocType
@@ -27,6 +39,8 @@ class IndexDocumentResponse(BaseModel):
     evidence_ids: List[str]
     evidence_count: int
     embedding_mode: str
+    extraction_method: str = Field(default="text", description="pymupdf / python-docx / text")
+    page_count: int = Field(default=1, description="추출한 페이지(또는 문단) 수")
 
 
 class DeleteDocumentResponse(BaseModel):
