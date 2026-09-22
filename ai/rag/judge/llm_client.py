@@ -4,7 +4,7 @@ import os
 import re
 from typing import Optional
 
-MODEL_NAME = "gemini-2.0-flash"
+MODEL_NAME = "gemini-3.6-flash"
 
 
 def call_gemini(prompt: str, api_key: Optional[str] = None) -> dict:
