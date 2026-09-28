@@ -59,4 +59,8 @@ public class UserAuth {
     public Long getAuthId() {
         return authId;
     }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
 }

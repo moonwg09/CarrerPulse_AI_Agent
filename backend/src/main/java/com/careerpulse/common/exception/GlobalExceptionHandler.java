@@ -6,7 +6,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
-
+import org.springframework.security.core.AuthenticationException;
 import java.util.Map;
 
 @RestControllerAdvice
@@ -57,6 +57,21 @@ public class GlobalExceptionHandler {
                 .body(Map.of(
                         "code", "VALIDATION_ERROR",
                         "message", message
+                ));
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<Map<String, String>>
+    handleAuthenticationException(
+            AuthenticationException e
+    ) {
+
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of(
+                        "code", "LOGIN_FAILED",
+                        "message",
+                        "이메일 또는 비밀번호가 올바르지 않습니다."
                 ));
     }
 }

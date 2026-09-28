@@ -81,7 +81,42 @@ public class User {
         return name;
     }
 
+    public String getAccountStatus() { return accountStatus;}
 
+    public String getPhone() {
+        return phone;
+    }
 
+    public String getCareerType() {
+        return careerType;
+    }
 
+    public BigDecimal getCareerYears() {
+        return careerYears;
+    }
+
+    public void updateProfile(
+            String name,
+            String phone,
+            String careerType,
+            BigDecimal careerYears
+    ){
+        if(name != null) {
+            this.name = name;
+        }
+
+        if(phone != null) {
+            this.phone = phone;
+        }
+
+        if(careerType != null) {
+            this.careerType = careerType;
+        }
+
+        this.careerYears = careerYears;
+    }
+
+    public void withdraw() {
+        this.accountStatus = "DELETED";
+    }
 }

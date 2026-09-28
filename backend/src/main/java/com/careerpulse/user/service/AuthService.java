@@ -6,7 +6,7 @@ import com.careerpulse.user.entity.User;
 import com.careerpulse.user.entity.UserAuth;
 import com.careerpulse.user.repository.UserAuthRepository;
 import com.careerpulse.user.repository.UserRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -98,5 +98,17 @@ public class AuthService {
                 savedUser.getEmail(),
                 savedUser.getName()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public User findByEmail(String email) {
+
+        return userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "사용자를 찾을 수 없습니다."
+                        )
+                );
     }
 }
