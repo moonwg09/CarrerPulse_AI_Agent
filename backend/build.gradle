@@ -23,10 +23,18 @@ dependencies {
     // 데이터 베이스 연결
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
 
+    // jpa 사용
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
     // mysql jdbc 드라이버
     runtimeOnly 'com.mysql:mysql-connector-j'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
 }
 
 tasks.named('test') {

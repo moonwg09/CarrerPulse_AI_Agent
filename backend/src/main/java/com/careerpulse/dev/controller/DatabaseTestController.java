@@ -1,4 +1,4 @@
-package com.careerpulse.controller;
+package com.careerpulse.dev.controller;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
