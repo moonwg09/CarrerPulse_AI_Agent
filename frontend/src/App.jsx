@@ -5,6 +5,7 @@ import LoginPage from "./pages/LoginPage";
 import MyPage from "./pages/MyPage";
 import UserJobsPage from "./pages/UserJobsPage";
 import AccountPage from "./pages/AccountPage";
+import CompanyReviewsPage from "./pages/CompanyReviewsPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -50,6 +51,15 @@ function App() {
           element={
             <ProtectedRoute>
               <AccountPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/company-reviews"
+          element={
+            <ProtectedRoute>
+              <CompanyReviewsPage />
             </ProtectedRoute>
           }
         />
