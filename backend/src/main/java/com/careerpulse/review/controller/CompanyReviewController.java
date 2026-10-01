@@ -20,7 +20,6 @@ public class CompanyReviewController {
         String sql = """
                 SELECT
                     review_id,
-                    user_id,
                     company_name,
                     job_name,
                     joined_year_month,
