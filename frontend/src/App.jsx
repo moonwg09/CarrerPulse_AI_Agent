@@ -1,40 +1,60 @@
-import { useState } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+import SignupPage from "./pages/SignupPage";
+import LoginPage from "./pages/LoginPage";
+import MyPage from "./pages/MyPage";
+import UserJobsPage from "./pages/UserJobsPage";
+import AccountPage from "./pages/AccountPage";
+
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
-  const [message, setMessage] = useState("");
-
-  const testConnection = async (url) => {
-    try {
-      console.log("요청 URL:", url);
-      const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error(`HTTP 오류: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      setMessage(data.message);
-    } catch (error) {
-      console.error(error);
-      setMessage("서버 연결 실패");
-    }
-  };
-
   return (
-    <div>
-      <h1>CareerPulse AI</h1>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={<Navigate to="/login" replace />}
+        />
 
-      <button onClick={() => testConnection("/api/test")}>
-        Spring Boot 연결 테스트
-      </button>
+        <Route
+          path="/signup"
+          element={<SignupPage />}
+        />
 
-      <button onClick={() => testConnection("/api/python/test")}>
-        Python 전체 연동 테스트
-      </button>
+        <Route
+          path="/login"
+          element={<LoginPage />}
+        />
 
-      <p>{message}</p>
-    </div>
+        <Route
+          path="/mypage"
+          element={
+            <ProtectedRoute>
+              <MyPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/jobs"
+          element={
+            <ProtectedRoute>
+              <UserJobsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/account"
+          element={
+            <ProtectedRoute>
+              <AccountPage />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
