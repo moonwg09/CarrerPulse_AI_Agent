@@ -1,7 +1,9 @@
 # Environment / Secrets
 .env
 .env.*
-!.env.example
+.env.example
+/AGENTS.md
+/docs/
 
 # Python
 .venv/
