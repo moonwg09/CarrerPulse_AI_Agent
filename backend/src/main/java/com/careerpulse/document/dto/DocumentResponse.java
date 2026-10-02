@@ -1,8 +1,8 @@
-package com.careerpulse.backend.document.dto;
+package com.careerpulse.document.dto;
 
-import com.careerpulse.backend.document.entity.DocumentType;
-import com.careerpulse.backend.document.entity.FileFormat;
-import com.careerpulse.backend.document.entity.ProcessingStatus;
+import com.careerpulse.document.entity.DocumentType;
+import com.careerpulse.document.entity.FileFormat;
+import com.careerpulse.document.entity.ProcessingStatus;
 import lombok.Builder;
 import lombok.Getter;
 

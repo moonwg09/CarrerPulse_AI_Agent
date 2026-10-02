@@ -1,4 +1,4 @@
-package com.careerpulse.backend.document.entity;
+package com.careerpulse.document.entity;
 
 public enum ProcessingStatus {
     PENDING,

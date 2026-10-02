@@ -1,8 +1,8 @@
-package com.careerpulse.backend.document.controller;
+package com.careerpulse.document.controller;
 
-import com.careerpulse.backend.document.dto.DocumentResponse;
-import com.careerpulse.backend.document.entity.DocumentType;
-import com.careerpulse.backend.document.service.DocumentService;
+import com.careerpulse.document.dto.DocumentResponse;
+import com.careerpulse.document.entity.DocumentType;
+import com.careerpulse.document.service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

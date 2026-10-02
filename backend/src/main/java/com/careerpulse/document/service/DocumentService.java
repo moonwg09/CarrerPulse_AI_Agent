@@ -1,9 +1,9 @@
-package com.careerpulse.backend.document.service;
+package com.careerpulse.document.service;
 
-import com.careerpulse.backend.document.dto.DocumentResponse;
-import com.careerpulse.backend.document.entity.Document;
-import com.careerpulse.backend.document.entity.DocumentType;
-import com.careerpulse.backend.document.repository.DocumentRepository;
+import com.careerpulse.document.dto.DocumentResponse;
+import com.careerpulse.document.entity.Document;
+import com.careerpulse.document.entity.DocumentType;
+import com.careerpulse.document.repository.DocumentRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 

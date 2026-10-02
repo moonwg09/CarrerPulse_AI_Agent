@@ -1,7 +1,7 @@
-package com.careerpulse.backend.document.repository;
+package com.careerpulse.document.repository;
 
-import com.careerpulse.backend.document.entity.Document;
-import com.careerpulse.backend.document.entity.DocumentType;
+import com.careerpulse.document.entity.Document;
+import com.careerpulse.document.entity.DocumentType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
