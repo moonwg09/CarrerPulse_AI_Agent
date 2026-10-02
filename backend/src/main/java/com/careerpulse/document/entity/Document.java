@@ -1,23 +1,39 @@
 package com.careerpulse.document.entity;
 
-import jakarta.persistence.*;
+import com.careerpulse.user.entity.User;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
 import lombok.Getter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
+@Table(name = "user_documents")
 @Getter
 public class Document {
 
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "document_id")
     private Long documentId;
 
-    // TODO: User Entity 구현 완료 후 연결
-    // @ManyToOne(fetch = FetchType.LAZY)
-    // @JoinColumn(name = "user_id", nullable = false)
-    // private User user;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "document_type", nullable = false, length = 30)
@@ -36,12 +52,12 @@ public class Document {
     @Column(name = "file_size", nullable = false)
     private Long fileSize;
 
-    @Lob // 대형 객체 데이터 저장을 위한 가변 길이 데이터 타입
-    @Column(name = "extracted_text")
+    @Lob
+    @Column(name = "extracted_text", columnDefinition = "LONGTEXT")
     private String extractedText;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "processing_status", nullable = false)
+    @Column(name = "processing_status", nullable = false, length = 20)
     private ProcessingStatus processingStatus;
 
     @Column(name = "uploaded_at", nullable = false)
@@ -49,4 +65,62 @@ public class Document {
 
     @Column(name = "analyzed_at")
     private LocalDateTime analyzedAt;
+
+    @OneToMany(
+            mappedBy = "document",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<DocumentChunk> chunks = new ArrayList<>();
+
+    protected Document() {
+    }
+
+    public Document(
+            User user,
+            DocumentType documentType,
+            String originalFilename,
+            String storagePath,
+            FileFormat fileFormat,
+            Long fileSize
+    ) {
+        this.user = user;
+        this.documentType = documentType;
+        this.originalFilename = originalFilename;
+        this.storagePath = storagePath;
+        this.fileFormat = fileFormat;
+        this.fileSize = fileSize;
+        this.processingStatus = ProcessingStatus.PENDING;
+        this.uploadedAt = LocalDateTime.now();
+    }
+
+    public void markProcessing() {
+        this.processingStatus = ProcessingStatus.PROCESSING;
+    }
+
+    public void complete(String extractedText) {
+        this.extractedText = extractedText;
+        this.processingStatus = ProcessingStatus.COMPLETED;
+        this.analyzedAt = LocalDateTime.now();
+    }
+
+    public void fail() {
+        this.processingStatus = ProcessingStatus.FAILED;
+    }
+
+    public void addChunk(DocumentChunk chunk) {
+        chunks.add(chunk);
+        chunk.assignDocument(this);
+    }
+
+    public void removeChunk(DocumentChunk chunk) {
+        if (chunks.remove(chunk)) {
+            chunk.assignDocument(null);
+        }
+    }
+
+    public void clearChunks() {
+        chunks.forEach(chunk -> chunk.assignDocument(null));
+        chunks.clear();
+    }
 }
