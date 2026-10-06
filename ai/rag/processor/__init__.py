@@ -4,7 +4,10 @@
 from .cleaner import clean_text
 from .chunker import split_sections, merge_paragraphs, SECTION_PATTERN, MAX_CHARS
 from .metadata import Evidence, build_evidences
+from .user_analysis import to_chunks as analysis_to_chunks
 
+# 패키지 밖으로 공개할 이름을 명시한다.
+# 여기에 없는 이름은 내부 구현으로 보고, 바깥에서 직접 쓰지 않는다는 약속이다.
 __all__ = [
     "clean_text",
     "split_sections",
@@ -13,4 +16,5 @@ __all__ = [
     "MAX_CHARS",
     "Evidence",
     "build_evidences",
+    "analysis_to_chunks",
 ]

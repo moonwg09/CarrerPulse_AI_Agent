@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 
 from .embedding import Embedder, VectorStore
 from .parser import ParseError, extract, validate
-from .processor import split_sections, build_evidences
+from .processor import split_sections, build_evidences, analysis_to_chunks
 
 # 임베딩 모델 적재는 오래 걸리므로 프로세스당 한 번만 만든다.
 _embedder: Optional[Embedder] = None
@@ -88,3 +88,27 @@ def count_evidences(user_id: int) -> int:
     """해당 사용자의 검색 가능한 근거 수. 자료 없음 안내(DOC-12)에 사용한다."""
     return sum(1 for e in get_store().evidences
                if e.user_id == user_id and e.consented and not e.deleted)
+
+
+def index_analysis(user_id: int, document_id: int, data: Dict,
+                   consented: bool = True) -> Dict:
+    """구조화된 분석 JSON을 색인한다.
+
+    서류 파일을 직접 여는 index_file 과 입력만 다르고,
+    근거 생성·임베딩·저장은 같은 절차를 쓴다.
+    """
+    store = get_store()
+    store.delete_by_document(document_id)
+
+    chunks = analysis_to_chunks(data)
+    start = _next_index.get(user_id, 1)
+    evidences = build_evidences(chunks, user_id=user_id,
+                                document_id=document_id, start=start)
+    for e in evidences:
+        e.consented = consented
+    _next_index[user_id] = start + len(evidences)
+
+    store.add(evidences)
+    return {"evidence_ids": [e.evidence_id for e in evidences],
+            "extraction_method": "analysis-json",
+            "page_count": len(chunks)}
