@@ -35,15 +35,17 @@ def embedding_mode() -> str:
     get_store()
     return _embedder.mode if _embedder else "unknown"
 
+def index_pages(user_id: int, document_id: int, doc_type: str, pages: List[Dict],
+                consented: bool = True) -> List[str]:
+    """추출된 페이지 목록을 항목으로 나눠 색인한다. 반환: 생성된 근거 ID 목록.
 
-def index_document(user_id: int, document_id: int, doc_type: str, text: str,
-                   consented: bool = True) -> List[str]:
-    """서류 텍스트를 항목으로 나눠 색인한다. 반환: 생성된 근거 ID 목록."""
+    PDF·DOCX 추출 결과(index_file)와 텍스트 직접 입력(index_document)이
+    모두 이 한 곳을 거치게 해서, 색인 규칙이 경로마다 달라지지 않도록 한다.
+    """
     # 같은 document_id 를 다시 보내면 이전 근거를 지우고 새로 넣는다(PAR-08 재분석).
     store = get_store()
     store.delete_by_document(document_id)
 
-    pages = [{"page": 1, "text": text}]
     chunks = split_sections(pages, doc_type)
     start = _next_index.get(user_id, 1)
     evidences = build_evidences(chunks, user_id=user_id, document_id=document_id, start=start)
