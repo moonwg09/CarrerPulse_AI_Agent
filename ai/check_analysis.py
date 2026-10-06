@@ -23,10 +23,10 @@ print("\n색인 중...")
 result = store.index_analysis(user_id=2, document_id=2, data=data)
 print(f"근거 수: {len(result['evidence_ids'])}, 방식: {result['extraction_method']}")
 
-# 3) 요구 항목 세 개로 판정해 본다.
-#    R1·R2는 근거가 있어야 하고, R3는 '기록 부족'이 나와야 정상이다.
-#    R3가 '경험 있음'으로 나오면 없는 경험을 지어낸 것이므로 즉시 잡아야 한다.
-REQS = [
+# 요구 항목은 원래 공고 분석 결과로 들어오는 값이다(REQ-05).
+# 시험할 때는 JSON 파일로 바꿔 끼울 수 있게 해서, 코드를 고치지 않아도 되게 한다.
+# 두 번째 인자로 파일 경로를 주면 그것을 쓰고, 없으면 아래 기본값을 쓴다.
+DEFAULT_REQS = [
     {"requirement_id": "R1", "type": "필수", "name": "Spring 기반 REST API 개발",
      "text": "Java/Spring으로 REST API를 설계·구현한 경험",
      "needed_experience": "인증·권한 처리와 CRUD API 구현"},
@@ -37,6 +37,14 @@ REQS = [
      "text": "대규모 트래픽 환경에서의 성능 튜닝 경험",
      "needed_experience": "캐시·부하분산 설계와 병목 개선"},
 ]
+
+if len(sys.argv) > 2:
+    with open(sys.argv[2], encoding="utf-8") as f:
+        REQS = json.load(f)
+    print(f"\n요구 항목: {sys.argv[2]} ({len(REQS)}건)")
+else:
+    REQS = DEFAULT_REQS
+    print(f"\n요구 항목: 기본값 ({len(REQS)}건)")
 
 s = store.get_store()
 print("\n판정 결과")
