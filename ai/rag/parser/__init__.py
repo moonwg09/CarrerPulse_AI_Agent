@@ -1,9 +1,12 @@
-"""parser - 업로드 된 서류 파일에서 택스트를 꺼낸다 (SRS PAR-01, DOC-03, DOC-11)."""
+"""parser - 업로드 된 서류 파일에서 텍스트를 꺼냄 (SRS PAR-01, DOC-03, DOC-11)"""
 
 from typing import Dict, List, Optional, Tuple
 
 from .docx_parser import extract_docx
 from .pdf_parser import extract_pdf, is_scanned
+
+from .models import DocumentBlock, DocumentLocation
+from .docx_parser import extract_docx, extract_docx_blocks
 
 SUPPORTED_EXTENSIONS = ("pdf", "docx")
 MAX_FILE_BYTES = 10 * 1024 * 1024
@@ -56,5 +59,18 @@ def extract(source, filename: str) -> Tuple[List[Dict], str]:
         raise ParseError("EXTRACT_FAILED", f"파일을 읽지 못했습니다: {type(e).__name__}")
 
 
-__all__ = ["extract", "validate", "detect_extension", "ParseError",
-           "SUPPORTED_EXTENSIONS", "MAX_FILE_BYTES", "extract_pdf", "extract_docx", "is_scanned"]
+__all__ = [
+    "extract", 
+    "validate", 
+    "detect_extension", 
+    "ParseError",
+    "SUPPORTED_EXTENSIONS", 
+    "MAX_FILE_BYTES", 
+    "extract_pdf", 
+    "extract_docx", 
+    "extract_docx_blocks",
+    "is_scanned",
+    "DocumentBlock",
+    "DocumentLocation",
+]
+    
