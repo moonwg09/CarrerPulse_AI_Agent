@@ -5,7 +5,12 @@ import com.careerpulse.document.entity.DocumentType;
 import com.careerpulse.document.service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/documents")
@@ -15,15 +20,23 @@ public class DocumentController {
     private final DocumentService documentService;
 
     @GetMapping("/{documentType}")
-    public DocumentResponse getDocument(@PathVariable DocumentType documentType) {
-        Long userId = 1L; // TODO: 임시값 변경
-        return documentService.getDocument(userId, documentType);
+    public DocumentResponse getDocument(
+            Authentication authentication,
+            @PathVariable DocumentType documentType
+    ) {
+        String email = authentication.getName();
+
+        return documentService.getDocument(email, documentType);
     }
 
     @DeleteMapping("/{documentType}")
-    public ResponseEntity<Void> deleteDocument(@PathVariable DocumentType documentType) {
-        Long userId = 1L;
-        documentService.deleteDocument(userId, documentType);
+    public ResponseEntity<Void> deleteDocument(
+            Authentication authentication,
+            @PathVariable DocumentType documentType
+    ) {
+        String email = authentication.getName();
+
+        documentService.deleteDocument(email, documentType);
 
         return ResponseEntity.noContent().build();
     }
