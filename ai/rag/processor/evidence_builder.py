@@ -27,6 +27,14 @@ EVIDENCE_TYPE_MAP = {
     "주요성과": "RESULT",
     "성과": "RESULT",
 
+    "주요 기능": "FEATURE",
+    "주요기능": "FEATURE",
+    "기능": "FEATURE",
+
+    "핵심 파이프라인": "PIPELINE",
+    "핵심파이프라인": "PIPELINE",
+    "파이프라인": "PIPELINE",
+
     "참여 인원": "TEAM",
     "참여인원": "TEAM",
     "인원": "TEAM",
@@ -139,11 +147,6 @@ def build_evidences(
                 # SemanticUnit의 첫 paragraph는 제목/섹션 헤더이므로
                 # Evidence가 아니라 검색 문맥(metadata)으로 사용
                 if block == unit.blocks[0]:
-                    continue
-
-                text = block.text.strip()
-
-                if not text:
                     continue
 
                 text = block.text.strip()

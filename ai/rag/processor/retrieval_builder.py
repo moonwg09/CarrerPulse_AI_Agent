@@ -14,6 +14,7 @@ def build_retrieval_chunks(
     user_id: int,
     document_id: int,
     doc_type: str,
+    start: int = 1,
 ) -> List[RetrievalChunk]:
 
     evidence_map = defaultdict(list)
@@ -48,7 +49,7 @@ def build_retrieval_chunks(
         lines.append("")
 
         for evidence in unit_evidences:
-            
+
             # URL은 채용요건 의미 검색에는 도움이 되지 않아서, 원문 근거(Evidence)로만 보존
             if evidence.evidence_type == "URL":
                 continue
@@ -56,7 +57,7 @@ def build_retrieval_chunks(
 
         chunks.append(
             RetrievalChunk(
-                chunk_id=f"CH-{len(chunks) + 1:04d}",
+                chunk_id=f"CH-{start + len(chunks):04d}",
                 user_id=user_id,
                 document_id=document_id,
                 doc_type=doc_type,

@@ -9,7 +9,14 @@ from typing import Dict, List, Optional
 
 from .embedding import Embedder, VectorStore
 from .parser import ParseError, extract, validate
+from .parser.docx_parser import extract_docx_blocks
+
 from .processor import split_sections, build_evidences, analysis_to_chunks
+from .processor.semantic_parser import build_semantic_units
+from .processor.evidence_builder import (
+    build_evidences as build_semantic_evidences,
+)
+from .processor.retrieval_builder import build_retrieval_chunks
 
 # 임베딩 모델 적재는 오래 걸리므로 프로세스당 한 번만 만든다.
 _embedder: Optional[Embedder] = None
@@ -18,6 +25,9 @@ _lock = Lock()
 
 # 사용자별 근거 번호가 겹치지 않도록 문서 단위로 시작 번호를 관리한다.
 _next_index: Dict[int, int] = {}
+
+# 사용자별 RetrievalChunk 번호가 겹치지 않도록 시작 번호를 관리한다.
+_next_chunk_index: Dict[int, int] = {}
 
 
 def get_store() -> VectorStore:
@@ -56,6 +66,66 @@ def index_pages(user_id: int, document_id: int, doc_type: str, pages: List[Dict]
     store.add(evidences)
     return [e.evidence_id for e in evidences]
 
+def index_docx_v2(
+    user_id: int,
+    document_id: int,
+    doc_type: str,
+    source,
+    consented: bool = True,
+) -> Dict:
+    """DOCX를 구조 기반 v2 파이프라인으로 색인"""
+
+    store = get_store()
+
+    # 같은 document_id 재분석 시 기존 데이터 제거
+    store.delete_by_document(document_id)
+
+    # 1. DOCX → DocumentBlock
+    blocks = extract_docx_blocks(source)
+
+    # 2. DocumentBlock → SemanticUnit
+    units = build_semantic_units(blocks)
+
+    # 3. SemanticUnit → Evidence
+    evidence_start = _next_index.get(user_id, 1)
+
+    evidences = build_semantic_evidences(
+        units,
+        user_id=user_id,
+        document_id=document_id,
+        doc_type=doc_type,
+        start=evidence_start,
+    )
+
+    for evidence in evidences:
+        evidence.consented = consented
+
+    _next_index[user_id] = evidence_start + len(evidences)
+
+    # 4. SemanticUnit + Evidence → RetrievalChunk
+    chunk_start = _next_chunk_index.get(user_id, 1)
+
+    chunks = build_retrieval_chunks(
+        units,
+        evidences,
+        user_id=user_id,
+        document_id=document_id,
+        doc_type=doc_type,
+        start=chunk_start,
+    )
+
+    _next_chunk_index[user_id] = chunk_start + len(chunks)
+
+    # 5. Evidence 저장 + RetrievalChunk embedding
+    store.add_document(evidences, chunks)
+
+    return {
+        "evidence_ids": [e.evidence_id for e in evidences],
+        "chunk_ids": [c.chunk_id for c in chunks],
+        "block_count": len(blocks),
+        "semantic_unit_count": len(units),
+    }
+
 def index_document(user_id: int, document_id: int, doc_type: str, text: str,
                    consented: bool = True) -> List[str]:
     """이미 추출된 텍스트를 색인한다(시험·시연용 경로)."""
@@ -63,20 +133,65 @@ def index_document(user_id: int, document_id: int, doc_type: str, text: str,
                        [{"page": 1, "text": text}], consented)
 
 
-def index_file(user_id: int, document_id: int, doc_type: str, source, filename: str,
-               consented: bool = True, size_bytes: Optional[int] = None) -> Dict:
-    """서류 파일에서 텍스트를 추출해 색인한다 (PAR-01 → PAR-06·07).
+def index_file(
+    user_id: int,
+    document_id: int,
+    doc_type: str,
+    source,
+    filename: str,
+    consented: bool = True,
+    size_bytes: Optional[int] = None,
+) -> Dict:
+    """서류 파일에서 텍스트를 추출해 색인한다.
 
-    source: 파일 경로(str) 또는 파일 내용(bytes)
-    반환: {"evidence_ids": [...], "extraction_method": "...", "page_count": n}
-    형식·크기 검증에 걸리거나 추출에 실패하면 ParseError를 던진다(DOC-03, DOC-11).
+    DOCX는 구조 기반 v2 파이프라인을 사용하고,
+    그 외 지원 형식은 기존 legacy 파이프라인을 사용한다.
     """
-    # 검증 → 추출 → 색인 순서로 진행한다. 검증에서 걸리면 파일을 열지 않는다.
+
     validate(filename, size_bytes)
+
+    extension = (
+        filename.lower().rsplit(".", 1)[-1]
+        if "." in filename
+        else ""
+    )
+
+    # DOCX → 구조 기반 v2 pipeline
+    if extension == "docx":
+        result = index_docx_v2(
+            user_id=user_id,
+            document_id=document_id,
+            doc_type=doc_type,
+            source=source,
+            consented=consented,
+        )
+
+        return {
+            "evidence_ids": result["evidence_ids"],
+            "extraction_method": "python-docx-structured",
+
+            # DOCX parser에는 실제 page 개념이 없으므로
+            # 현재 API 호환을 위해 block 수를 반환한다.
+            # 추후 응답 DTO에서 block_count와 분리한다.
+            "page_count": result["block_count"],
+        }
+
+    # PDF 등 → 기존 legacy pipeline
     pages, method = extract(source, filename)
-    evidence_ids = index_pages(user_id, document_id, doc_type, pages, consented)
-    return {"evidence_ids": evidence_ids, "extraction_method": method,
-            "page_count": len(pages)}
+
+    evidence_ids = index_pages(
+        user_id,
+        document_id,
+        doc_type,
+        pages,
+        consented,
+    )
+
+    return {
+        "evidence_ids": evidence_ids,
+        "extraction_method": method,
+        "page_count": len(pages),
+    }
 
 
 def delete_document(document_id: int) -> int:
