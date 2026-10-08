@@ -109,3 +109,62 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+#root {
+  width: 100%;
+  max-width: none;
+  text-align: left;
+  border: none;
+}
+
+body {
+  font-size: 16px;
+}
+
+h1 {
+  font-size: 16px;
+}
+
+h2 {
+  margin: 24px 0 16px;
+}
+
+p {
+  margin: 12px 0;
+}
+
+button {
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--text-h);
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+th {
+  background: var(--code-bg);
+  color: var(--text-h);
+}
+
+/* 기업명과 직무는 단어 중간에서 줄바꿈하지 않기 */
+td:nth-child(3),
+td:nth-child(4) {
+  word-break: keep-all;
+} 
+
+/* 후기 본문은 생략 없이 표시 */
+td:nth-child(6) {
+  line-height: 1.8;
+  word-break: keep-all;
+}
