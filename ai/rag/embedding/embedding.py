@@ -45,33 +45,167 @@ class Embedder:
 
 
 class VectorStore:
-    """메모리 기반 벡터 저장소.
+    """메모리 기반 Evidence / RetrievalChunk / Vector 저장소
 
-    운영에서는 Chroma나 pgvector로 교체한다.
-    delete_by_document가 DOC-09('관련 검색용 데이터 즉시 삭제')를 담당한다.
+    Evidence:
+        사용자 문서에서 추출한 원문 근거
+
+    RetrievalChunk:
+        검색을 위해 여러 Evidence와 문맥을 묶은 단위
+
+    Vector:
+        RetrievalChunk.text를 임베딩한 값
+
+    운영 환경에서는 각각 DB + pgvector/Chroma 등으로 교체 가능
     """
 
     def __init__(self, embedder: Embedder):
         self.embedder = embedder
-        self.evidences = []
+
+        # 원문 근거 저장소
+        # evidence_id -> Evidence
+        # 기존의 list -> dict 구조로 바꿔서, Evidence를 이용해 원문을 바로 조회할 수 있게 함
+        self.evidence_by_id = {}
+
+        # 검색용 chunk 저장소
+        # chunk_id -> RetrievalChunk
+        self.chunk_by_id = {}
+
+        # vector의 각 행과 대응하는 chunk_id
+        self.vector_chunk_ids = []
+
+        # RetrievalChunk.text embedding
         self.vectors = None
 
-    def add(self, evidences):
-        """근거를 벡터로 만들어 저장한다."""
-        # embedding_ref를 남겨 두면 ERD의 DOCUMENT_CHUNKS.embedding_ref와 연결된다.
+    @property
+    def evidences(self):
+        """기존 코드 호환용 Evidence 목록"""
+        return list(self.evidence_by_id.values())
+
+    @property
+    def chunks(self):
+        """현재 저장된 RetrievalChunk 목록"""
+        return list(self.chunk_by_id.values())
+
+    def add_evidences(self, evidences):
+        """Evidence를 원문 근거 저장소에 보관"""
+        for evidence in evidences:
+            self.evidence_by_id[evidence.evidence_id] = evidence
+
+    def add_chunks(self, chunks):
+        """RetrievalChunk를 임베딩하고 검색 저장소에 보관"""
+        if not chunks:
+            return
+
+        texts = [chunk.text for chunk in chunks]
+        vecs = self.embedder.encode(texts)
+
+        for chunk in chunks:
+            chunk.embedding_ref = f"vec:{chunk.chunk_id}"
+            self.chunk_by_id[chunk.chunk_id] = chunk
+            self.vector_chunk_ids.append(chunk.chunk_id)
+
+        self.vectors = (
+            vecs
+            if self.vectors is None
+            else np.vstack([self.vectors, vecs])
+        )
+
+    def add_document(self, evidences, chunks): # 새 v2 경로
+        """한 문서에서 생성된 Evidence와 RetrievalChunk를 함께 저장"""
+        self.add_evidences(evidences)
+        self.add_chunks(chunks)
+
+    def add(self, evidences): # legacy 임시 경로
+        """Legacy 색인 경로 호환용
+
+        기존 PDF / text / analysis-json 경로는 아직 Evidence 자체를
+        검색 단위로 사용함. 새 DOCX 파이프라인 연결 전까지 유지
+        """
         if not evidences:
             return
-        vecs = self.embedder.encode([e.evidence_text for e in evidences])
-        for e in evidences:
-            e.embedding_ref = f"vec:{e.evidence_id}"
-        self.evidences.extend(evidences)
-        self.vectors = vecs if self.vectors is None else np.vstack([self.vectors, vecs])
+
+        self.add_evidences(evidences)
+
+        # 기존 search.py가 store.vectors[i]와 store.evidences[i]를
+        # 같은 위치라고 가정하므로 legacy vector도 기존 방식으로 만든다.
+        vecs = self.embedder.encode(
+            [evidence.evidence_text for evidence in evidences]
+        )
+
+        for evidence in evidences:
+            evidence.embedding_ref = f"vec:{evidence.evidence_id}"
+
+        self.vectors = (
+            vecs
+            if self.vectors is None
+            else np.vstack([self.vectors, vecs])
+        )
+
+    def get_evidence(self, evidence_id):
+        """evidence_id로 원문 Evidence를 조회"""
+        return self.evidence_by_id.get(evidence_id)
+
+    def get_chunk(self, chunk_id):
+        """chunk_id로 RetrievalChunk를 조회"""
+        return self.chunk_by_id.get(chunk_id)
+
+    def resolve_evidences(self, evidence_ids):
+        """검색된 RetrievalChunk의 evidence_ids를 실제 Evidence로 복원"""
+        return [
+            self.evidence_by_id[evidence_id]
+            for evidence_id in evidence_ids
+            if evidence_id in self.evidence_by_id
+        ]
 
     def delete_by_document(self, document_id: int) -> int:
-        """DOC-09: 삭제 요청된 서류의 근거와 벡터를 함께 제거한다."""
-        # 원본만 지우고 벡터를 남기면 삭제한 서류가 계속 검색되므로 같이 지운다.
-        keep = [i for i, e in enumerate(self.evidences) if e.document_id != document_id]
-        removed = len(self.evidences) - len(keep)
-        self.evidences = [self.evidences[i] for i in keep]
-        self.vectors = self.vectors[keep] if self.vectors is not None and keep else None
-        return removed
+        """문서에 속한 Evidence, RetrievalChunk, Vector를 함께 삭제"""
+
+        # 삭제 전 Evidence 개수.
+        removed_evidence_count = sum(
+            1
+            for evidence in self.evidence_by_id.values()
+            if evidence.document_id == document_id
+        )
+
+        # Evidence 삭제
+        self.evidence_by_id = {
+            evidence_id: evidence
+            for evidence_id, evidence in self.evidence_by_id.items()
+            if evidence.document_id != document_id
+        }
+
+        # 삭제 대상 chunk 식별
+        removed_chunk_ids = {
+            chunk_id
+            for chunk_id, chunk in self.chunk_by_id.items()
+            if chunk.document_id == document_id
+        }
+
+        # Chunk 삭제
+        self.chunk_by_id = {
+            chunk_id: chunk
+            for chunk_id, chunk in self.chunk_by_id.items()
+            if chunk.document_id != document_id
+        }
+
+        # Chunk vector 삭제
+        if removed_chunk_ids and self.vectors is not None:
+            keep_indices = [
+                i
+                for i, chunk_id in enumerate(self.vector_chunk_ids)
+                if chunk_id not in removed_chunk_ids
+            ]
+
+            self.vector_chunk_ids = [
+                self.vector_chunk_ids[i]
+                for i in keep_indices
+            ]
+
+            self.vectors = (
+                self.vectors[keep_indices]
+                if keep_indices
+                else None
+            )
+
+        return removed_evidence_count
