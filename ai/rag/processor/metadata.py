@@ -19,6 +19,13 @@ class Evidence:
     source_type: str            # document / git / user_input
     source_location: str        # "p.1", "문단 3"
     evidence_text: str
+
+    # v2 추가
+    category: str = "OTHER"
+    semantic_unit_id: Optional[str] = None
+    block_id: Optional[str] = None
+    evidence_type: Optional[str] = None
+
     consented: bool = True
     deleted: bool = False
     embedding_ref: Optional[str] = None   # DOCUMENT_CHUNKS.embedding_ref
