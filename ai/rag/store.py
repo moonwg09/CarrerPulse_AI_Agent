@@ -17,6 +17,7 @@ from .processor.evidence_builder import (
     build_evidences as build_semantic_evidences,
 )
 from .processor.retrieval_builder import build_retrieval_chunks
+from .processor.retrieval_chunk import RetrievalChunk
 
 # 임베딩 모델 적재는 오래 걸리므로 프로세스당 한 번만 만든다.
 _embedder: Optional[Embedder] = None
@@ -45,26 +46,98 @@ def embedding_mode() -> str:
     get_store()
     return _embedder.mode if _embedder else "unknown"
 
-def index_pages(user_id: int, document_id: int, doc_type: str, pages: List[Dict],
-                consented: bool = True) -> List[str]:
-    """추출된 페이지 목록을 항목으로 나눠 색인한다. 반환: 생성된 근거 ID 목록.
 
-    PDF·DOCX 추출 결과(index_file)와 텍스트 직접 입력(index_document)이
-    모두 이 한 곳을 거치게 해서, 색인 규칙이 경로마다 달라지지 않도록 한다.
+def _build_legacy_retrieval_chunks(
+    evidences,
+    user_id: int,
+    document_id: int,
+    doc_type: str,
+    start: int,
+):
+    """Legacy Evidence를 RetrievalChunk 검색 구조로 변환한다.
+
+    PDF / text / analysis-json은 아직 SemanticUnit 구조가 없으므로
+    Evidence 하나를 RetrievalChunk 하나로 감싼다.
     """
-    # 같은 document_id 를 다시 보내면 이전 근거를 지우고 새로 넣는다(PAR-08 재분석).
+
+    chunks = []
+
+    for offset, evidence in enumerate(evidences):
+        chunk_id = f"CH-{start + offset:04d}"
+
+        chunks.append(
+            RetrievalChunk(
+                chunk_id=chunk_id,
+                user_id=user_id,
+                document_id=document_id,
+                doc_type=doc_type,
+                semantic_unit_id=f"LEGACY-{evidence.evidence_id}",
+                category=getattr(evidence, "category", "OTHER") or "OTHER",
+                section=evidence.section,
+                title=evidence.section,
+                text=evidence.evidence_text,
+                evidence_ids=[evidence.evidence_id],
+                block_ids=[],
+            )
+        )
+
+    return chunks
+
+
+def index_pages(
+    user_id: int,
+    document_id: int,
+    doc_type: str,
+    pages: List[Dict],
+    consented: bool = True,
+) -> List[str]:
+    """Legacy PDF / text 입력을 Evidence와 RetrievalChunk로 색인한다."""
+
     store = get_store()
+
+    # 1. 동일 문서 재색인 시 기존 데이터 삭제
     store.delete_by_document(document_id)
 
+    # 2. 기존 파이프라인으로 Evidence 생성
     chunks = split_sections(pages, doc_type)
-    start = _next_index.get(user_id, 1)
-    evidences = build_evidences(chunks, user_id=user_id, document_id=document_id, start=start)
-    for e in evidences:
-        e.consented = consented
-    _next_index[user_id] = start + len(evidences)
 
-    store.add(evidences)
-    return [e.evidence_id for e in evidences]
+    evidence_start = _next_index.get(user_id, 1)
+
+    evidences = build_evidences(
+        chunks,
+        user_id=user_id,
+        document_id=document_id,
+        start=evidence_start,
+    )
+
+    for evidence in evidences:
+        evidence.consented = consented
+
+    _next_index[user_id] = evidence_start + len(evidences)
+
+    # 3. Legacy Evidence → RetrievalChunk 변환
+    chunk_start = _next_chunk_index.get(user_id, 1)
+
+    retrieval_chunks = _build_legacy_retrieval_chunks(
+        evidences=evidences,
+        user_id=user_id,
+        document_id=document_id,
+        doc_type=doc_type,
+        start=chunk_start,
+    )
+
+    _next_chunk_index[user_id] = (
+        chunk_start + len(retrieval_chunks)
+    )
+
+    # 4. Evidence와 RetrievalChunk 저장 및 임베딩
+    store.add_document(
+        evidences,
+        retrieval_chunks,
+    )
+
+    # 5. 기존 반환 형식 유지
+    return [evidence.evidence_id for evidence in evidences]
 
 def index_docx_v2(
     user_id: int,
@@ -205,8 +278,12 @@ def count_evidences(user_id: int) -> int:
                if e.user_id == user_id and e.consented and not e.deleted)
 
 
-def index_analysis(user_id: int, document_id: int, data: Dict,
-                   consented: bool = True) -> Dict:
+def index_analysis(
+    user_id: int,
+    document_id: int,
+    data: Dict,
+    consented: bool = True,
+) -> Dict:
     """구조화된 분석 JSON을 색인한다.
 
     서류 파일을 직접 여는 index_file 과 입력만 다르고,
@@ -215,15 +292,51 @@ def index_analysis(user_id: int, document_id: int, data: Dict,
     store = get_store()
     store.delete_by_document(document_id)
 
+    # 1. 분석 JSON → legacy chunk
     chunks = analysis_to_chunks(data)
-    start = _next_index.get(user_id, 1)
-    evidences = build_evidences(chunks, user_id=user_id,
-                                document_id=document_id, start=start)
-    for e in evidences:
-        e.consented = consented
-    _next_index[user_id] = start + len(evidences)
 
-    store.add(evidences)
-    return {"evidence_ids": [e.evidence_id for e in evidences],
-            "extraction_method": "analysis-json",
-            "page_count": len(chunks)}
+    # 2. legacy chunk → Evidence
+    evidence_start = _next_index.get(user_id, 1)
+
+    evidences = build_evidences(
+        chunks,
+        user_id=user_id,
+        document_id=document_id,
+        start=evidence_start,
+    )
+
+    for evidence in evidences:
+        evidence.consented = consented
+
+    _next_index[user_id] = evidence_start + len(evidences)
+
+    # 3. Evidence → RetrievalChunk
+    chunk_start = _next_chunk_index.get(user_id, 1)
+
+    retrieval_chunks = _build_legacy_retrieval_chunks(
+        evidences=evidences,
+        user_id=user_id,
+        document_id=document_id,
+        doc_type="analysis",
+        start=chunk_start,
+    )
+
+    _next_chunk_index[user_id] = (
+        chunk_start + len(retrieval_chunks)
+    )
+
+    # 4. Evidence 저장 + RetrievalChunk embedding
+    store.add_document(
+        evidences,
+        retrieval_chunks,
+    )
+
+    # 5. 기존 반환 계약 유지
+    return {
+        "evidence_ids": [
+            evidence.evidence_id
+            for evidence in evidences
+        ],
+        "extraction_method": "analysis-json",
+        "page_count": len(chunks),
+    }

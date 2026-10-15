@@ -116,31 +116,18 @@ class VectorStore:
         self.add_evidences(evidences)
         self.add_chunks(chunks)
 
-    def add(self, evidences): # legacy 임시 경로
-        """Legacy 색인 경로 호환용
+    def add(self, evidences):  # legacy 임시 경로
+        """Legacy Evidence 저장 호환용.
 
-        기존 PDF / text / analysis-json 경로는 아직 Evidence 자체를
-        검색 단위로 사용함. 새 DOCX 파이프라인 연결 전까지 유지
+        Legacy PDF / text / analysis-json 경로의 Evidence는 보관하지만,
+        Evidence 자체를 RetrievalChunk vector 저장소에 넣지는 않는다.
+
+        검색 vector는 RetrievalChunk만 관리한다.
         """
         if not evidences:
             return
 
         self.add_evidences(evidences)
-
-        # 기존 search.py가 store.vectors[i]와 store.evidences[i]를
-        # 같은 위치라고 가정하므로 legacy vector도 기존 방식으로 만든다.
-        vecs = self.embedder.encode(
-            [evidence.evidence_text for evidence in evidences]
-        )
-
-        for evidence in evidences:
-            evidence.embedding_ref = f"vec:{evidence.evidence_id}"
-
-        self.vectors = (
-            vecs
-            if self.vectors is None
-            else np.vstack([self.vectors, vecs])
-        )
 
     def get_evidence(self, evidence_id):
         """evidence_id로 원문 Evidence를 조회"""
