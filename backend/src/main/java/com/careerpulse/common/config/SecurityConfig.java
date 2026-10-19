@@ -78,6 +78,8 @@ public class SecurityConfig {
                                 "/api/v1/auth/signup",
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/csrf",
+                                "/api/interview-questions",
+                                "/api/interview-questions/**",
                                 "/error"
                         ).permitAll()
 

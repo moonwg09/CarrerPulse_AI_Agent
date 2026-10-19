@@ -1,136 +1,73 @@
 package com.careerpulse.interviewquestion;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.lang.reflect.Field;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
-@ExtendWith(MockitoExtension.class)
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional(readOnly = true)
 class InterviewQuestionServiceTest {
 
-    @Mock
-    private InterviewQuestionRepository repository;
-
+    @Autowired
     private InterviewQuestionService service;
 
-    @BeforeEach
-    void setUp() {
-        service = new InterviewQuestionService(repository);
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Test
+    void readsInterviewQuestionsFromMySqlTable() {
+        Long tableRowCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM interview_question", Long.class);
+        List<InterviewQuestionResponse> results = service.getQuestions(null, null);
+
+        printResults("MySQL interview_question 전체 조회", results);
+        assertEquals(tableRowCount, (long) results.size(),
+                "JPA 조회 결과 건수가 interview_question 테이블의 실제 건수와 일치해야 합니다.");
     }
 
     @Test
-    void getQuestionsWithoutFiltersReturnsAllQuestions() {
-        InterviewQuestion question = question(1L, "공통", "인성", "자기소개를 해주세요.");
-        when(repository.findAll()).thenReturn(List.of(question));
+    void readsOneInterviewQuestionByIdFromMySqlTable() {
+        List<InterviewQuestionResponse> databaseRows = jdbcTemplate.query(
+                "SELECT id, category, question_type, content " +
+                        "FROM interview_question ORDER BY id LIMIT 1",
+                (resultSet, rowNumber) -> new InterviewQuestionResponse(
+                        resultSet.getLong("id"),
+                        resultSet.getString("category"),
+                        resultSet.getString("question_type"),
+                        resultSet.getString("content")));
 
-        List<InterviewQuestionResponse> result = service.getQuestions(null, null);
+        assertFalse(databaseRows.isEmpty(),
+                "단건 조회 테스트를 위해 interview_question 테이블에 데이터가 1건 이상 있어야 합니다.");
 
-        assertEquals(List.of(new InterviewQuestionResponse(
-                1L, "공통", "인성", "자기소개를 해주세요.")), result);
-        verify(repository).findAll();
-        verifyNoMoreInteractions(repository);
+        InterviewQuestionResponse expected = databaseRows.get(0);
+        InterviewQuestionResponse result = service.getQuestion(expected.id());
+
+        printResults("MySQL interview_question ID 단건 조회", List.of(result));
+        assertEquals(expected, result,
+                "실제 테이블의 ID로 조회한 값이 DB 행과 일치해야 합니다.");
     }
 
-    @Test
-    void getQuestionsWithBlankFiltersReturnsAllQuestions() {
-        when(repository.findAll()).thenReturn(List.of());
-
-        List<InterviewQuestionResponse> result = service.getQuestions("  ", " ");
-
-        assertEquals(List.of(), result);
-        verify(repository).findAll();
-        verifyNoMoreInteractions(repository);
-    }
-
-    @Test
-    void getQuestionsWithCategoryAndTypeUsesBothFilters() {
-        InterviewQuestion question = question(2L, "IT개발", "직무", "사용한 기술을 설명해 주세요.");
-        when(repository.findByCategoryAndQuestionType("IT개발", "직무"))
-                .thenReturn(List.of(question));
-
-        List<InterviewQuestionResponse> result = service.getQuestions(" IT개발 ", " 직무 ");
-
-        assertEquals(List.of(new InterviewQuestionResponse(
-                2L, "IT개발", "직무", "사용한 기술을 설명해 주세요.")), result);
-        verify(repository).findByCategoryAndQuestionType("IT개발", "직무");
-        verifyNoMoreInteractions(repository);
-    }
-
-    @Test
-    void getQuestionsWithOnlyCategoryUsesCategoryFilter() {
-        when(repository.findByCategory("IT개발")).thenReturn(List.of());
-
-        assertEquals(List.of(), service.getQuestions("IT개발", null));
-
-        verify(repository).findByCategory("IT개발");
-        verifyNoMoreInteractions(repository);
-    }
-
-    @Test
-    void getQuestionsWithOnlyTypeUsesTypeFilter() {
-        when(repository.findByQuestionType("상황")).thenReturn(List.of());
-
-        assertEquals(List.of(), service.getQuestions(null, "상황"));
-
-        verify(repository).findByQuestionType("상황");
-        verifyNoMoreInteractions(repository);
-    }
-
-    @Test
-    void getQuestionReturnsQuestionById() {
-        InterviewQuestion question = question(3L, "사무행정", "상황", "우선순위를 어떻게 정하시나요?");
-        when(repository.findById(3L)).thenReturn(Optional.of(question));
-
-        InterviewQuestionResponse result = service.getQuestion(3L);
-
-        assertEquals(new InterviewQuestionResponse(
-                3L, "사무행정", "상황", "우선순위를 어떻게 정하시나요?"), result);
-        verify(repository).findById(3L);
-        verifyNoMoreInteractions(repository);
-    }
-
-    @Test
-    void getQuestionForUnknownIdThrowsNotFound() {
-        when(repository.findById(999L)).thenReturn(Optional.empty());
-
-        ResponseStatusException exception = assertThrows(
-                ResponseStatusException.class,
-                () -> service.getQuestion(999L));
-
-        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
-        verify(repository).findById(999L);
-        verifyNoMoreInteractions(repository);
-    }
-
-    private InterviewQuestion question(Long id, String category, String type, String content) {
-        InterviewQuestion question = new InterviewQuestion();
-        setField(question, "id", id);
-        setField(question, "category", category);
-        setField(question, "questionType", type);
-        setField(question, "content", content);
-        return question;
-    }
-
-    private void setField(InterviewQuestion question, String fieldName, Object value) {
-        try {
-            Field field = InterviewQuestion.class.getDeclaredField(fieldName);
-            field.setAccessible(true);
-            field.set(question, value);
-        } catch (ReflectiveOperationException exception) {
-            throw new AssertionError("Could not set test field: " + fieldName, exception);
+    private void printResults(String label, List<InterviewQuestionResponse> results) {
+        System.out.printf("%n[%s] 총 %d건%n", label, results.size());
+        if (results.isEmpty()) {
+            System.out.println("테이블에 조회할 데이터가 없습니다.");
+            return;
         }
+
+        results.forEach(result -> System.out.printf(
+                "ID: %d | 분류: %s | 질문 유형: %s | 질문: %s%n",
+                result.id(),
+                result.category(),
+                result.questionType(),
+                result.content()));
     }
 }

@@ -1,0 +1,9 @@
+# Copy this file to application-test.properties and replace the password locally.
+spring.datasource.url=jdbc:mysql://127.0.0.1:3306/careerpulse_mvp_dev?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+spring.datasource.username=root
+spring.datasource.password=YOUR_LOCAL_MYSQL_PASSWORD
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+# Validate the existing table; do not create or modify the schema from tests.
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.show-sql=true
