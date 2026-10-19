@@ -1,6 +1,6 @@
 export async function signup(data) {
   const response = await fetch(
-    "http://localhost:8080/api/v1/auth/signup",
+    "/api/v1/auth/signup",
     {
       method: "POST",
       headers: {
@@ -24,7 +24,7 @@ export async function signup(data) {
 
 export async function login(data) {
   const response = await fetch(
-    "http://localhost:8080/api/v1/auth/login",
+    "/api/v1/auth/login",
     {
       method: "POST",
       headers: {
@@ -48,7 +48,7 @@ export async function login(data) {
 
 export async function getMyInfo() {
   const response = await fetch(
-    "http://localhost:8080/api/v1/users/me",
+    "/api/v1/users/me",
     {
       method: "GET",
       credentials: "include",
@@ -68,7 +68,7 @@ export async function getMyInfo() {
 
 export async function logout() {
   const csrfResponse = await fetch(
-    "http://localhost:8080/api/v1/auth/csrf",
+    "/api/v1/auth/csrf",
     {
       method: "GET",
       credentials: "include",
@@ -78,7 +78,7 @@ export async function logout() {
   const csrf = await csrfResponse.json();
 
   const response = await fetch(
-    "http://localhost:8080/api/v1/auth/logout",
+    "/api/v1/auth/logout",
     {
       method: "POST",
       headers: {
