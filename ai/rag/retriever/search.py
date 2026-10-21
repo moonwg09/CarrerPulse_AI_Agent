@@ -1,4 +1,5 @@
 """하이브리드 검색 (SRS RAG-01)."""
+import os
 from typing import List, Tuple
 
 from .models import RetrievalResult
@@ -9,6 +10,9 @@ import numpy as np
 DEFAULT_TOP_K = 3
 DEFAULT_ALPHA = 0.5        # 임베딩 가중치(나머지는 키워드 가중치) # TODO: 최적값 탐색(현재는 0.5가 baseline)
 DEFAULT_MIN_SCORE = 0.15   # 이 값이 RAG-03('근거 부족')의 경계선
+DEFAULT_MIN_DENSE_SCORE = float(
+    os.getenv("RAG_MIN_DENSE_SCORE", "0.45")
+)
 
 
 def search(
@@ -18,6 +22,7 @@ def search(
     top_k: int = DEFAULT_TOP_K,
     alpha: float = DEFAULT_ALPHA,
     min_score: float = DEFAULT_MIN_SCORE,
+    min_dense_score: float = DEFAULT_MIN_DENSE_SCORE,
 ) -> List[Tuple[float, object]]:
     """RetrievalChunk를 검색하고 원본 Evidence를 반환한다.
 
@@ -33,11 +38,16 @@ def search(
         alpha=alpha,
     )
 
-    # 낮은 검색 점수 제거
+    # Hybrid 점수뿐 아니라 원본 검색 신호가 실제로 존재하는지 확인한다.
+    # 후보 간 상대 순위만으로 무관한 문서가 1.0이 되는 문제를 막는다.
     results = [
         result
         for result in results
         if result.score >= min_score
+        and (
+            result.raw_dense_score >= min_dense_score
+            or result.raw_keyword_score > 0.0
+        )
     ]
 
     return _resolve_retrieval_results(
@@ -187,23 +197,22 @@ def build_query(requirement: dict) -> str:
     return f'{requirement["text"]} {requirement["needed_experience"]}'
 
 
-def _normalize_scores(score_by_chunk_id: dict) -> dict:
-    """검색 점수를 0~1 범위로 min-max 정규화한다."""
-    if not score_by_chunk_id:
-        return {}
-
-    values = list(score_by_chunk_id.values())
-    min_score = min(values)
-    max_score = max(values)
-
-    if max_score == min_score:
-        return {
-            chunk_id: 1.0
-            for chunk_id in score_by_chunk_id
-        }
-
+def _normalize_dense_scores(score_by_chunk_id: dict) -> dict:
+    """코사인 유사도를 후보 집합과 무관한 0~1 값으로 제한한다."""
     return {
-        chunk_id: (score - min_score) / (max_score - min_score)
+        chunk_id: min(1.0, max(0.0, score))
+        for chunk_id, score in score_by_chunk_id.items()
+    }
+
+
+def _normalize_keyword_scores(score_by_chunk_id: dict) -> dict:
+    """양수 BM25 점수를 포화 함수로 0~1 범위에 변환한다."""
+    return {
+        chunk_id: (
+            score / (1.0 + score)
+            if score > 0.0
+            else 0.0
+        )
         for chunk_id, score in score_by_chunk_id.items()
     }
 
@@ -301,8 +310,8 @@ def _hybrid_search_chunks(
     # 3. normalization
     # -------------------------
 
-    normalized_dense = _normalize_scores(dense_scores)
-    normalized_bm25 = _normalize_scores(bm25_scores)
+    normalized_dense = _normalize_dense_scores(dense_scores)
+    normalized_bm25 = _normalize_keyword_scores(bm25_scores)
 
     # -------------------------
     # 4. hybrid score
@@ -330,6 +339,14 @@ def _hybrid_search_chunks(
                 section=chunk.section,
                 title=chunk.title,
                 evidence_ids=chunk.evidence_ids.copy(),
+                raw_dense_score=round(
+                    dense_scores.get(chunk.chunk_id, 0.0),
+                    6,
+                ),
+                raw_keyword_score=round(
+                    bm25_scores.get(chunk.chunk_id, 0.0),
+                    6,
+                ),
             )
         )
 

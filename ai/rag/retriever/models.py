@@ -25,3 +25,7 @@ class RetrievalResult:
     title: str
 
     evidence_ids: List[str] = field(default_factory=list)
+
+    # 상대 정규화 이전의 실제 검색 신호. 근거 부족 판정에 사용한다.
+    raw_dense_score: float = 0.0
+    raw_keyword_score: float = 0.0
