@@ -56,7 +56,7 @@ def _dense_search_chunks(
 ):
     """RetrievalChunk를 대상으로 dense 검색한다.
 
-    현재 단계에서는 bge-m3 cosine similarity만 사용한다.
+    현재 단계에서는 Qwen3 embedding cosine similarity를 사용한다.
     Embedder가 normalize_embeddings=True이므로 dot product를
     cosine similarity로 사용할 수 있다.
     """
@@ -65,7 +65,12 @@ def _dense_search_chunks(
         return []
 
     # query embedding
-    query_vector = store.embedder.encode([query])[0]
+    encode_queries = getattr(
+        store.embedder,
+        "encode_queries",
+        store.embedder.encode,
+    )
+    query_vector = encode_queries([query])[0]
 
     scored = []
 
@@ -225,7 +230,12 @@ def _hybrid_search_chunks(
     # 1. Dense score
     # -------------------------
 
-    query_vector = store.embedder.encode([query])[0]
+    encode_queries = getattr(
+        store.embedder,
+        "encode_queries",
+        store.embedder.encode,
+    )
+    query_vector = encode_queries([query])[0]
 
     dense_scores = {}
 

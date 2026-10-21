@@ -11,3 +11,4 @@ dependencies:
       - uvicorn==0.53.0
       - google-genai==2.32.0
       - python-dotenv==1.2.4
+      - sentence-transformers==6.1.0

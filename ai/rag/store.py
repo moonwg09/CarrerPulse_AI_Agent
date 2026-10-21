@@ -42,7 +42,7 @@ def get_store() -> VectorStore:
 
 
 def embedding_mode() -> str:
-    """현재 사용 중인 임베딩 방식(bge-m3 / fallback)."""
+    """현재 사용 중인 임베딩 방식(qwen3 / fallback)."""
     get_store()
     return _embedder.mode if _embedder else "unknown"
 

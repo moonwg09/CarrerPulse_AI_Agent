@@ -1,37 +1,94 @@
 """임베딩과 벡터 보관 (SRS RAG-01)."""
 import hashlib
+import os
 from typing import Dict, List, Tuple
 
 import numpy as np
+from dotenv import load_dotenv
 
-DEFAULT_MODEL = "BAAI/bge-m3"
+
+load_dotenv()
+
+DEFAULT_MODEL = "Qwen/Qwen3-Embedding-0.6B"
 FALLBACK_DIM = 512
+QUERY_PROMPT_NAME = "query"
+
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 class Embedder:
     """문장을 벡터로 바꾼다.
 
-    sentence-transformers가 설치되어 있으면 bge-m3를 쓰고, 없으면 해시 기반
-    대체 임베딩으로 내려간다. 대체 임베딩은 흐름 확인용이며 검색 품질이 낮다.
+    기본 모델은 Qwen3-Embedding-0.6B다. 운영·시연 환경에서는 모델 적재에
+    실패하면 명시적으로 중단한다. 해시 임베딩은 테스트에서 환경변수로
+    허용한 경우에만 사용한다.
     """
 
-    def __init__(self, model_name: str = DEFAULT_MODEL):
-        # 실제 모델 적재를 시도하고, 실패하면 대체 모드로 남는다(설치 없이도 실행 가능).
-        self.model_name = model_name
+    def __init__(
+        self,
+        model_name: str | None = None,
+        device: str | None = None,
+        allow_fallback: bool | None = None,
+        model=None,
+        model_loader=None,
+    ):
+        self.model_name = model_name or os.getenv(
+            "RAG_EMBEDDING_MODEL",
+            DEFAULT_MODEL,
+        )
+        self.device = device or os.getenv("RAG_EMBEDDING_DEVICE", "cpu")
+        self.allow_fallback = (
+            _env_flag("RAG_ALLOW_HASH_FALLBACK")
+            if allow_fallback is None
+            else allow_fallback
+        )
         self.mode = "fallback"
-        self.model = None
-        try:
-            from sentence_transformers import SentenceTransformer
+        self.model = model
 
-            self.model = SentenceTransformer(model_name)
-            self.mode = "bge-m3"
-        except Exception:
-            pass
+        if self.model is not None:
+            self.mode = "qwen3"
+            return
+
+        try:
+            if model_loader is None:
+                from sentence_transformers import SentenceTransformer
+
+                model_loader = SentenceTransformer
+
+            self.model = model_loader(
+                self.model_name,
+                device=self.device,
+            )
+            self.mode = "qwen3"
+        except Exception as exc:
+            if not self.allow_fallback:
+                raise RuntimeError(
+                    f"임베딩 모델을 불러오지 못했습니다: {self.model_name}"
+                ) from exc
+
+    def encode_documents(self, texts: List[str]) -> np.ndarray:
+        """색인 대상 문서를 Qwen document 방식으로 임베딩한다."""
+        return self._encode(texts, is_query=False)
+
+    def encode_queries(self, texts: List[str]) -> np.ndarray:
+        """검색 질의에 Qwen의 query instruction을 적용해 임베딩한다."""
+        return self._encode(texts, is_query=True)
 
     def encode(self, texts: List[str]) -> np.ndarray:
-        """문장 목록을 벡터 배열로 변환한다."""
+        """기존 호출 호환용 문서 임베딩."""
+        return self.encode_documents(texts)
+
+    def _encode(self, texts: List[str], is_query: bool) -> np.ndarray:
         if self.model is not None:
-            return np.asarray(self.model.encode(texts, normalize_embeddings=True))
+            options = {"normalize_embeddings": True}
+            if is_query:
+                options["prompt_name"] = QUERY_PROMPT_NAME
+            return np.asarray(self.model.encode(texts, **options))
 
         # 대체 구현: 단어를 해시해 고정 길이 벡터의 자리에 세고, 길이를 1로 맞춘다.
         # 코사인 유사도를 내적만으로 계산할 수 있게 하려는 정규화다.
@@ -101,7 +158,12 @@ class VectorStore:
             return
 
         texts = [chunk.text for chunk in chunks]
-        vecs = self.embedder.encode(texts)
+        encode_documents = getattr(
+            self.embedder,
+            "encode_documents",
+            self.embedder.encode,
+        )
+        vecs = encode_documents(texts)
 
         for chunk in chunks:
             key = (chunk.user_id, chunk.chunk_id)
