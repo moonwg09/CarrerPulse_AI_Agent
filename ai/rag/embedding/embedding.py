@@ -1,0 +1,205 @@
+"""임베딩과 벡터 보관 (SRS RAG-01)."""
+import hashlib
+from typing import Dict, List, Tuple
+
+import numpy as np
+
+DEFAULT_MODEL = "BAAI/bge-m3"
+FALLBACK_DIM = 512
+
+
+class Embedder:
+    """문장을 벡터로 바꾼다.
+
+    sentence-transformers가 설치되어 있으면 bge-m3를 쓰고, 없으면 해시 기반
+    대체 임베딩으로 내려간다. 대체 임베딩은 흐름 확인용이며 검색 품질이 낮다.
+    """
+
+    def __init__(self, model_name: str = DEFAULT_MODEL):
+        # 실제 모델 적재를 시도하고, 실패하면 대체 모드로 남는다(설치 없이도 실행 가능).
+        self.model_name = model_name
+        self.mode = "fallback"
+        self.model = None
+        try:
+            from sentence_transformers import SentenceTransformer
+
+            self.model = SentenceTransformer(model_name)
+            self.mode = "bge-m3"
+        except Exception:
+            pass
+
+    def encode(self, texts: List[str]) -> np.ndarray:
+        """문장 목록을 벡터 배열로 변환한다."""
+        if self.model is not None:
+            return np.asarray(self.model.encode(texts, normalize_embeddings=True))
+
+        # 대체 구현: 단어를 해시해 고정 길이 벡터의 자리에 세고, 길이를 1로 맞춘다.
+        # 코사인 유사도를 내적만으로 계산할 수 있게 하려는 정규화다.
+        vecs = np.zeros((len(texts), FALLBACK_DIM), dtype="float32")
+        for i, t in enumerate(texts):
+            for tok in t.replace("\n", " ").split():
+                h = int(hashlib.md5(tok.encode()).hexdigest(), 16) % FALLBACK_DIM
+                vecs[i, h] += 1.0
+            vecs[i] /= (np.linalg.norm(vecs[i]) or 1.0)
+        return vecs
+
+
+class VectorStore:
+    """메모리 기반 Evidence / RetrievalChunk / Vector 저장소
+
+    Evidence:
+        사용자 문서에서 추출한 원문 근거
+
+    RetrievalChunk:
+        검색을 위해 여러 Evidence와 문맥을 묶은 단위
+
+    Vector:
+        RetrievalChunk.text를 임베딩한 값
+
+    운영 환경에서는 각각 DB + pgvector/Chroma 등으로 교체 가능
+    """
+
+    def __init__(self, embedder: Embedder):
+        self.embedder = embedder
+
+        # Evidence/Chunk의 표시용 ID는 사용자마다 EV-0001/CH-0001부터 시작한다.
+        # 따라서 저장 키에는 user_id를 포함해야 다른 사용자의 자료가 덮어써지지 않는다.
+        self.evidence_by_key: Dict[Tuple[int, str], object] = {}
+
+        self.chunk_by_key: Dict[Tuple[int, str], object] = {}
+
+        # vector의 각 행과 대응하는 (user_id, chunk_id)
+        self.vector_chunk_keys: List[Tuple[int, str]] = []
+
+        # RetrievalChunk.text embedding
+        self.vectors = None
+
+    @property
+    def evidences(self):
+        """기존 코드 호환용 Evidence 목록"""
+        return list(self.evidence_by_key.values())
+
+    @property
+    def chunks(self):
+        """현재 저장된 RetrievalChunk 목록"""
+        return list(self.chunk_by_key.values())
+
+    @property
+    def vector_chunk_ids(self):
+        """기존 단일 사용자 테스트와 출력 형식을 위한 Chunk ID 목록."""
+        return [chunk_id for _, chunk_id in self.vector_chunk_keys]
+
+    def add_evidences(self, evidences):
+        """Evidence를 원문 근거 저장소에 보관"""
+        for evidence in evidences:
+            key = (evidence.user_id, evidence.evidence_id)
+            self.evidence_by_key[key] = evidence
+
+    def add_chunks(self, chunks):
+        """RetrievalChunk를 임베딩하고 검색 저장소에 보관"""
+        if not chunks:
+            return
+
+        texts = [chunk.text for chunk in chunks]
+        vecs = self.embedder.encode(texts)
+
+        for chunk in chunks:
+            key = (chunk.user_id, chunk.chunk_id)
+            chunk.embedding_ref = f"vec:{chunk.user_id}:{chunk.chunk_id}"
+            self.chunk_by_key[key] = chunk
+            self.vector_chunk_keys.append(key)
+
+        self.vectors = (
+            vecs
+            if self.vectors is None
+            else np.vstack([self.vectors, vecs])
+        )
+
+    def add_document(self, evidences, chunks): # 새 v2 경로
+        """한 문서에서 생성된 Evidence와 RetrievalChunk를 함께 저장"""
+        self.add_evidences(evidences)
+        self.add_chunks(chunks)
+
+    def add(self, evidences):  # legacy 임시 경로
+        """Legacy Evidence 저장 호환용.
+
+        Legacy PDF / text / analysis-json 경로의 Evidence는 보관하지만,
+        Evidence 자체를 RetrievalChunk vector 저장소에 넣지는 않는다.
+
+        검색 vector는 RetrievalChunk만 관리한다.
+        """
+        if not evidences:
+            return
+
+        self.add_evidences(evidences)
+
+    def get_evidence(self, evidence_id: str, user_id: int):
+        """현재 사용자의 evidence_id로 원문 Evidence를 조회한다."""
+        return self.evidence_by_key.get((user_id, evidence_id))
+
+    def get_chunk(self, chunk_id: str, user_id: int):
+        """현재 사용자의 chunk_id로 RetrievalChunk를 조회한다."""
+        return self.chunk_by_key.get((user_id, chunk_id))
+
+    def resolve_evidences(self, evidence_ids, user_id: int):
+        """검색된 RetrievalChunk의 evidence_ids를 실제 Evidence로 복원"""
+        return [
+            self.evidence_by_key[(user_id, evidence_id)]
+            for evidence_id in evidence_ids
+            if (user_id, evidence_id) in self.evidence_by_key
+        ]
+
+    def delete_by_document(self, user_id: int, document_id: int) -> int:
+        """사용자가 소유한 문서의 Evidence, Chunk, Vector만 삭제한다."""
+
+        # 삭제 전 Evidence 개수.
+        removed_evidence_count = sum(
+            1
+            for evidence in self.evidence_by_key.values()
+            if evidence.user_id == user_id and evidence.document_id == document_id
+        )
+
+        # Evidence 삭제
+        self.evidence_by_key = {
+            key: evidence
+            for key, evidence in self.evidence_by_key.items()
+            if not (
+                evidence.user_id == user_id
+                and evidence.document_id == document_id
+            )
+        }
+
+        # 삭제 대상 chunk 식별
+        removed_chunk_keys = {
+            key
+            for key, chunk in self.chunk_by_key.items()
+            if chunk.user_id == user_id and chunk.document_id == document_id
+        }
+
+        # Chunk 삭제
+        self.chunk_by_key = {
+            key: chunk
+            for key, chunk in self.chunk_by_key.items()
+            if key not in removed_chunk_keys
+        }
+
+        # Chunk vector 삭제
+        if removed_chunk_keys and self.vectors is not None:
+            keep_indices = [
+                i
+                for i, key in enumerate(self.vector_chunk_keys)
+                if key not in removed_chunk_keys
+            ]
+
+            self.vector_chunk_keys = [
+                self.vector_chunk_keys[i]
+                for i in keep_indices
+            ]
+
+            self.vectors = (
+                self.vectors[keep_indices]
+                if keep_indices
+                else None
+            )
+
+        return removed_evidence_count
