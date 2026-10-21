@@ -51,6 +51,71 @@ class RagBatchValidationResult(
     ]
 
 
+EVIDENCE_REQUIRED_STATUSES = {
+    MatchStatus.EXPERIENCED,
+    MatchStatus.PARTIAL,
+}
+
+
+def _evidence_text_key(evidence: Evidence) -> tuple[str, str]:
+    """Legacy Evidence를 원문과 출처로 식별한다."""
+    normalized_text = " ".join(evidence.text.split())
+    source = (
+        evidence.source.value
+        if hasattr(evidence.source, "value")
+        else str(evidence.source)
+    )
+    return normalized_text, source
+
+
+def sanitize_cited_evidence(
+    cited_evidence: List[Evidence],
+    allowed_evidence: List[Evidence],
+) -> List[Evidence]:
+    """LLM이 실제로 제공받은 Evidence만 인용하도록 제한한다.
+
+    RAG v2 Evidence는 evidenceId로 검증하고 원본 객체를 복원한다.
+    ID가 없는 기존 main Evidence는 원문과 출처가 정확히 같은 경우만 허용한다.
+    """
+    allowed_by_id = {
+        evidence.evidenceId: evidence
+        for evidence in allowed_evidence
+        if evidence.evidenceId
+    }
+    allowed_legacy = {
+        _evidence_text_key(evidence): evidence
+        for evidence in allowed_evidence
+        if not evidence.evidenceId
+    }
+
+    sanitized = []
+    seen = set()
+
+    for cited in cited_evidence:
+        original = None
+
+        if cited.evidenceId:
+            original = allowed_by_id.get(cited.evidenceId)
+        else:
+            original = allowed_legacy.get(_evidence_text_key(cited))
+
+        if original is None:
+            continue
+
+        key = (
+            ("id", original.evidenceId)
+            if original.evidenceId
+            else ("legacy",) + _evidence_text_key(original)
+        )
+        if key in seen:
+            continue
+
+        seen.add(key)
+        sanitized.append(original.model_copy(deep=True))
+
+    return sanitized
+
+
 # -------------------------------------------------
 # 1. RAG 재검증 대상 여부 판단
 # -------------------------------------------------
@@ -307,6 +372,12 @@ Spring Boot 경험을 자동 확정하지 않습니다.
 20. 입력 순서와 출력 matches의 순서를
     반드시 동일하게 유지합니다.
 
+21. RAG Evidence를 사용했다면 제공된 evidenceId를
+    변경하지 말고 userEvidence에 그대로 포함합니다.
+
+22. 제공되지 않은 evidenceId를 생성하거나
+    다른 Evidence의 원문으로 바꾸지 않습니다.
+
 
 ====================
 RAG 재검증 대상
@@ -515,6 +586,15 @@ def validate_match_result_with_rag(
             current_match.jobEvidence
         )
 
+        allowed_evidence = [
+            *current_match.userEvidence,
+            *validation_item["ragEvidence"],
+        ]
+        validated_match.userEvidence = sanitize_cited_evidence(
+            cited_evidence=validated_match.userEvidence,
+            allowed_evidence=allowed_evidence,
+        )
+
         # -----------------------------------------
         # RAG 재검증 단계에서
         # 새로운 NO_EXPERIENCE 생성 방지
@@ -526,6 +606,19 @@ def validate_match_result_with_rag(
             validated_match.status = (
                 MatchStatus
                 .INSUFFICIENT_EVIDENCE
+            )
+
+        # 실제 입력으로 제공된 Evidence를 하나도 인용하지 못했다면
+        # EXPERIENCED/PARTIAL 판정을 허용하지 않는다.
+        if (
+            validated_match.status in EVIDENCE_REQUIRED_STATUSES
+            and not validated_match.userEvidence
+        ):
+            validated_match.status = MatchStatus.INSUFFICIENT_EVIDENCE
+            validated_match.matchedSkills = []
+            validated_match.reason = (
+                "검증 가능한 사용자 Evidence 인용이 없어 "
+                "경험 여부를 확정할 수 없습니다."
             )
 
         match_result.requirementMatches[
