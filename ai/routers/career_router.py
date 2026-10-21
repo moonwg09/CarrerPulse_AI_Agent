@@ -19,13 +19,13 @@ from services.document_parser import extract_document
 from services.learning_candidate_service import build_learning_candidates
 from services.learning_plan_generator import generate_learning_plan
 from services.learning_priority import calculate_learning_priority
-from services.rag_chunk_service import create_document_chunks
-from services.rag_embedding_service import embed_document_chunks
 from services.recommendation_service import (
     build_growth_candidate_list,
     build_recommendation_list,
 )
 from services.requirement_frequency import calculate_requirement_frequency
+from rag.parser import ParseError
+from rag.store import embedding_mode, get_store, index_file
 
 
 TEMP_DIR = Path("temp_uploads")
@@ -67,6 +67,11 @@ def save_temp_file(file: UploadFile) -> Path:
     return temp_path
 
 
+def new_document_id() -> int:
+    """DB 연동 전 시연용 문서 ID. Spring 연동 후 전달받은 ID로 교체한다."""
+    return uuid.uuid4().int % 2_147_483_647 or 1
+
+
 @router.post("/analyze-job-files")
 def analyze_job_with_files(
     jobText1: str = Form(...),
@@ -79,10 +84,15 @@ def analyze_job_with_files(
     resume: UploadFile = File(...),
     selfIntro: UploadFile = File(...),
     portfolio: Optional[UploadFile] = File(None),
+    userId: int = Form(1),
+    ragConsent: bool = Form(True),
 ):
     saved_files: list[Path] = []
 
     try:
+        if userId <= 0:
+            raise HTTPException(status_code=400, detail="userId는 1 이상이어야 합니다.")
+
         print("\n" + "=" * 70)
         print("Career Agent 파일 분석 시작")
         print("=" * 70)
@@ -126,42 +136,42 @@ def analyze_job_with_files(
 
         print("[3] Gemini 사용자 문서 분석 완료")
 
-        # 4. RAG chunk 생성
-        print("[4] RAG chunk 생성 시작")
+        # 4~5. RAG v2 Evidence / RetrievalChunk / Embedding 생성
+        print("[4-5] RAG v2 문서 색인 시작")
 
-        resume_chunks = create_document_chunks(
-            parsed_items=resume_contents,
-            document_type="RESUME",
-            chunk_size=700,
-            overlap=100,
-        )
+        upload_documents = [
+            (resume, resume_path, "resume"),
+            (selfIntro, self_intro_path, "self_intro"),
+        ]
+        if portfolio is not None and portfolio_path is not None:
+            upload_documents.append((portfolio, portfolio_path, "portfolio"))
 
-        self_intro_chunks = create_document_chunks(
-            parsed_items=self_intro_contents,
-            document_type="SELF_INTRO",
-            chunk_size=700,
-            overlap=100,
-        )
-
-        rag_chunks = resume_chunks + self_intro_chunks
-
-        if portfolio_contents is not None:
-            portfolio_chunks = create_document_chunks(
-                parsed_items=portfolio_contents,
-                document_type="PORTFOLIO",
-                chunk_size=700,
-                overlap=100,
+        indexed_documents = []
+        for upload, path, document_type in upload_documents:
+            document_id = new_document_id()
+            index_result = index_file(
+                user_id=userId,
+                document_id=document_id,
+                doc_type=document_type,
+                source=str(path),
+                filename=upload.filename or path.name,
+                consented=ragConsent,
+                size_bytes=path.stat().st_size,
             )
-            rag_chunks += portfolio_chunks
+            indexed_documents.append(
+                {
+                    "documentId": document_id,
+                    "documentType": document_type,
+                    "evidenceCount": len(index_result["evidence_ids"]),
+                    "extractionMethod": index_result["extraction_method"],
+                }
+            )
 
-        print(f"[4] RAG chunk 생성 완료: {len(rag_chunks)}개")
-
-        # 5. Embedding 생성
-        print("[5] RAG embedding 시작")
-
-        embedded_chunks = embed_document_chunks(rag_chunks)
-
-        print(f"[5] RAG embedding 완료: {len(embedded_chunks)}개")
+        rag_store = get_store()
+        print(
+            f"[4-5] RAG v2 문서 색인 완료: "
+            f"{sum(item['evidenceCount'] for item in indexed_documents)}개 Evidence"
+        )
 
         # 6. Agent 생성
         print("[6] Career Agent 생성 시작")
@@ -198,7 +208,9 @@ def analyze_job_with_files(
             state = {
                 "jobText": job["text"],
                 "userAnalysis": user_analysis,
-                "embeddedChunks": embedded_chunks,
+                "embeddedChunks": [],
+                "userId": userId,
+                "ragStore": rag_store,
                 "jobAnalysis": None,
                 "matchResult": None,
             }
@@ -293,6 +305,10 @@ def analyze_job_with_files(
         print(f"성장 후보: {len(growth_candidates)}개")
 
         return {
+            "ragIndex": {
+                "embeddingMode": embedding_mode(),
+                "documents": indexed_documents,
+            },
             "matchResults": match_results,
             "recommendations": recommendations,
             "growthCandidates": growth_candidates,
@@ -340,6 +356,15 @@ def analyze_job_with_files(
             detail=str(e),
         )
 
+    except ParseError as e:
+        print("\n[ERROR] 문서 파싱 실패")
+        print(f"[ERROR DETAIL] {e.code}: {e.message}")
+
+        raise HTTPException(
+            status_code=400,
+            detail={"code": e.code, "message": e.message},
+        )
+
     except HTTPException:
         raise
 
@@ -381,6 +406,8 @@ def analyze_job_with_agent(
             "jobText": request.jobText,
             "userAnalysis": request.userAnalysis,
             "embeddedChunks": request.embeddedChunks,
+            "userId": None,
+            "ragStore": None,
             "jobAnalysis": None,
             "matchResult": None,
         }

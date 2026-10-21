@@ -1,8 +1,6 @@
 import os
 from typing import Dict, List, Optional
 
-from dotenv import load_dotenv
-from google import genai
 from pydantic import BaseModel
 
 from schemas.document_schema import (
@@ -26,9 +24,7 @@ from schemas.rag_schema import (
     RagSearchResult,
 )
 
-from services.rag_retriever import (
-    retrieve_requirement_evidence,
-)
+from services.rag_v2_adapter import retrieve_requirement_evidence_v2
 
 from services.match_score import (
     calculate_match_score,
@@ -43,21 +39,18 @@ from services.match_warning import (
 )
 
 
-load_dotenv()
+def _get_gemini_client():
+    """실제 재검증을 실행할 때만 SDK와 API 키를 확인한다."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY가 설정되어 있지 않습니다.")
 
-api_key = os.getenv(
-    "GEMINI_API_KEY"
-)
+    try:
+        from google import genai
+    except ImportError as exc:
+        raise RuntimeError("google-genai 패키지가 설치되어 있지 않습니다.") from exc
 
-if not api_key:
-    raise ValueError(
-        "GEMINI_API_KEY가 설정되어 있지 않습니다."
-    )
-
-
-client = genai.Client(
-    api_key=api_key
-)
+    return genai.Client(api_key=api_key)
 
 
 # -------------------------------------------------
@@ -339,6 +332,8 @@ RAG 재검증 대상
     # ---------------------------------------------
     # 공고 하나당 Gemini 재검증 1회
     # ---------------------------------------------
+    client = _get_gemini_client()
+
     response = client.models.generate_content(
         model="gemini-3.5-flash-lite",
         contents=prompt,
@@ -375,9 +370,9 @@ def validate_match_result_with_rag(
     user_analysis: DocumentAnalysisResult,
     job_analysis: JobAnalysisResult,
     match_result: JobMatchResult,
-    embedded_chunks: List[
-        EmbeddedDocumentChunk
-    ],
+    embedded_chunks: Optional[List[EmbeddedDocumentChunk]] = None,
+    rag_store=None,
+    user_id: Optional[int] = None,
     top_k: int = 3,
 ) -> JobMatchResult:
 
@@ -419,26 +414,29 @@ def validate_match_result_with_rag(
         # 검색은 각각 수행
         # Gemini 판단만 나중에 한 번에 수행
         # -----------------------------------------
-        rag_results = (
-            retrieve_requirement_evidence(
+        if rag_store is not None and user_id is not None:
+            rag_evidence = retrieve_requirement_evidence_v2(
+                store=rag_store,
                 requirement=requirement,
-                embedded_chunks=(
-                    embedded_chunks
-                ),
+                user_id=user_id,
                 top_k=top_k,
             )
-        )
+        else:
+            # 기존 JSON API 호환 경로. 신규 파일 분석은 RAG v2를 우선 사용한다.
+            from services.rag_retriever import retrieve_requirement_evidence
+
+            rag_results = retrieve_requirement_evidence(
+                requirement=requirement,
+                embedded_chunks=embedded_chunks or [],
+                top_k=top_k,
+            )
+
+            rag_evidence = convert_rag_results_to_evidence(rag_results)
 
         # 검색 결과가 없으면
         # 기존 상태 그대로 유지
-        if not rag_results:
+        if not rag_evidence:
             continue
-
-        rag_evidence = (
-            convert_rag_results_to_evidence(
-                rag_results
-            )
-        )
 
         validation_items.append(
             {
