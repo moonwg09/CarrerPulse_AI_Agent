@@ -40,6 +40,12 @@ class Evidence(BaseModel):
     page: Optional[int] = None
     paragraphIndex: Optional[int] = None
 
+    # RAG v2가 반환하는 원본 근거 추적 정보. 기존 API 필드는 그대로 유지한다.
+    evidenceId: Optional[str] = None
+    documentId: Optional[int] = None
+    sourceLocation: Optional[str] = None
+    retrievalScore: Optional[float] = None
+
 
 class BasicProfile(BaseModel):
     targetJob: Optional[str] = None
@@ -117,4 +123,3 @@ class DocumentAnalysisResult(BaseModel):
     certificates: List[Certificate] = Field(default_factory=list)
     competencies: List[Competency] = Field(default_factory=list)
     coverLetterSections: List[CoverLetterSection] = Field(default_factory=list)
-    
