@@ -1,4 +1,3 @@
-import os
 from typing import Dict, List, Optional
 
 from pydantic import BaseModel
@@ -37,20 +36,7 @@ from services.recommendation_classifier import (
 from services.match_warning import (
     build_match_warnings,
 )
-
-
-def _get_gemini_client():
-    """실제 재검증을 실행할 때만 SDK와 API 키를 확인한다."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        raise RuntimeError("GEMINI_API_KEY가 설정되어 있지 않습니다.")
-
-    try:
-        from google import genai
-    except ImportError as exc:
-        raise RuntimeError("google-genai 패키지가 설치되어 있지 않습니다.") from exc
-
-    return genai.Client(api_key=api_key)
+from services.gemini_client import GEMINI_MODEL, get_gemini_client
 
 
 # -------------------------------------------------
@@ -332,10 +318,10 @@ RAG 재검증 대상
     # ---------------------------------------------
     # 공고 하나당 Gemini 재검증 1회
     # ---------------------------------------------
-    client = _get_gemini_client()
+    client = get_gemini_client()
 
     response = client.models.generate_content(
-        model="gemini-3.5-flash-lite",
+        model=GEMINI_MODEL,
         contents=prompt,
         config={
             "response_mime_type": (

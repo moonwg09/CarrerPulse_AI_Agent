@@ -1,26 +1,17 @@
-import os
 import time
 
-from dotenv import load_dotenv
-from google import genai
 from google.genai import errors
 
 from schemas.job_schema import JobAnalysisResult
+from services.gemini_client import GEMINI_MODEL, get_gemini_client
 
-
-load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-
-if not api_key:
-    raise ValueError("GEMINI_API_KEY가 설정되어 있지 않습니다.")
-
-client = genai.Client(api_key=api_key)
 
 
 def analyze_job_posting(
     job_posting_text: str
 ) -> JobAnalysisResult:
+
+    client = get_gemini_client()
 
     prompt = f"""
 당신은 채용공고를 분석하는 AI 시스템입니다.
@@ -276,7 +267,7 @@ JOB POSTING
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model="gemini-3.5-flash-lite",
+                model=GEMINI_MODEL,
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",

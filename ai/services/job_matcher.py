@@ -1,8 +1,5 @@
-import os
 import time
 
-from dotenv import load_dotenv
-from google import genai
 from google.genai import errors
 from pathlib import Path
 
@@ -13,16 +10,8 @@ from schemas.match_schema import MatchStatus
 from services.match_score import calculate_match_score
 from services.recommendation_classifier import classify_job
 from services.match_warning import build_match_warnings
+from services.gemini_client import GEMINI_MODEL, get_gemini_client
 
-
-load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-
-if not api_key:
-    raise ValueError("GEMINI_API_KEY가 설정되어 있지 않습니다.")
-
-client = genai.Client(api_key=api_key)
 
 def normalize_match_statuses(
     result: JobMatchResult
@@ -65,6 +54,8 @@ def match_user_to_job(
     user_analysis: DocumentAnalysisResult,
     job_analysis: JobAnalysisResult
 ) -> JobMatchResult:
+
+    client = get_gemini_client()
 
     print("사용자 JSON 로딩 성공")
     print("공고 JSON 로딩 성공")
@@ -267,7 +258,7 @@ JOB ANALYSIS
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model="gemini-3.5-flash-lite",
+                model=GEMINI_MODEL,
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",

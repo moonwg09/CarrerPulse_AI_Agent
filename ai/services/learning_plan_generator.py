@@ -1,11 +1,8 @@
 import json
-import os
 import time
 from math import ceil
 from typing import List
 
-from dotenv import load_dotenv
-from google import genai
 from google.genai import errors
 
 from schemas.learning_candidate_schema import (
@@ -15,27 +12,14 @@ from schemas.learning_plan_schema import (
     LearningPlanRequest,
     LearningPlanResult,
 )
+from services.gemini_client import GEMINI_MODEL, get_gemini_client
 
-
-load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-
-if not api_key:
-    raise ValueError(
-        "GEMINI_API_KEY가 설정되어 있지 않습니다."
-    )
-
-client = genai.Client(
-    api_key=api_key
-)
 
 
 def generate_learning_plan(
     priority_items: List[LearningCandidateItem],
     request: LearningPlanRequest,
 ) -> LearningPlanResult:
-
     # ---------------------------------------------
     # 1. 입력값 검증
     # ---------------------------------------------
@@ -245,12 +229,13 @@ def generate_learning_plan(
     # 5. Gemini 호출
     # ---------------------------------------------
     max_retries = 3
+    client = get_gemini_client()
 
     for attempt in range(max_retries):
 
         try:
             response = client.models.generate_content(
-                model="gemini-3.5-flash-lite",
+                model=GEMINI_MODEL,
                 contents=prompt,
                 config={
                     "response_mime_type": (
