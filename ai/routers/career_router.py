@@ -24,6 +24,7 @@ from services.recommendation_service import (
     build_recommendation_list,
 )
 from services.requirement_frequency import calculate_requirement_frequency
+from services.rag_validation_service import link_match_result_evidence_metadata
 from rag.parser import ParseError
 from rag.store import embedding_mode, get_store, index_file
 
@@ -219,6 +220,11 @@ def analyze_job_with_files(
 
             job_analysis = final_state["jobAnalysis"]
             match_result = final_state["matchResult"]
+            match_result = link_match_result_evidence_metadata(
+                match_result=match_result,
+                rag_store=rag_store,
+                user_id=userId,
+            )
 
             match_results.append(match_result)
 

@@ -1,8 +1,13 @@
 from rag.embedding.embedding import VectorStore
 from rag.processor.metadata import Evidence as RagEvidence
 from rag.processor.retrieval_chunk import RetrievalChunk
+from schemas.document_schema import DocumentType, Evidence
 from schemas.job_schema import ConditionType, JobRequirement, RequirementCategory
-from services.rag_v2_adapter import build_rag_v2_query, retrieve_requirement_evidence_v2
+from services.rag_v2_adapter import (
+    build_rag_v2_query,
+    link_indexed_evidence_metadata,
+    retrieve_requirement_evidence_v2,
+)
 from test.test_user_isolation import DeterministicEmbedder
 
 
@@ -59,6 +64,68 @@ def test_main_requirement_and_evidence_are_converted():
     assert results[0].source.value == "RESUME"
 
 
+def test_metadata_linking_is_user_scoped_and_rejects_ambiguous_sources():
+    vector_store = VectorStore(DeterministicEmbedder())
+    shared_text = "Java Spring Boot 서버를 구현했습니다."
+    vector_store.add_evidences(
+        [
+            RagEvidence(
+                evidence_id="EV-0001",
+                user_id=7,
+                document_id=31,
+                doc_type="resume",
+                section="project",
+                source_type="document",
+                source_location="문단 2",
+                evidence_text=shared_text,
+            ),
+            RagEvidence(
+                evidence_id="EV-0001",
+                user_id=8,
+                document_id=99,
+                doc_type="resume",
+                section="project",
+                source_type="document",
+                source_location="문단 9",
+                evidence_text=shared_text,
+            ),
+        ]
+    )
+
+    linked = link_indexed_evidence_metadata(
+        store=vector_store,
+        evidences=[Evidence(text=shared_text, source=DocumentType.RESUME)],
+        user_id=7,
+    )
+
+    assert linked[0].documentId == 31
+    assert linked[0].sourceLocation == "문단 2"
+
+    vector_store.add_evidences(
+        [
+            RagEvidence(
+                evidence_id="EV-0002",
+                user_id=7,
+                document_id=32,
+                doc_type="resume",
+                section="project",
+                source_type="document",
+                source_location="문단 4",
+                evidence_text=shared_text,
+            )
+        ]
+    )
+    ambiguous = link_indexed_evidence_metadata(
+        store=vector_store,
+        evidences=[Evidence(text=shared_text, source=DocumentType.RESUME)],
+        user_id=7,
+    )
+
+    assert ambiguous[0].evidenceId is None
+    assert ambiguous[0].documentId is None
+
+
 if __name__ == "__main__":
     test_main_requirement_and_evidence_are_converted()
+    test_metadata_linking_is_user_scoped_and_rejects_ambiguous_sources()
     print("RAG V2 ADAPTER TEST: PASS")

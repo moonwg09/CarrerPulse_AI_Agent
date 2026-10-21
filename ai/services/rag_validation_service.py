@@ -23,7 +23,10 @@ from schemas.rag_schema import (
     RagSearchResult,
 )
 
-from services.rag_v2_adapter import retrieve_requirement_evidence_v2
+from services.rag_v2_adapter import (
+    link_indexed_evidence_metadata,
+    retrieve_requirement_evidence_v2,
+)
 
 from services.match_score import (
     calculate_match_score,
@@ -87,6 +90,19 @@ def sanitize_cited_evidence(
         for evidence in allowed_evidence
         if not evidence.evidenceId
     }
+    rag_candidates_by_text = {}
+    for evidence in allowed_evidence:
+        if evidence.evidenceId:
+            rag_candidates_by_text.setdefault(
+                _evidence_text_key(evidence),
+                [],
+            ).append(evidence)
+
+    allowed_rag_by_text = {
+        key: candidates[0]
+        for key, candidates in rag_candidates_by_text.items()
+        if len(candidates) == 1
+    }
 
     sanitized = []
     seen = set()
@@ -97,7 +113,11 @@ def sanitize_cited_evidence(
         if cited.evidenceId:
             original = allowed_by_id.get(cited.evidenceId)
         else:
-            original = allowed_legacy.get(_evidence_text_key(cited))
+            text_key = _evidence_text_key(cited)
+            original = (
+                allowed_rag_by_text.get(text_key)
+                or allowed_legacy.get(text_key)
+            )
 
         if original is None:
             continue
@@ -517,6 +537,11 @@ def validate_match_result_with_rag(
             "RAG 재검증 대상 없음"
         )
 
+        link_match_result_evidence_metadata(
+            match_result=match_result,
+            rag_store=rag_store,
+            user_id=user_id,
+        )
         return match_result
 
     print(
@@ -625,6 +650,14 @@ def validate_match_result_with_rag(
             target_index
         ] = validated_match
 
+    # 1차 Matcher가 선택한 근거도 색인 원문과 정확히 일치하면
+    # Evidence ID와 문서 위치를 최종 응답에 연결한다.
+    link_match_result_evidence_metadata(
+        match_result=match_result,
+        rag_store=rag_store,
+        user_id=user_id,
+    )
+
     # ---------------------------------------------
     # RAG 적용 후 점수 다시 계산
     # ---------------------------------------------
@@ -651,5 +684,24 @@ def validate_match_result_with_rag(
             match_result
         )
     )
+
+    return match_result
+
+
+def link_match_result_evidence_metadata(
+    match_result: JobMatchResult,
+    rag_store,
+    user_id: Optional[int],
+) -> JobMatchResult:
+    """최종 비교 결과의 기존 근거를 RAG v2 원본 메타데이터와 연결한다."""
+    if rag_store is None or user_id is None:
+        return match_result
+
+    for requirement_match in match_result.requirementMatches:
+        requirement_match.userEvidence = link_indexed_evidence_metadata(
+            store=rag_store,
+            evidences=requirement_match.userEvidence,
+            user_id=user_id,
+        )
 
     return match_result

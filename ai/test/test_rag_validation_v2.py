@@ -216,6 +216,82 @@ def test_valid_id_restores_original_evidence_and_removes_duplicates():
     assert sanitized[0].documentId == 41
 
 
+def test_legacy_citation_prefers_matching_rag_metadata():
+    legacy = Evidence(
+        text="FastAPI REST API를 직접 구현했습니다.",
+        source=DocumentType.RESUME,
+    )
+    rag = legacy.model_copy(
+        update={
+            "evidenceId": "EV-0001",
+            "documentId": 41,
+            "sourceLocation": "p.1",
+            "retrievalScore": 0.87,
+        }
+    )
+
+    sanitized = sanitize_cited_evidence(
+        cited_evidence=[legacy],
+        allowed_evidence=[legacy, rag],
+    )
+
+    assert sanitized == [rag]
+
+
+def test_experienced_evidence_is_linked_to_indexed_source():
+    vector_store = VectorStore(DeterministicEmbedder())
+    indexed = RagEvidence(
+        evidence_id="EV-0001",
+        user_id=9,
+        document_id=41,
+        doc_type="resume",
+        section="project",
+        source_type="document",
+        source_location="문단 7",
+        evidence_text="FastAPI REST API를 직접 구현했습니다.",
+    )
+    vector_store.add_evidences([indexed])
+
+    requirement = JobRequirement(
+        description="FastAPI REST API 개발 경험",
+        category=RequirementCategory.REQUIRED,
+        conditionType=ConditionType.SINGLE,
+        skills=["FastAPI"],
+    )
+    match_result = JobMatchResult(
+        requirementMatches=[
+            RequirementMatch(
+                requirement=requirement.description,
+                requirementCategory=requirement.category,
+                status=MatchStatus.EXPERIENCED,
+                reason="직접 구현 경험 확인",
+                matchedSkills=["FastAPI"],
+                userEvidence=[
+                    Evidence(
+                        text=indexed.evidence_text,
+                        source=DocumentType.RESUME,
+                    )
+                ],
+            )
+        ]
+    )
+
+    result = validate_match_result_with_rag(
+        user_analysis=DocumentAnalysisResult(basicProfile=BasicProfile()),
+        job_analysis=JobAnalysisResult(requirements=[requirement]),
+        match_result=match_result,
+        rag_store=vector_store,
+        user_id=9,
+    )
+
+    linked = result.requirementMatches[0].userEvidence[0]
+    assert linked.evidenceId == "EV-0001"
+    assert linked.documentId == 41
+    assert linked.sourceLocation == "문단 7"
+    assert linked.paragraphIndex == 7
+    assert linked.retrievalScore is None
+
+
 def test_partial_and_insufficient_evidence_create_learning_targets():
     frequency = RequirementFrequencyResult(
         items=[
@@ -275,5 +351,7 @@ if __name__ == "__main__":
     test_agent_validation_uses_rag_v2_evidence()
     test_fabricated_evidence_id_cannot_create_experience()
     test_valid_id_restores_original_evidence_and_removes_duplicates()
+    test_legacy_citation_prefers_matching_rag_metadata()
+    test_experienced_evidence_is_linked_to_indexed_source()
     test_partial_and_insufficient_evidence_create_learning_targets()
     print("RAG V2 VALIDATION TEST: PASS")
