@@ -71,6 +71,9 @@ def generate_learning_plan(
                 "noExperienceCount": (
                     item.noExperienceCount
                 ),
+                "insufficientEvidenceCount": (
+                    item.insufficientEvidenceCount
+                ),
                 "notSatisfiedCount": (
                     item.notSatisfiedCount
                 ),
@@ -151,6 +154,22 @@ def generate_learning_plan(
    - 간단한 실습
    - 실제 코드 또는 프로젝트 적용
    - 필요하면 복습
+
+8-1. insufficientEvidenceCount가 1 이상인 SKILL은
+     실제 경험이 없다고 확정된 항목이 아닙니다.
+
+     해당 항목의 첫 활동은 다음 중 하나로 구성합니다.
+
+     - 현재 경험 수준을 확인하는 자기진단
+     - 작은 기능을 직접 구현하는 확인 실습
+     - 기존 프로젝트에서 관련 경험을 찾아 정리하는 활동
+
+     확인 결과 경험이 부족할 때 이어서
+     핵심 개념 학습과 프로젝트 적용을 배치합니다.
+
+8-2. partialCount가 1 이상인 SKILL은
+     처음부터 다시 배우는 계획보다 부족한 수행 범위를
+     보완하고 실제 프로젝트 경험을 강화하는 활동을 우선합니다.
 
 9. SKILL의 activityType은 학습 내용에 따라 다음을 사용합니다.
 

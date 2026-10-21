@@ -1,3 +1,4 @@
+from datetime import date
 from unittest.mock import patch
 
 from rag.embedding.embedding import VectorStore
@@ -15,7 +16,15 @@ from schemas.job_schema import (
     JobRequirement,
     RequirementCategory,
 )
+from schemas.frequency_schema import (
+    LearningCandidateType,
+    RequirementFrequencyItem,
+    RequirementFrequencyResult,
+)
 from schemas.match_schema import JobMatchResult, MatchStatus, RequirementMatch
+from schemas.recommendation_schema import JobRecommendationItem
+from services.learning_candidate_service import build_learning_candidates
+from services.learning_priority import calculate_learning_priority
 from services.rag_validation_service import (
     sanitize_cited_evidence,
     validate_match_result_with_rag,
@@ -207,8 +216,64 @@ def test_valid_id_restores_original_evidence_and_removes_duplicates():
     assert sanitized[0].documentId == 41
 
 
+def test_partial_and_insufficient_evidence_create_learning_targets():
+    frequency = RequirementFrequencyResult(
+        items=[
+            RequirementFrequencyItem(
+                name="Node.js",
+                type=LearningCandidateType.SKILL,
+                totalJobCount=1,
+                requiredCount=1,
+                jobIds=["job-001"],
+            ),
+            RequirementFrequencyItem(
+                name="TypeScript",
+                type=LearningCandidateType.SKILL,
+                totalJobCount=1,
+                requiredCount=1,
+                jobIds=["job-001"],
+            ),
+        ]
+    )
+    job = JobRecommendationItem(
+        jobId="job-001",
+        closeDate=date(2026, 11, 6),
+        matchResult=JobMatchResult(
+            requirementMatches=[
+                RequirementMatch(
+                    requirement="Node.js 개발 경험",
+                    requirementCategory=RequirementCategory.REQUIRED,
+                    status=MatchStatus.PARTIAL,
+                    reason="기술명만 확인됨",
+                    matchedSkills=["Node.js"],
+                    missingSkills=[],
+                ),
+                RequirementMatch(
+                    requirement="TypeScript 개발 경험",
+                    requirementCategory=RequirementCategory.REQUIRED,
+                    status=MatchStatus.INSUFFICIENT_EVIDENCE,
+                    reason="근거를 확인할 수 없음",
+                    missingSkills=["TypeScript"],
+                ),
+            ]
+        ),
+    )
+
+    candidates = build_learning_candidates(frequency, [job])
+    by_name = {item.name: item for item in candidates.items}
+
+    assert by_name["Node.js"].partialCount == 1
+    assert by_name["Node.js"].isLearningTarget is True
+    assert by_name["TypeScript"].insufficientEvidenceCount == 1
+    assert by_name["TypeScript"].isLearningTarget is True
+
+    priority = calculate_learning_priority(candidates)
+    assert [item.name for item in priority] == ["Node.js", "TypeScript"]
+
+
 if __name__ == "__main__":
     test_agent_validation_uses_rag_v2_evidence()
     test_fabricated_evidence_id_cannot_create_experience()
     test_valid_id_restores_original_evidence_and_removes_duplicates()
+    test_partial_and_insufficient_evidence_create_learning_targets()
     print("RAG V2 VALIDATION TEST: PASS")

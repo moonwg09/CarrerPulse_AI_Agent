@@ -25,6 +25,7 @@ def calculate_learning_priority(
                 + item.notSatisfiedCount
             ),
             -item.partialCount,
+            -item.insufficientEvidenceCount,
             -item.preferredCount,
             item.name,
         )

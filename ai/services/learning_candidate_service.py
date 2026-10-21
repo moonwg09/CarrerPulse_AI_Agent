@@ -72,7 +72,14 @@ def build_learning_candidates(
             # 일부 경험
             elif requirement.status == MatchStatus.PARTIAL:
 
-                for skill in requirement.missingSkills:
+                # 일부 경험이지만 빠진 기술명이 따로 없을 수 있다.
+                # 이 경우 확인된 기술 자체를 경험 강화 대상으로 집계한다.
+                partial_skills = (
+                    requirement.missingSkills
+                    or requirement.matchedSkills
+                )
+
+                for skill in partial_skills:
 
                     skill_name = normalize_requirement_name(
                         skill,
@@ -205,6 +212,7 @@ def build_learning_candidates(
             candidate.isLearningTarget = (
                 candidate.partialCount > 0
                 or candidate.noExperienceCount > 0
+                or candidate.insufficientEvidenceCount > 0
             )
 
         elif (
