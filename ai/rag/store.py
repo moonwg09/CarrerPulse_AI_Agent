@@ -197,6 +197,9 @@ def index_docx_v2(
         "chunk_ids": [c.chunk_id for c in chunks],
         "block_count": len(blocks),
         "semantic_unit_count": len(units),
+        "extracted_text": "\n\n".join(
+            block.text for block in blocks if block.text.strip()
+        ),
     }
 
 def index_document(user_id: int, document_id: int, doc_type: str, text: str,
@@ -247,6 +250,7 @@ def index_file(
             # 현재 API 호환을 위해 block 수를 반환한다.
             # 추후 응답 DTO에서 block_count와 분리한다.
             "page_count": result["block_count"],
+            "extracted_text": result["extracted_text"],
         }
 
     # PDF 등 → 기존 legacy pipeline
@@ -264,6 +268,9 @@ def index_file(
         "evidence_ids": evidence_ids,
         "extraction_method": method,
         "page_count": len(pages),
+        "extracted_text": "\n\n".join(
+            page.get("text", "") for page in pages if page.get("text", "").strip()
+        ),
     }
 
 

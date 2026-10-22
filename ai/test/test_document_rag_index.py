@@ -27,6 +27,7 @@ def test_uploaded_docx_is_indexed_and_searchable():
     )
 
     assert result["evidence_ids"]
+    assert result["extracted_text"].strip()
     assert store.count_evidences(user_id=11) == len(result["evidence_ids"])
 
     hits = search(
