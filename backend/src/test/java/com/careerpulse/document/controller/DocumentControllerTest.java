@@ -3,22 +3,28 @@ package com.careerpulse.document.controller;
 import com.careerpulse.common.config.SecurityConfig;
 import com.careerpulse.document.dto.DocumentResponse;
 import com.careerpulse.document.entity.DocumentType;
+import com.careerpulse.document.entity.FileFormat;
+import com.careerpulse.document.entity.ProcessingStatus;
 import com.careerpulse.document.service.DocumentService;
 import com.careerpulse.user.service.CustomUserDetailsService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(DocumentController.class)
@@ -40,14 +46,41 @@ class DocumentControllerTest {
     private PasswordEncoder passwordEncoder;
 
     @Test
-    void passesAuthenticatedEmailToServiceWhenGettingDocument() throws Exception {
-        when(documentService.getDocument(EMAIL, DocumentType.RESUME))
-                .thenReturn(DocumentResponse.builder()
-                        .documentId(10L)
-                        .documentType(DocumentType.RESUME)
-                        .build());
+    void uploadsResumeForAuthenticatedUser() throws Exception {
+        MockMultipartFile file = file("resume.pdf");
+        when(documentService.store(eq(EMAIL), eq(DocumentType.RESUME), any()))
+                .thenReturn(response(DocumentType.RESUME));
 
-        mockMvc.perform(get("/api/documents/RESUME")
+        mockMvc.perform(multipart("/api/v1/documents/resume")
+                        .file(file)
+                        .with(user(EMAIL).roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().isCreated());
+
+        verify(documentService).store(eq(EMAIL), eq(DocumentType.RESUME), any());
+    }
+
+    @Test
+    void uploadsSelfIntroForAuthenticatedUser() throws Exception {
+        MockMultipartFile file = file("self-intro.pdf");
+        when(documentService.store(eq(EMAIL), eq(DocumentType.SELF_INTRO), any()))
+                .thenReturn(response(DocumentType.SELF_INTRO));
+
+        mockMvc.perform(multipart("/api/v1/documents/self-intro")
+                        .file(file)
+                        .with(user(EMAIL).roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().isCreated());
+
+        verify(documentService).store(eq(EMAIL), eq(DocumentType.SELF_INTRO), any());
+    }
+
+    @Test
+    void getsResumeForAuthenticatedUser() throws Exception {
+        when(documentService.getDocument(EMAIL, DocumentType.RESUME))
+                .thenReturn(response(DocumentType.RESUME));
+
+        mockMvc.perform(get("/api/v1/documents/resume")
                         .with(user(EMAIL).roles("USER")))
                 .andExpect(status().isOk());
 
@@ -55,9 +88,20 @@ class DocumentControllerTest {
     }
 
     @Test
-    void passesAuthenticatedEmailAndReturnsNoContentWhenDeletingDocument()
-            throws Exception {
-        mockMvc.perform(delete("/api/documents/RESUME")
+    void getsSelfIntroForAuthenticatedUser() throws Exception {
+        when(documentService.getDocument(EMAIL, DocumentType.SELF_INTRO))
+                .thenReturn(response(DocumentType.SELF_INTRO));
+
+        mockMvc.perform(get("/api/v1/documents/self-intro")
+                        .with(user(EMAIL).roles("USER")))
+                .andExpect(status().isOk());
+
+        verify(documentService).getDocument(EMAIL, DocumentType.SELF_INTRO);
+    }
+
+    @Test
+    void deletesResumeForAuthenticatedUser() throws Exception {
+        mockMvc.perform(delete("/api/v1/documents/resume")
                         .with(user(EMAIL).roles("USER"))
                         .with(csrf()))
                 .andExpect(status().isNoContent());
@@ -66,15 +110,49 @@ class DocumentControllerTest {
     }
 
     @Test
-    void blocksUnauthenticatedRequest() throws Exception {
-        mockMvc.perform(get("/api/documents/RESUME"))
+    void deletesSelfIntroForAuthenticatedUser() throws Exception {
+        mockMvc.perform(delete("/api/v1/documents/self-intro")
+                        .with(user(EMAIL).roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(documentService).deleteDocument(EMAIL, DocumentType.SELF_INTRO);
+    }
+
+    @Test
+    void blocksUnauthenticatedDocumentRequest() throws Exception {
+        mockMvc.perform(get("/api/v1/documents/resume"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void rejectsDeleteRequestWithoutCsrfToken() throws Exception {
-        mockMvc.perform(delete("/api/documents/RESUME")
+    void rejectsDeleteWithoutCsrfToken() throws Exception {
+        mockMvc.perform(delete("/api/v1/documents/resume")
                         .with(user(EMAIL).roles("USER")))
                 .andExpect(status().isForbidden());
+    }
+
+    private static MockMultipartFile file(String filename) {
+        return new MockMultipartFile(
+                "file",
+                filename,
+                "application/pdf",
+                "content".getBytes()
+        );
+    }
+
+    private static DocumentResponse response(DocumentType documentType) {
+        return new DocumentResponse(
+                10L,
+                documentType,
+                documentType == DocumentType.RESUME
+                        ? "resume.pdf"
+                        : "self-intro.pdf",
+                FileFormat.PDF,
+                1024L,
+                ProcessingStatus.PENDING,
+                null,
+                null
+        );
     }
 }

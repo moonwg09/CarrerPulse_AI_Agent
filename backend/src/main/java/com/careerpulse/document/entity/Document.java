@@ -11,19 +11,23 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
-import lombok.Getter;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "user_documents")
-@Getter
+@Table(
+        name = "user_documents",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_user_document_type",
+                columnNames = {"user_id", "document_type"}
+        )
+)
 public class Document {
 
     @Id
@@ -31,7 +35,7 @@ public class Document {
     @Column(name = "document_id")
     private Long documentId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
@@ -52,7 +56,6 @@ public class Document {
     @Column(name = "file_size", nullable = false)
     private Long fileSize;
 
-    @Lob
     @Column(name = "extracted_text", columnDefinition = "LONGTEXT")
     private String extractedText;
 
@@ -86,12 +89,26 @@ public class Document {
     ) {
         this.user = user;
         this.documentType = documentType;
+        this.processingStatus = ProcessingStatus.PENDING;
+        this.uploadedAt = LocalDateTime.now();
+        replaceFile(originalFilename, storagePath, fileFormat, fileSize);
+    }
+
+    public void replaceFile(
+            String originalFilename,
+            String storagePath,
+            FileFormat fileFormat,
+            Long fileSize
+    ) {
+        clearChunks();
         this.originalFilename = originalFilename;
         this.storagePath = storagePath;
         this.fileFormat = fileFormat;
         this.fileSize = fileSize;
+        this.extractedText = null;
         this.processingStatus = ProcessingStatus.PENDING;
         this.uploadedAt = LocalDateTime.now();
+        this.analyzedAt = null;
     }
 
     public void markProcessing() {
@@ -106,6 +123,7 @@ public class Document {
 
     public void fail() {
         this.processingStatus = ProcessingStatus.FAILED;
+        this.analyzedAt = LocalDateTime.now();
     }
 
     public void addChunk(DocumentChunk chunk) {
@@ -122,5 +140,53 @@ public class Document {
     public void clearChunks() {
         chunks.forEach(chunk -> chunk.assignDocument(null));
         chunks.clear();
+    }
+
+    public Long getDocumentId() {
+        return documentId;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public DocumentType getDocumentType() {
+        return documentType;
+    }
+
+    public String getOriginalFilename() {
+        return originalFilename;
+    }
+
+    public String getStoragePath() {
+        return storagePath;
+    }
+
+    public FileFormat getFileFormat() {
+        return fileFormat;
+    }
+
+    public Long getFileSize() {
+        return fileSize;
+    }
+
+    public String getExtractedText() {
+        return extractedText;
+    }
+
+    public ProcessingStatus getProcessingStatus() {
+        return processingStatus;
+    }
+
+    public LocalDateTime getUploadedAt() {
+        return uploadedAt;
+    }
+
+    public LocalDateTime getAnalyzedAt() {
+        return analyzedAt;
+    }
+
+    public List<DocumentChunk> getChunks() {
+        return chunks;
     }
 }

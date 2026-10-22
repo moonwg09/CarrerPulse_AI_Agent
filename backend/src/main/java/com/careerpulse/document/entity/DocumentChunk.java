@@ -9,13 +9,18 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import lombok.Getter;
+import jakarta.persistence.UniqueConstraint;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "document_chunks")
-@Getter
+@Table(
+        name = "document_chunks",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_document_chunk",
+                columnNames = {"document_id", "chunk_index"}
+        )
+)
 public class DocumentChunk {
 
     @Id
@@ -60,5 +65,33 @@ public class DocumentChunk {
 
     void assignDocument(Document document) {
         this.document = document;
+    }
+
+    public Long getChunkId() {
+        return chunkId;
+    }
+
+    public Document getDocument() {
+        return document;
+    }
+
+    public int getChunkIndex() {
+        return chunkIndex;
+    }
+
+    public String getChunkText() {
+        return chunkText;
+    }
+
+    public String getSourceLocation() {
+        return sourceLocation;
+    }
+
+    public String getEmbeddingRef() {
+        return embeddingRef;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 }
