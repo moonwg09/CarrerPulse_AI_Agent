@@ -21,12 +21,18 @@ from schemas.frequency_schema import (
     RequirementFrequencyItem,
     RequirementFrequencyResult,
 )
-from schemas.match_schema import JobMatchResult, MatchStatus, RequirementMatch
+from schemas.match_schema import (
+    JobMatchResult,
+    MatchStatus,
+    RecommendationStatus,
+    RequirementMatch,
+)
 from schemas.recommendation_schema import JobRecommendationItem
 from services.learning_candidate_service import build_learning_candidates
 from services.learning_priority import calculate_learning_priority
 from services.job_matcher import enforce_experience_evidence_quality
 from services.rag_validation_service import (
+    link_match_result_evidence_metadata,
     sanitize_cited_evidence,
     validate_match_result_with_rag,
 )
@@ -391,6 +397,89 @@ def test_skill_list_alone_cannot_confirm_experience():
     assert performed.requirementMatches[0].status == MatchStatus.EXPERIENCED
 
 
+def test_excluded_job_preferred_skill_is_not_learning_target():
+    frequency = RequirementFrequencyResult(
+        items=[
+            RequirementFrequencyItem(
+                name="Kubernetes",
+                type=LearningCandidateType.SKILL,
+                totalJobCount=1,
+                requiredCount=1,
+                jobIds=["job-002"],
+            ),
+            RequirementFrequencyItem(
+                name="Kafka",
+                type=LearningCandidateType.SKILL,
+                totalJobCount=1,
+                preferredCount=1,
+                jobIds=["job-002"],
+            ),
+        ]
+    )
+    excluded_job = JobRecommendationItem(
+        jobId="job-002",
+        closeDate=date(2026, 11, 6),
+        matchResult=JobMatchResult(
+            recommendationStatus=RecommendationStatus.EXCLUDED,
+            requirementMatches=[
+                RequirementMatch(
+                    requirement="Kubernetes 운영 경험",
+                    requirementCategory=RequirementCategory.REQUIRED,
+                    status=MatchStatus.INSUFFICIENT_EVIDENCE,
+                    reason="근거 부족",
+                    missingSkills=["Kubernetes"],
+                ),
+                RequirementMatch(
+                    requirement="Kafka 운영 경험",
+                    requirementCategory=RequirementCategory.PREFERRED,
+                    status=MatchStatus.INSUFFICIENT_EVIDENCE,
+                    reason="근거 부족",
+                    missingSkills=["Kafka"],
+                ),
+            ],
+        ),
+    )
+
+    result = build_learning_candidates(frequency, [excluded_job])
+    by_name = {item.name: item for item in result.items}
+
+    assert by_name["Kubernetes"].isLearningTarget is True
+    assert by_name["Kafka"].isLearningTarget is False
+
+
+def test_untraceable_evidence_cannot_keep_experienced_status():
+    vector_store = VectorStore(DeterministicEmbedder())
+    result = JobMatchResult(
+        requirementMatches=[
+            RequirementMatch(
+                requirement="Java 서버 개발 경험",
+                requirementCategory=RequirementCategory.REQUIRED,
+                status=MatchStatus.EXPERIENCED,
+                reason="프로젝트 제목을 근거로 경험 판정",
+                matchedSkills=["Java"],
+                userEvidence=[
+                    Evidence(
+                        text="프로젝트명 | 백엔드 서비스",
+                        source=DocumentType.RESUME,
+                    )
+                ],
+            )
+        ]
+    )
+
+    link_match_result_evidence_metadata(
+        match_result=result,
+        rag_store=vector_store,
+        user_id=7,
+    )
+
+    match = result.requirementMatches[0]
+    assert match.status == MatchStatus.INSUFFICIENT_EVIDENCE
+    assert match.userEvidence == []
+    assert match.matchedSkills == []
+    assert result.score.overallMatchRate == 0.0
+
+
 if __name__ == "__main__":
     test_agent_validation_uses_rag_v2_evidence()
     test_fabricated_evidence_id_cannot_create_experience()
@@ -399,4 +488,6 @@ if __name__ == "__main__":
     test_experienced_evidence_is_linked_to_indexed_source()
     test_partial_and_insufficient_evidence_create_learning_targets()
     test_skill_list_alone_cannot_confirm_experience()
+    test_excluded_job_preferred_skill_is_not_learning_target()
+    test_untraceable_evidence_cannot_keep_experienced_status()
     print("RAG V2 VALIDATION TEST: PASS")

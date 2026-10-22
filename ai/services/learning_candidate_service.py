@@ -12,7 +12,9 @@ from schemas.match_schema import (
     MatchStatus,
     ObjectiveConditionType,
     ObjectiveStatus,
+    RecommendationStatus,
 )
+from schemas.job_schema import RequirementCategory
 from schemas.recommendation_schema import JobRecommendationItem
 
 from services.requirement_normalizer import (
@@ -52,6 +54,17 @@ def build_learning_candidates(
         skill_status_map = {}
 
         for requirement in job.matchResult.requirementMatches:
+
+            # 추천 공고는 필수·우대 역량을 모두 반영한다.
+            # 성장 후보와 제외 공고는 필수 역량만 장기 학습 후보로 남겨
+            # 관련성이 낮은 공고의 우대 기술이 계획을 채우지 않도록 한다.
+            if (
+                job.matchResult.recommendationStatus
+                != RecommendationStatus.RECOMMENDED
+                and requirement.requirementCategory
+                != RequirementCategory.REQUIRED
+            ):
+                continue
 
             # 경험 있음
             if requirement.status == MatchStatus.EXPERIENCED:
@@ -166,6 +179,14 @@ def build_learning_candidates(
             if (
                 objective.conditionType
                 != ObjectiveConditionType.CERTIFICATE
+            ):
+                continue
+
+            if (
+                job.matchResult.recommendationStatus
+                != RecommendationStatus.RECOMMENDED
+                and objective.requirementCategory
+                != RequirementCategory.REQUIRED
             ):
                 continue
 

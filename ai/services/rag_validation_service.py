@@ -703,10 +703,30 @@ def link_match_result_evidence_metadata(
         return match_result
 
     for requirement_match in match_result.requirementMatches:
-        requirement_match.userEvidence = link_indexed_evidence_metadata(
+        linked_evidence = link_indexed_evidence_metadata(
             store=rag_store,
             evidences=requirement_match.userEvidence,
             user_id=user_id,
         )
+        requirement_match.userEvidence = [
+            evidence
+            for evidence in linked_evidence
+            if evidence.evidenceId is not None
+        ]
+
+        if (
+            requirement_match.status in EVIDENCE_REQUIRED_STATUSES
+            and not requirement_match.userEvidence
+        ):
+            requirement_match.status = MatchStatus.INSUFFICIENT_EVIDENCE
+            requirement_match.matchedSkills = []
+            requirement_match.reason = (
+                "색인된 사용자 원문과 연결되는 근거가 없어 "
+                "경험 여부를 확정할 수 없습니다."
+            )
+
+    match_result.score = calculate_match_score(match_result)
+    match_result.recommendationStatus = classify_job(match_result)
+    match_result.warnings = build_match_warnings(match_result)
 
     return match_result
