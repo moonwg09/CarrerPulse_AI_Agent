@@ -95,10 +95,55 @@ def run_pipeline():
         document["evidenceCount"]
         for document in result["ragIndex"]["documents"]
     )
-    cited_evidence_count = sum(
-        len(requirement.userEvidence)
+    cited_evidences = [
+        evidence
         for match_result in result["matchResults"]
         for requirement in match_result.requirementMatches
+        for evidence in requirement.userEvidence
+    ]
+    cited_evidence_count = len(cited_evidences)
+    traceable_evidences = [
+        evidence
+        for evidence in cited_evidences
+        if (
+            evidence.evidenceId
+            and evidence.documentId
+            and evidence.sourceLocation
+        )
+    ]
+    searched_evidences = [
+        evidence
+        for evidence in cited_evidences
+        if evidence.retrievalScore is not None
+    ]
+    indexed_document_ids = {
+        document["documentId"]
+        for document in result["ragIndex"]["documents"]
+    }
+
+    untraceable_evidences = [
+        evidence
+        for evidence in cited_evidences
+        if evidence not in traceable_evidences
+    ]
+
+    if untraceable_evidences:
+        print("UNTRACEABLE EVIDENCE:")
+        for evidence in untraceable_evidences:
+            print(
+                f"- source={evidence.source.value}, "
+                f"text={evidence.text!r}"
+            )
+
+    assert cited_evidence_count > 0
+    assert len(traceable_evidences) == cited_evidence_count
+    assert all(
+        evidence.evidenceId.startswith("EV-")
+        for evidence in traceable_evidences
+    )
+    assert all(
+        evidence.documentId in indexed_document_ids
+        for evidence in traceable_evidences
     )
 
     print("CAREER PIPELINE E2E: PASS")
@@ -106,6 +151,8 @@ def run_pipeline():
     print(f"Indexed evidence: {evidence_count}")
     print(f"Matched jobs: {len(result['matchResults'])}")
     print(f"Cited evidence: {cited_evidence_count}")
+    print(f"Traceable evidence: {len(traceable_evidences)}")
+    print(f"Evidence selected by RAG search: {len(searched_evidences)}")
     print(f"Recommendations: {len(result['recommendations'])}")
     print(f"Growth candidates: {len(result['growthCandidates'])}")
     print(f"Learning priorities: {len(result['learningPriority'])}")

@@ -125,7 +125,49 @@ def test_metadata_linking_is_user_scoped_and_rejects_ambiguous_sources():
     assert ambiguous[0].documentId is None
 
 
+def test_metadata_linking_accepts_only_unique_source_substring():
+    vector_store = VectorStore(DeterministicEmbedder())
+    vector_store.add_evidences(
+        [
+            RagEvidence(
+                evidence_id="EV-0012",
+                user_id=7,
+                document_id=31,
+                doc_type="resume",
+                section="skill",
+                source_type="document",
+                source_location="표 6 행 2",
+                evidence_text=(
+                    "Java / Spring Framework | 중 | "
+                    "웹 서비스 및 REST API 개발"
+                ),
+            )
+        ]
+    )
+
+    linked = link_indexed_evidence_metadata(
+        store=vector_store,
+        evidences=[
+            Evidence(
+                text="웹 서비스 및 REST API 개발",
+                source=DocumentType.RESUME,
+            )
+        ],
+        user_id=7,
+    )
+    short_name = link_indexed_evidence_metadata(
+        store=vector_store,
+        evidences=[Evidence(text="Java", source=DocumentType.RESUME)],
+        user_id=7,
+    )
+
+    assert linked[0].evidenceId == "EV-0012"
+    assert linked[0].sourceLocation == "표 6 행 2"
+    assert short_name[0].evidenceId is None
+
+
 if __name__ == "__main__":
     test_main_requirement_and_evidence_are_converted()
     test_metadata_linking_is_user_scoped_and_rejects_ambiguous_sources()
+    test_metadata_linking_accepts_only_unique_source_substring()
     print("RAG V2 ADAPTER TEST: PASS")

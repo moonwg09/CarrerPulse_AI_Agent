@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from typing import List
 
 from rag.retriever.search import search
@@ -50,7 +51,32 @@ def _paragraph(location: str):
 
 
 def _normalized_text(value: str) -> str:
-    return " ".join(value.split())
+    normalized = unicodedata.normalize("NFKC", value)
+    normalized = normalized.replace("\uf0b7", " ").replace("•", " ")
+    return " ".join(normalized.split())
+
+
+def _unique_containing_match(
+    evidence: Evidence,
+    candidates,
+):
+    """분석 근거가 색인 원문의 고유한 부분 문자열일 때 원본을 찾는다."""
+    cited_text = _normalized_text(evidence.text)
+
+    # 짧은 기술명 하나만으로는 어느 원문인지 안전하게 확정할 수 없다.
+    if len(cited_text) < 8:
+        return None
+
+    matches = []
+    for indexed in candidates:
+        if _document_type(indexed.doc_type) != evidence.source:
+            continue
+
+        indexed_text = _normalized_text(indexed.evidence_text)
+        if cited_text in indexed_text or indexed_text in cited_text:
+            matches.append(indexed)
+
+    return matches[0] if len(matches) == 1 else None
 
 
 def _to_main_evidence(evidence, retrieval_score=None) -> Evidence:
@@ -106,8 +132,19 @@ def link_indexed_evidence_metadata(
         key = (_normalized_text(evidence.text), evidence.source)
         matches = candidates.get(key, [])
 
-        if len(matches) == 1:
-            linked.append(_to_main_evidence(matches[0]))
+        matched = matches[0] if len(matches) == 1 else None
+        if matched is None and not matches:
+            matched = _unique_containing_match(
+                evidence=evidence,
+                candidates=[
+                    indexed
+                    for grouped in candidates.values()
+                    for indexed in grouped
+                ],
+            )
+
+        if matched is not None:
+            linked.append(_to_main_evidence(matched))
         else:
             linked.append(evidence)
 
