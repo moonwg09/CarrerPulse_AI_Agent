@@ -33,7 +33,8 @@ public class LearningJobRepository {
                 job_category,
                 description,
                 posted_date,
-                deadline
+                deadline,
+                collected_at
         FROM job_postings
         WHERE job_category = ?
           AND status = 'OPEN'
@@ -56,7 +57,8 @@ public class LearningJobRepository {
                         rs.getString("job_category"),
                         rs.getString("description"),
                         rs.getObject("posted_date", LocalDate.class),
-                        rs.getObject("deadline", LocalDate.class)
+                        rs.getObject("deadline", LocalDate.class),
+                        rs.getObject("collected_at", java.time.LocalDateTime.class)
                 ),
                 jobCategory,                            // 첫 번째 ?
                 java.sql.Date.valueOf(referenceDate)    // 두 번째 ? - java의 LocalDate를 DB의 DATE컬럼과 비교할 때 사용할 java.sql.Date로 변환하는 코드
@@ -86,7 +88,8 @@ public class LearningJobRepository {
                    job_category,
                    description,
                    posted_date,
-                   deadline
+                   deadline,
+                   collected_at
             FROM job_postings
             WHERE job_category IN (%s)
               AND status = 'OPEN'
@@ -111,7 +114,8 @@ public class LearningJobRepository {
                         rs.getString("job_category"),
                         rs.getString("description"),
                         rs.getObject("posted_date", LocalDate.class),
-                        rs.getObject("deadline", LocalDate.class)
+                        rs.getObject("deadline", LocalDate.class),
+                        rs.getObject("collected_at", java.time.LocalDateTime.class)
                 ),
                 parameters.toArray()
         );

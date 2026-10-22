@@ -7,6 +7,9 @@ from routers.career_router import router as career_router
 
 app = FastAPI()
 
+from routers.learning_router import router as learning_router
+app.include_router(learning_router)
+
 app.include_router(document_router)
 
 app.include_router(career_router)

@@ -1,6 +1,7 @@
 package com.careerpulse.learning.dto;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 // 학습 분석에 사용할 공고 한 건을 담는 DTO.
 // DB의 모든 컬럼 대신 분석에 필요한 값만 전달한다.
@@ -25,6 +26,9 @@ public record LearningJobResponse(
         LocalDate postedDate,
 
         // 마감일 DB에서 NULL이면 이 값도 null이다.
-        LocalDate deadline
+        LocalDate deadline,
+
+        // 같은 게시일에는 수집 시각으로 최신순을 결정한다. Python 전달 시에도 순서를 유지한다.
+        LocalDateTime collectedAt
 ) {
 }

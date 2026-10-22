@@ -1,0 +1,11 @@
+.learning-page { max-width: 1000px; margin: 0 auto; padding: 24px; text-align: left; }
+.learning-page fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+.learning-page label { display: block; margin: 10px 0; }
+.learning-page input, .learning-page textarea, .learning-page select { padding: 8px; max-width: 100%; font: inherit; }
+.learning-page textarea { display: block; width: min(620px, 90%); min-height: 65px; }
+.learning-page button { padding: 8px 12px; margin: 4px 0; cursor: pointer; }
+.learning-input, .learning-page article { border-top: 1px solid var(--border); padding: 12px 0; margin-top: 15px; }
+.learning-table { overflow-x: auto; }
+.learning-page table { width: 100%; border-collapse: collapse; }
+.learning-page td, .learning-page th { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
+.learning-page [role="alert"] { color: #ce4242; }

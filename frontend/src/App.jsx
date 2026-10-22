@@ -5,6 +5,7 @@ import LoginPage from "./pages/LoginPage";
 import MyPage from "./pages/MyPage";
 import UserJobsPage from "./pages/UserJobsPage";
 import AccountPage from "./pages/AccountPage";
+import LearningPage from "./pages/LearningPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -12,6 +13,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/learning" element={<ProtectedRoute><LearningPage /></ProtectedRoute>} />
         <Route
           path="/"
           element={<Navigate to="/login" replace />}

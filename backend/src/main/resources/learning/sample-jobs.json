@@ -1,0 +1,471 @@
+[
+  {
+    "jobId": "1",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 1,
+    "requirements": [
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "정보처리기사",
+        "type": "CERTIFICATE",
+        "category": "PREFERRED"
+      }
+    ]
+  },
+  {
+    "jobId": "2",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 2,
+    "requirements": [
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "SQL",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      }
+    ]
+  },
+  {
+    "jobId": "3",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 3,
+    "requirements": [
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "API 개발",
+        "type": "EXPERIENCE",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "정보처리기사",
+        "type": "CERTIFICATE",
+        "category": "PREFERRED"
+      }
+    ]
+  },
+  {
+    "jobId": "4",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 4,
+    "requirements": [
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "SQL",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Docker",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      }
+    ]
+  },
+  {
+    "jobId": "5",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 5,
+    "requirements": [
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "정보처리기사",
+        "type": "CERTIFICATE",
+        "category": "PREFERRED"
+      }
+    ]
+  },
+  {
+    "jobId": "6",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 6,
+    "requirements": [
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "SQL",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "API 개발",
+        "type": "EXPERIENCE",
+        "category": "REQUIRED"
+      }
+    ]
+  },
+  {
+    "jobId": "7",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 7,
+    "requirements": [
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "정보처리기사",
+        "type": "CERTIFICATE",
+        "category": "PREFERRED"
+      }
+    ]
+  },
+  {
+    "jobId": "8",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 8,
+    "requirements": [
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "SQL",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Docker",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      }
+    ]
+  },
+  {
+    "jobId": "9",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 9,
+    "requirements": [
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "API 개발",
+        "type": "EXPERIENCE",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "정보처리기사",
+        "type": "CERTIFICATE",
+        "category": "PREFERRED"
+      }
+    ]
+  },
+  {
+    "jobId": "10",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 10,
+    "requirements": [
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "SQL",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      }
+    ]
+  },
+  {
+    "jobId": "11",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 11,
+    "requirements": [
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "정보처리기사",
+        "type": "CERTIFICATE",
+        "category": "PREFERRED"
+      }
+    ]
+  },
+  {
+    "jobId": "12",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 12,
+    "requirements": [
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Java",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "SQL",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "API 개발",
+        "type": "EXPERIENCE",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Docker",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      }
+    ]
+  },
+  {
+    "jobId": "90",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 0,
+    "requirements": [
+      {
+        "name": "제외 공고 역량",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      }
+    ],
+    "status": "CLOSED"
+  },
+  {
+    "jobId": "91",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 0,
+    "requirements": [
+      {
+        "name": "제외 공고 역량",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      }
+    ],
+    "deadlineOffsetDays": -1
+  },
+  {
+    "jobId": "92",
+    "jobCategory": "FRONTEND",
+    "postedOffsetDays": 0,
+    "requirements": [
+      {
+        "name": "제외 공고 역량",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      }
+    ]
+  },
+  {
+    "jobId": "101",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 0,
+    "requirements": [
+      {
+        "name": "Spring Boot",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "AWS",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "API 개발",
+        "type": "EXPERIENCE",
+        "category": "REQUIRED"
+      }
+    ]
+  },
+  {
+    "jobId": "102",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 0,
+    "requirements": [
+      {
+        "name": "Spring Boot",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Redis",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "SQL",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      }
+    ]
+  },
+  {
+    "jobId": "103",
+    "jobCategory": "BACKEND",
+    "postedOffsetDays": 0,
+    "requirements": [
+      {
+        "name": "AWS",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "Docker",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      },
+      {
+        "name": "서비스 배포",
+        "type": "EXPERIENCE",
+        "category": "REQUIRED"
+      }
+    ]
+  },
+  {
+    "jobId": "201",
+    "jobCategory": "FRONTEND",
+    "postedOffsetDays": 0,
+    "requirements": [
+      {
+        "name": "JavaScript",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "React",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "화면 구현",
+        "type": "EXPERIENCE",
+        "category": "REQUIRED"
+      }
+    ]
+  },
+  {
+    "jobId": "202",
+    "jobCategory": "FRONTEND",
+    "postedOffsetDays": 0,
+    "requirements": [
+      {
+        "name": "React",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "TypeScript",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "반응형 화면 구현",
+        "type": "EXPERIENCE",
+        "category": "PREFERRED"
+      }
+    ]
+  },
+  {
+    "jobId": "203",
+    "jobCategory": "FRONTEND",
+    "postedOffsetDays": 0,
+    "requirements": [
+      {
+        "name": "JavaScript",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "React",
+        "type": "SKILL",
+        "category": "REQUIRED"
+      },
+      {
+        "name": "TypeScript",
+        "type": "SKILL",
+        "category": "PREFERRED"
+      }
+    ]
+  }
+]
