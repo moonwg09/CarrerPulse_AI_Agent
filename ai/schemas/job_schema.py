@@ -28,6 +28,8 @@ class JobEvidence(BaseModel):
 
 
 class JobRequirement(BaseModel):
+    requirementId: Optional[int] = None
+
     description: str
 
     category: RequirementCategory
@@ -41,6 +43,8 @@ class JobRequirement(BaseModel):
     evidence: List[JobEvidence] = Field(default_factory=list)
 
 class ObjectiveRequirement(BaseModel):
+    requirementId: Optional[int] = None
+
     type: ObjectiveRequirementType
     # 공고 원래 조건 문장
     description: str
@@ -58,6 +62,8 @@ class ObjectiveRequirement(BaseModel):
 
 
 class JobAnalysisResult(BaseModel):
+    jobId: Optional[int] = None
+
     jobTitle: Optional[str] = None
     companyName: Optional[str] = None
 
