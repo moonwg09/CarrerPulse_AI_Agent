@@ -16,6 +16,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -76,6 +78,33 @@ class DocumentControllerTest {
     }
 
     @Test
+    void uploadsPortfolioForAuthenticatedUser() throws Exception {
+        MockMultipartFile file = file("portfolio.pdf");
+        when(documentService.store(eq(EMAIL), eq(DocumentType.PORTFOLIO), any()))
+                .thenReturn(response(DocumentType.PORTFOLIO));
+
+        mockMvc.perform(multipart("/api/v1/documents/portfolio")
+                        .file(file)
+                        .with(user(EMAIL).roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().isCreated());
+
+        verify(documentService).store(eq(EMAIL), eq(DocumentType.PORTFOLIO), any());
+    }
+
+    @Test
+    void getsRegisteredDocumentsForAuthenticatedUser() throws Exception {
+        when(documentService.getDocuments(EMAIL))
+                .thenReturn(List.of(response(DocumentType.RESUME)));
+
+        mockMvc.perform(get("/api/v1/documents")
+                        .with(user(EMAIL).roles("USER")))
+                .andExpect(status().isOk());
+
+        verify(documentService).getDocuments(EMAIL);
+    }
+
+    @Test
     void getsResumeForAuthenticatedUser() throws Exception {
         when(documentService.getDocument(EMAIL, DocumentType.RESUME))
                 .thenReturn(response(DocumentType.RESUME));
@@ -100,6 +129,18 @@ class DocumentControllerTest {
     }
 
     @Test
+    void getsPortfolioForAuthenticatedUser() throws Exception {
+        when(documentService.getDocument(EMAIL, DocumentType.PORTFOLIO))
+                .thenReturn(response(DocumentType.PORTFOLIO));
+
+        mockMvc.perform(get("/api/v1/documents/portfolio")
+                        .with(user(EMAIL).roles("USER")))
+                .andExpect(status().isOk());
+
+        verify(documentService).getDocument(EMAIL, DocumentType.PORTFOLIO);
+    }
+
+    @Test
     void deletesResumeForAuthenticatedUser() throws Exception {
         mockMvc.perform(delete("/api/v1/documents/resume")
                         .with(user(EMAIL).roles("USER"))
@@ -117,6 +158,16 @@ class DocumentControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(documentService).deleteDocument(EMAIL, DocumentType.SELF_INTRO);
+    }
+
+    @Test
+    void deletesPortfolioForAuthenticatedUser() throws Exception {
+        mockMvc.perform(delete("/api/v1/documents/portfolio")
+                        .with(user(EMAIL).roles("USER"))
+                        .with(csrf()))
+                .andExpect(status().isNoContent());
+
+        verify(documentService).deleteDocument(EMAIL, DocumentType.PORTFOLIO);
     }
 
     @Test
@@ -145,9 +196,7 @@ class DocumentControllerTest {
         return new DocumentResponse(
                 10L,
                 documentType,
-                documentType == DocumentType.RESUME
-                        ? "resume.pdf"
-                        : "self-intro.pdf",
+                documentType.name().toLowerCase() + ".pdf",
                 FileFormat.PDF,
                 1024L,
                 ProcessingStatus.PENDING,

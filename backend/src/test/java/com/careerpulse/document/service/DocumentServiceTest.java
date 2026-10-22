@@ -13,11 +13,16 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -54,7 +59,7 @@ class DocumentServiceTest {
                 });
 
         DocumentService service = service(userRepository, documentRepository);
-        MockMultipartFile file = file("resume.docx", "document-content");
+        MockMultipartFile file = docxFile("resume.docx");
 
         DocumentResponse response = service.store(
                 EMAIL,
@@ -97,7 +102,7 @@ class DocumentServiceTest {
         DocumentResponse response = service(userRepository, documentRepository).store(
                 EMAIL,
                 DocumentType.RESUME,
-                file("new.docx", "new-content")
+                docxFile("new.docx")
         );
 
         assertEquals(41L, response.documentId());
@@ -130,6 +135,26 @@ class DocumentServiceTest {
 
         assertEquals(DocumentType.SELF_INTRO, response.documentType());
         assertEquals("self-intro.pdf", response.originalFilename());
+    }
+
+    @Test
+    void getsRegisteredDocumentsOwnedByAuthenticatedUser() {
+        UserRepository userRepository = mock(UserRepository.class);
+        DocumentRepository documentRepository = mock(DocumentRepository.class);
+        User user = user(7L);
+        Document resume = document(user, DocumentType.RESUME, "resume.pdf");
+        Document portfolio = document(user, DocumentType.PORTFOLIO, "portfolio.pdf");
+
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        when(documentRepository.findAllByUser_UserIdOrderByUploadedAtDesc(7L))
+                .thenReturn(List.of(portfolio, resume));
+
+        List<DocumentResponse> responses = service(userRepository, documentRepository)
+                .getDocuments(EMAIL);
+
+        assertEquals(2, responses.size());
+        assertEquals(DocumentType.PORTFOLIO, responses.get(0).documentType());
+        assertEquals(DocumentType.RESUME, responses.get(1).documentType());
     }
 
     @Test
@@ -185,6 +210,28 @@ class DocumentServiceTest {
     }
 
     @Test
+    void rejectsFileWhenExtensionAndActualFormatDoNotMatch() {
+        DocumentService service = service(
+                mock(UserRepository.class),
+                mock(DocumentRepository.class)
+        );
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "resume.pdf",
+                "application/pdf",
+                "not-a-pdf".getBytes()
+        );
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service.store(EMAIL, DocumentType.RESUME, file)
+        );
+
+        assertEquals(400, exception.getStatusCode().value());
+        assertTrue(exception.getReason().contains("실제 문서 형식"));
+    }
+
+    @Test
     void rejectsAccessWhenOwnedDocumentDoesNotExist() {
         UserRepository userRepository = mock(UserRepository.class);
         DocumentRepository documentRepository = mock(DocumentRepository.class);
@@ -228,12 +275,37 @@ class DocumentServiceTest {
         return user;
     }
 
-    private static MockMultipartFile file(String filename, String content) {
+    private static Document document(
+            User user,
+            DocumentType documentType,
+            String filename
+    ) {
+        return new Document(
+                user,
+                documentType,
+                filename,
+                filename,
+                FileFormat.PDF,
+                1024L
+        );
+    }
+
+    private static MockMultipartFile docxFile(String filename) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(output)) {
+            zip.putNextEntry(new ZipEntry("[Content_Types].xml"));
+            zip.write("<Types/>".getBytes());
+            zip.closeEntry();
+            zip.putNextEntry(new ZipEntry("word/document.xml"));
+            zip.write("<document/>".getBytes());
+            zip.closeEntry();
+        }
+
         return new MockMultipartFile(
                 "file",
                 filename,
-                "application/octet-stream",
-                content.getBytes()
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                output.toByteArray()
         );
     }
 }

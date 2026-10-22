@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/documents")
 public class DocumentController {
@@ -49,6 +51,23 @@ public class DocumentController {
         ));
     }
 
+    @PostMapping(value = "/portfolio", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<DocumentResponse> uploadPortfolio(
+            Authentication authentication,
+            @RequestPart("file") MultipartFile file
+    ) {
+        return created(documentService.store(
+                authentication.getName(),
+                DocumentType.PORTFOLIO,
+                file
+        ));
+    }
+
+    @GetMapping
+    public List<DocumentResponse> getDocuments(Authentication authentication) {
+        return documentService.getDocuments(authentication.getName());
+    }
+
     @GetMapping("/resume")
     public DocumentResponse getResume(Authentication authentication) {
         return documentService.getDocument(
@@ -62,6 +81,14 @@ public class DocumentController {
         return documentService.getDocument(
                 authentication.getName(),
                 DocumentType.SELF_INTRO
+        );
+    }
+
+    @GetMapping("/portfolio")
+    public DocumentResponse getPortfolio(Authentication authentication) {
+        return documentService.getDocument(
+                authentication.getName(),
+                DocumentType.PORTFOLIO
         );
     }
 
@@ -79,6 +106,15 @@ public class DocumentController {
         documentService.deleteDocument(
                 authentication.getName(),
                 DocumentType.SELF_INTRO
+        );
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/portfolio")
+    public ResponseEntity<Void> deletePortfolio(Authentication authentication) {
+        documentService.deleteDocument(
+                authentication.getName(),
+                DocumentType.PORTFOLIO
         );
         return ResponseEntity.noContent().build();
     }

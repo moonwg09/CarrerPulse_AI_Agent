@@ -15,12 +15,16 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 @Service
 public class DocumentService {
@@ -103,6 +107,16 @@ public class DocumentService {
         return toResponse(findOwnedDocument(user.getUserId(), documentType));
     }
 
+    @Transactional(readOnly = true)
+    public List<DocumentResponse> getDocuments(String email) {
+        User user = findUser(email);
+        return documentRepository
+                .findAllByUser_UserIdOrderByUploadedAtDesc(user.getUserId())
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     @Transactional
     public void deleteDocument(
             String email,
@@ -168,11 +182,70 @@ public class DocumentService {
             );
         }
 
+        validateActualFormat(file, fileFormat);
+
         return new ValidatedFile(
                 Path.of(originalFilename).getFileName().toString(),
                 fileFormat,
                 file.getSize()
         );
+    }
+
+    private void validateActualFormat(MultipartFile file, FileFormat fileFormat) {
+        try {
+            boolean valid = switch (fileFormat) {
+                case PDF -> isPdf(file);
+                case DOCX -> isDocx(file);
+            };
+
+            if (!valid) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "파일 확장자와 실제 문서 형식이 일치하지 않습니다."
+                );
+            }
+        } catch (IOException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "문서 파일 형식을 확인하지 못했습니다.",
+                    exception
+            );
+        }
+    }
+
+    private boolean isPdf(MultipartFile file) throws IOException {
+        byte[] signature = new byte[5];
+        try (InputStream input = file.getInputStream()) {
+            if (input.readNBytes(signature, 0, signature.length) != signature.length) {
+                return false;
+            }
+        }
+        return signature[0] == '%'
+                && signature[1] == 'P'
+                && signature[2] == 'D'
+                && signature[3] == 'F'
+                && signature[4] == '-';
+    }
+
+    private boolean isDocx(MultipartFile file) throws IOException {
+        boolean hasContentTypes = false;
+        boolean hasDocumentXml = false;
+
+        try (ZipInputStream zip = new ZipInputStream(file.getInputStream())) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                if ("[Content_Types].xml".equals(entry.getName())) {
+                    hasContentTypes = true;
+                } else if ("word/document.xml".equals(entry.getName())) {
+                    hasDocumentXml = true;
+                }
+
+                if (hasContentTypes && hasDocumentXml) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private FileFormat fileFormatOf(String filename) {
