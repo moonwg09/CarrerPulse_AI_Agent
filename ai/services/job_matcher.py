@@ -13,6 +13,74 @@ from services.match_warning import build_match_warnings
 from services.gemini_client import GEMINI_MODEL, get_gemini_client
 
 
+PERFORMANCE_TERMS = (
+    "개발",
+    "구현",
+    "설계",
+    "구축",
+    "운영",
+    "배포",
+    "연동",
+    "관리",
+    "자동화",
+    "개선",
+    "수행",
+    "담당",
+    "적용",
+    "전환",
+    "구성",
+)
+
+
+def _is_skill_list_only(text: str) -> bool:
+    normalized = " ".join(text.split())
+    lowered = normalized.lower()
+
+    if "사용 기술" in normalized or "기술 스택" in normalized:
+        return True
+
+    proficiency_cells = ("| 상 |", "| 중 |", "| 하 |", "| 상", "| 중", "| 하")
+    if any(cell in normalized for cell in proficiency_cells):
+        return True
+
+    if lowered.startswith(("skills:", "skill:", "tech stack:")):
+        return True
+
+    return False
+
+
+def _has_performance_evidence(text: str) -> bool:
+    if _is_skill_list_only(text):
+        return False
+
+    normalized = " ".join(text.split())
+    return any(term in normalized for term in PERFORMANCE_TERMS)
+
+
+def enforce_experience_evidence_quality(
+    result: JobMatchResult,
+) -> JobMatchResult:
+    """기술명·숙련도 표만으로 확정 경험이 되는 것을 차단한다."""
+    for requirement in result.requirementMatches:
+        if requirement.status != MatchStatus.EXPERIENCED:
+            continue
+
+        has_performance_evidence = any(
+            _has_performance_evidence(evidence.text)
+            for evidence in requirement.userEvidence
+        )
+        if has_performance_evidence:
+            continue
+
+        requirement.status = MatchStatus.PARTIAL
+        requirement.reason = (
+            "관련 기술 보유 근거는 확인되지만 실제 구현·운영 등 "
+            "구체적인 수행 경험 근거가 부족합니다."
+        )
+
+    return result
+
+
 def normalize_match_statuses(
     result: JobMatchResult
 ) -> JobMatchResult:
@@ -287,6 +355,7 @@ JOB ANALYSIS
         result = JobMatchResult.model_validate_json(response.text)
 
     result = normalize_match_statuses(result)
+    result = enforce_experience_evidence_quality(result)
 
     result.score = calculate_match_score(result)
 

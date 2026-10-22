@@ -40,6 +40,7 @@ from services.match_warning import (
     build_match_warnings,
 )
 from services.gemini_client import GEMINI_MODEL, get_gemini_client
+from services.job_matcher import enforce_experience_evidence_quality
 
 
 # -------------------------------------------------
@@ -657,6 +658,10 @@ def validate_match_result_with_rag(
         rag_store=rag_store,
         user_id=user_id,
     )
+
+    # RAG 재검증 이후에도 기술 목록이나 숙련도 표만으로
+    # EXPERIENCED가 확정되지 않도록 동일한 규칙을 적용한다.
+    enforce_experience_evidence_quality(match_result)
 
     # ---------------------------------------------
     # RAG 적용 후 점수 다시 계산

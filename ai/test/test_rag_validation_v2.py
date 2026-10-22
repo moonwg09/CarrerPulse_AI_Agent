@@ -25,6 +25,7 @@ from schemas.match_schema import JobMatchResult, MatchStatus, RequirementMatch
 from schemas.recommendation_schema import JobRecommendationItem
 from services.learning_candidate_service import build_learning_candidates
 from services.learning_priority import calculate_learning_priority
+from services.job_matcher import enforce_experience_evidence_quality
 from services.rag_validation_service import (
     sanitize_cited_evidence,
     validate_match_result_with_rag,
@@ -347,6 +348,49 @@ def test_partial_and_insufficient_evidence_create_learning_targets():
     assert [item.name for item in priority] == ["Node.js", "TypeScript"]
 
 
+def test_skill_list_alone_cannot_confirm_experience():
+    skill_list_only = JobMatchResult(
+        requirementMatches=[
+            RequirementMatch(
+                requirement="AWS 배포 경험",
+                requirementCategory=RequirementCategory.PREFERRED,
+                status=MatchStatus.EXPERIENCED,
+                reason="AWS 기술이 기재됨",
+                matchedSkills=["AWS"],
+                userEvidence=[
+                    Evidence(
+                        text="사용 기술 | AWS, Docker, Linux",
+                        source=DocumentType.RESUME,
+                    )
+                ],
+            )
+        ]
+    )
+    performed = JobMatchResult(
+        requirementMatches=[
+            RequirementMatch(
+                requirement="AWS 배포 경험",
+                requirementCategory=RequirementCategory.PREFERRED,
+                status=MatchStatus.EXPERIENCED,
+                reason="AWS 배포 수행 근거 확인",
+                matchedSkills=["AWS"],
+                userEvidence=[
+                    Evidence(
+                        text="AWS EC2와 ECR을 이용해 Docker 이미지를 배포했습니다.",
+                        source=DocumentType.RESUME,
+                    )
+                ],
+            )
+        ]
+    )
+
+    enforce_experience_evidence_quality(skill_list_only)
+    enforce_experience_evidence_quality(performed)
+
+    assert skill_list_only.requirementMatches[0].status == MatchStatus.PARTIAL
+    assert performed.requirementMatches[0].status == MatchStatus.EXPERIENCED
+
+
 if __name__ == "__main__":
     test_agent_validation_uses_rag_v2_evidence()
     test_fabricated_evidence_id_cannot_create_experience()
@@ -354,4 +398,5 @@ if __name__ == "__main__":
     test_legacy_citation_prefers_matching_rag_metadata()
     test_experienced_evidence_is_linked_to_indexed_source()
     test_partial_and_insufficient_evidence_create_learning_targets()
+    test_skill_list_alone_cannot_confirm_experience()
     print("RAG V2 VALIDATION TEST: PASS")
