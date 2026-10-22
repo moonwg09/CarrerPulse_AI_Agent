@@ -327,6 +327,7 @@ public class DocumentService {
                 document.getFileFormat(),
                 document.getFileSize(),
                 document.getProcessingStatus(),
+                document.getProcessingError(),
                 document.getUploadedAt(),
                 document.getAnalyzedAt()
         );

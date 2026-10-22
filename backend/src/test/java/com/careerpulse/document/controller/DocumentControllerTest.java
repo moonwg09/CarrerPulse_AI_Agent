@@ -201,6 +201,7 @@ class DocumentControllerTest {
                 1024L,
                 ProcessingStatus.PENDING,
                 null,
+                null,
                 null
         );
     }

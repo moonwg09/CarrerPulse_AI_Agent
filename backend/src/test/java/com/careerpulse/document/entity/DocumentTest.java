@@ -63,6 +63,23 @@ class DocumentTest {
         assertTrue(document.getChunks().isEmpty());
     }
 
+    @Test
+    void recordsProcessingFailureAndClearsItWhenRetryStarts() {
+        Document document = document();
+
+        document.markProcessing();
+        assertEquals(ProcessingStatus.PROCESSING, document.getProcessingStatus());
+
+        document.fail("문서 파싱 실패");
+        assertEquals(ProcessingStatus.FAILED, document.getProcessingStatus());
+        assertEquals("문서 파싱 실패", document.getProcessingError());
+        assertNotNull(document.getAnalyzedAt());
+
+        document.markProcessing();
+        assertEquals(ProcessingStatus.PROCESSING, document.getProcessingStatus());
+        assertEquals(null, document.getProcessingError());
+    }
+
     private static Document document() {
         User user = new User(
                 "owner@example.com",

@@ -63,6 +63,9 @@ public class Document {
     @Column(name = "processing_status", nullable = false, length = 20)
     private ProcessingStatus processingStatus;
 
+    @Column(name = "processing_error", columnDefinition = "TEXT")
+    private String processingError;
+
     @Column(name = "uploaded_at", nullable = false)
     private LocalDateTime uploadedAt;
 
@@ -90,6 +93,7 @@ public class Document {
         this.user = user;
         this.documentType = documentType;
         this.processingStatus = ProcessingStatus.PENDING;
+        this.processingError = null;
         this.uploadedAt = LocalDateTime.now();
         replaceFile(originalFilename, storagePath, fileFormat, fileSize);
     }
@@ -107,22 +111,26 @@ public class Document {
         this.fileSize = fileSize;
         this.extractedText = null;
         this.processingStatus = ProcessingStatus.PENDING;
+        this.processingError = null;
         this.uploadedAt = LocalDateTime.now();
         this.analyzedAt = null;
     }
 
     public void markProcessing() {
         this.processingStatus = ProcessingStatus.PROCESSING;
+        this.processingError = null;
     }
 
     public void complete(String extractedText) {
         this.extractedText = extractedText;
         this.processingStatus = ProcessingStatus.COMPLETED;
+        this.processingError = null;
         this.analyzedAt = LocalDateTime.now();
     }
 
-    public void fail() {
+    public void fail(String processingError) {
         this.processingStatus = ProcessingStatus.FAILED;
+        this.processingError = processingError;
         this.analyzedAt = LocalDateTime.now();
     }
 
@@ -176,6 +184,10 @@ public class Document {
 
     public ProcessingStatus getProcessingStatus() {
         return processingStatus;
+    }
+
+    public String getProcessingError() {
+        return processingError;
     }
 
     public LocalDateTime getUploadedAt() {

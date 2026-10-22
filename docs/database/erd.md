@@ -44,6 +44,7 @@ erDiagram
         BIGINT file_size "NOT NULL"
         LONGTEXT extracted_text
         VARCHAR_20 processing_status "NOT NULL DEFAULT PENDING"
+        TEXT processing_error
         DATETIME uploaded_at "NOT NULL DEFAULT CURRENT_TIMESTAMP"
         DATETIME analyzed_at
     }

@@ -13,6 +13,7 @@ public record DocumentResponse(
         FileFormat fileFormat,
         Long fileSize,
         ProcessingStatus processingStatus,
+        String processingError,
         LocalDateTime uploadedAt,
         LocalDateTime analyzedAt
 ) {

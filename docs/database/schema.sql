@@ -73,6 +73,7 @@ CREATE TABLE user_documents (
     file_size BIGINT NOT NULL,
     extracted_text LONGTEXT,
     processing_status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    processing_error TEXT,
     uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     analyzed_at DATETIME,
 
