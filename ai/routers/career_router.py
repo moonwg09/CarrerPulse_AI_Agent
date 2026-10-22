@@ -68,11 +68,6 @@ def save_temp_file(file: UploadFile) -> Path:
     return temp_path
 
 
-def new_document_id() -> int:
-    """DB 연동 전 시연용 문서 ID. Spring 연동 후 전달받은 ID로 교체한다."""
-    return uuid.uuid4().int % 2_147_483_647 or 1
-
-
 @router.post("/analyze-job-files")
 def analyze_job_with_files(
     jobText1: str = Form(...),
@@ -85,6 +80,9 @@ def analyze_job_with_files(
     resume: UploadFile = File(...),
     selfIntro: UploadFile = File(...),
     portfolio: Optional[UploadFile] = File(None),
+    resumeDocumentId: int = Form(...),
+    selfIntroDocumentId: int = Form(...),
+    portfolioDocumentId: Optional[int] = Form(None),
     userId: int = Form(1),
     ragConsent: bool = Form(True),
 ):
@@ -93,6 +91,33 @@ def analyze_job_with_files(
     try:
         if userId <= 0:
             raise HTTPException(status_code=400, detail="userId는 1 이상이어야 합니다.")
+
+        document_ids = [resumeDocumentId, selfIntroDocumentId]
+        if any(document_id <= 0 for document_id in document_ids):
+            raise HTTPException(
+                status_code=400,
+                detail="문서 ID는 1 이상이어야 합니다.",
+            )
+
+        if (portfolio is None) != (portfolioDocumentId is None):
+            raise HTTPException(
+                status_code=400,
+                detail="포트폴리오 파일과 documentId를 함께 전달해야 합니다.",
+            )
+
+        if portfolioDocumentId is not None:
+            if portfolioDocumentId <= 0:
+                raise HTTPException(
+                    status_code=400,
+                    detail="문서 ID는 1 이상이어야 합니다.",
+                )
+            document_ids.append(portfolioDocumentId)
+
+        if len(set(document_ids)) != len(document_ids):
+            raise HTTPException(
+                status_code=400,
+                detail="문서별 documentId는 서로 달라야 합니다.",
+            )
 
         print("\n" + "=" * 70)
         print("Career Agent 파일 분석 시작")
@@ -141,15 +166,16 @@ def analyze_job_with_files(
         print("[4-5] RAG v2 문서 색인 시작")
 
         upload_documents = [
-            (resume, resume_path, "resume"),
-            (selfIntro, self_intro_path, "self_intro"),
+            (resume, resume_path, "resume", resumeDocumentId),
+            (selfIntro, self_intro_path, "self_intro", selfIntroDocumentId),
         ]
         if portfolio is not None and portfolio_path is not None:
-            upload_documents.append((portfolio, portfolio_path, "portfolio"))
+            upload_documents.append(
+                (portfolio, portfolio_path, "portfolio", portfolioDocumentId)
+            )
 
         indexed_documents = []
-        for upload, path, document_type in upload_documents:
-            document_id = new_document_id()
+        for upload, path, document_type, document_id in upload_documents:
             index_result = index_file(
                 user_id=userId,
                 document_id=document_id,

@@ -81,6 +81,9 @@ def run_pipeline():
                 filename=self_intro_path.name,
             ),
             portfolio=None,
+            resumeDocumentId=900101,
+            selfIntroDocumentId=900102,
+            portfolioDocumentId=None,
             userId=9001,
             ragConsent=True,
         )
