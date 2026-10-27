@@ -1,9 +1,13 @@
 package com.careerpulse.document.service;
 
+import com.careerpulse.document.client.DocumentRagClient;
+import com.careerpulse.document.client.DocumentRagException;
+import com.careerpulse.document.client.DocumentRagIndexResponse;
 import com.careerpulse.document.dto.DocumentResponse;
 import com.careerpulse.document.entity.Document;
 import com.careerpulse.document.entity.DocumentType;
 import com.careerpulse.document.entity.FileFormat;
+import com.careerpulse.document.entity.ProcessingStatus;
 import com.careerpulse.document.repository.DocumentRepository;
 import com.careerpulse.user.entity.User;
 import com.careerpulse.user.repository.UserRepository;
@@ -26,10 +30,12 @@ import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,6 +76,8 @@ class DocumentServiceTest {
         assertEquals(41L, response.documentId());
         assertEquals(DocumentType.RESUME, response.documentType());
         assertEquals(FileFormat.DOCX, response.fileFormat());
+        assertEquals(ProcessingStatus.COMPLETED, response.processingStatus());
+        assertNull(response.processingError());
         try (Stream<Path> storedFiles = Files.list(storageDirectory)) {
             assertEquals(1, storedFiles.count());
         }
@@ -188,6 +196,79 @@ class DocumentServiceTest {
     }
 
     @Test
+    void keepsStoredDocumentAndFailureReasonWhenRagIndexingFails() throws Exception {
+        UserRepository userRepository = mock(UserRepository.class);
+        DocumentRepository documentRepository = mock(DocumentRepository.class);
+        DocumentRagClient ragClient = mock(DocumentRagClient.class);
+        User user = user(7L);
+
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        when(documentRepository.findByUser_UserIdAndDocumentType(
+                7L,
+                DocumentType.RESUME
+        )).thenReturn(Optional.empty());
+        when(documentRepository.saveAndFlush(any(Document.class)))
+                .thenAnswer(invocation -> {
+                    Document document = invocation.getArgument(0);
+                    ReflectionTestUtils.setField(document, "documentId", 41L);
+                    return document;
+                });
+        when(ragClient.index(
+                any(), any(), any(), any(Boolean.class), any()
+        )).thenThrow(new DocumentRagException("문서 색인 실패", new RuntimeException()));
+
+        DocumentResponse response = service(
+                userRepository,
+                documentRepository,
+                ragClient
+        ).store(EMAIL, DocumentType.RESUME, docxFile("resume.docx"));
+
+        assertEquals(ProcessingStatus.FAILED, response.processingStatus());
+        assertEquals("문서 색인 실패", response.processingError());
+        try (Stream<Path> storedFiles = Files.list(storageDirectory)) {
+            assertEquals(1, storedFiles.count());
+        }
+    }
+
+    @Test
+    void preservesDocumentWhenRagDeletionFails() throws Exception {
+        UserRepository userRepository = mock(UserRepository.class);
+        DocumentRepository documentRepository = mock(DocumentRepository.class);
+        DocumentRagClient ragClient = mock(DocumentRagClient.class);
+        User user = user(7L);
+        Path storedFile = storageDirectory.resolve("resume.pdf");
+        Files.writeString(storedFile, "content");
+        Document document = new Document(
+                user,
+                DocumentType.RESUME,
+                "resume.pdf",
+                storedFile.toString(),
+                FileFormat.PDF,
+                Files.size(storedFile)
+        );
+        ReflectionTestUtils.setField(document, "documentId", 41L);
+
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        when(documentRepository.findByUser_UserIdAndDocumentType(
+                7L,
+                DocumentType.RESUME
+        )).thenReturn(Optional.of(document));
+        org.mockito.Mockito.doThrow(
+                new DocumentRagException("검색 데이터 삭제 실패", new RuntimeException())
+        ).when(ragClient).delete(7L, 41L);
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> service(userRepository, documentRepository, ragClient)
+                        .deleteDocument(EMAIL, DocumentType.RESUME)
+        );
+
+        assertEquals(502, exception.getStatusCode().value());
+        verify(documentRepository, never()).delete(document);
+        assertTrue(Files.exists(storedFile));
+    }
+
+    @Test
     void rejectsUnsupportedFileBeforeDatabaseAccess() {
         DocumentService service = service(
                 mock(UserRepository.class),
@@ -256,9 +337,29 @@ class DocumentServiceTest {
             UserRepository userRepository,
             DocumentRepository documentRepository
     ) {
+        DocumentRagClient ragClient = mock(DocumentRagClient.class);
+        when(ragClient.index(
+                any(), any(), any(), any(Boolean.class), any()
+        )).thenReturn(new DocumentRagIndexResponse(
+                41L,
+                DocumentType.RESUME,
+                1,
+                "test",
+                1,
+                "추출된 문서"
+        ));
+        return service(userRepository, documentRepository, ragClient);
+    }
+
+    private DocumentService service(
+            UserRepository userRepository,
+            DocumentRepository documentRepository,
+            DocumentRagClient ragClient
+    ) {
         return new DocumentService(
                 userRepository,
                 documentRepository,
+                ragClient,
                 storageDirectory.toString()
         );
     }

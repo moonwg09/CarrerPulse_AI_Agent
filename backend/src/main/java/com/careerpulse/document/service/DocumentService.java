@@ -1,5 +1,8 @@
 package com.careerpulse.document.service;
 
+import com.careerpulse.document.client.DocumentRagClient;
+import com.careerpulse.document.client.DocumentRagException;
+import com.careerpulse.document.client.DocumentRagIndexResponse;
 import com.careerpulse.document.dto.DocumentResponse;
 import com.careerpulse.document.entity.Document;
 import com.careerpulse.document.entity.DocumentType;
@@ -37,15 +40,18 @@ public class DocumentService {
 
     private final UserRepository userRepository;
     private final DocumentRepository documentRepository;
+    private final DocumentRagClient documentRagClient;
     private final Path storageRoot;
 
     public DocumentService(
             UserRepository userRepository,
             DocumentRepository documentRepository,
+            DocumentRagClient documentRagClient,
             @Value("${document.storage-dir:uploads/documents}") String storageDirectory
     ) {
         this.userRepository = userRepository;
         this.documentRepository = documentRepository;
+        this.documentRagClient = documentRagClient;
         this.storageRoot = Path.of(storageDirectory).toAbsolutePath().normalize();
     }
 
@@ -91,6 +97,24 @@ public class DocumentService {
         try {
             Document saved = documentRepository.saveAndFlush(document);
             deletePreviousFile(previousStoragePath, storedPath);
+
+            saved.markProcessing();
+            documentRepository.saveAndFlush(saved);
+
+            try {
+                DocumentRagIndexResponse indexResponse = documentRagClient.index(
+                        user.getUserId(),
+                        saved.getDocumentId(),
+                        saved.getDocumentType(),
+                        user.isConsented(),
+                        storedPath
+                );
+                saved.complete(indexResponse.extractedText());
+            } catch (DocumentRagException exception) {
+                saved.fail(exception.getMessage());
+            }
+
+            documentRepository.saveAndFlush(saved);
             return toResponse(saved);
         } catch (RuntimeException exception) {
             deleteStoredFile(storedPath);
@@ -125,6 +149,19 @@ public class DocumentService {
         User user = findUser(email);
         Document document = findOwnedDocument(user.getUserId(), documentType);
         Path storedPath = Path.of(document.getStoragePath()).toAbsolutePath().normalize();
+
+        try {
+            documentRagClient.delete(
+                    user.getUserId(),
+                    document.getDocumentId()
+            );
+        } catch (DocumentRagException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    exception.getMessage(),
+                    exception
+            );
+        }
 
         documentRepository.delete(document);
         documentRepository.flush();
