@@ -17,6 +17,7 @@ WORK24_SEARCH_URL = (
     f"{WORK24_BASE_URL}/wk/a/b/1200/retriveDtlEmpSrchListInPost.do"
 )
 WORK24_SOURCE = "WORK24"
+WORK24_SOFTWARE_OCCUPATION_CODE = "024"
 DEFAULT_MAX_PAGES = 5
 DEFAULT_REQUEST_INTERVAL_SECONDS = 0.5
 PUBLIC_REQUIREMENT_LABELS = (
@@ -61,6 +62,13 @@ def _first_text(elements) -> Optional[str]:
     return text or None
 
 
+def _normalize_search_keyword(keyword: str) -> str:
+    normalized = _clean_text(keyword)
+    if normalized == "개발자":
+        return ""
+    return re.sub(r"\s*개발자$", "", normalized).strip()
+
+
 def _parse_iso_date(value: Optional[str]) -> Optional[date]:
     if not value:
         return None
@@ -94,12 +102,20 @@ def parse_work24_search_page(page_html: str) -> list[Work24SearchItem]:
         detail_href = detail_link.get("href") or ""
         query = parse_qs(urlparse(detail_href).query)
         external_job_id = (query.get("wantedAuthNo") or [""])[0].strip()
+        info_type = (query.get("infoTypeCd") or [""])[0].strip()
+        info_group = (query.get("infoTypeGroup") or [""])[0].strip()
         title = _clean_text(detail_link.text_content())
         company_name = _first_text(
             row.xpath(".//a[contains(@class, 'cp_name')]")
         )
 
-        if not external_job_id or not title or not company_name:
+        if (
+            not external_job_id
+            or info_type != "VALIDATION"
+            or info_group != "tb_workinfoworknet"
+            or not title
+            or not company_name
+        ):
             continue
 
         region = _first_text(row.xpath(".//li[contains(@class, 'site')]//p"))
@@ -201,14 +217,19 @@ class Work24Crawler:
             time.sleep(self.request_interval_seconds)
 
     def _search(self, keyword: str, page: int) -> list[Work24SearchItem]:
+        search_keyword = _normalize_search_keyword(keyword)
         try:
             response = self.session.post(
                 WORK24_SEARCH_URL,
                 data={
                     "currentPageNo": str(page),
+                    "pageIndex": str(page),
                     "searchMode": "Y",
-                    "srcKeyword": keyword,
-                    "keyword": keyword,
+                    "occupation": WORK24_SOFTWARE_OCCUPATION_CODE,
+                    "srcKeyword": search_keyword,
+                    "keyword": search_keyword,
+                    "keywordWantedTitle": "Y",
+                    "keywordJobCont": "Y",
                 },
                 timeout=20,
             )
@@ -267,7 +288,10 @@ class Work24Crawler:
                 if not item.region or region_filter not in item.region:
                     continue
 
-                jobs.append(self._fetch_detail(item))
+                try:
+                    jobs.append(self._fetch_detail(item))
+                except Work24CollectionError:
+                    continue
                 if len(jobs) >= limit:
                     break
 
