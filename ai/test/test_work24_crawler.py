@@ -8,6 +8,7 @@ from services.job_sources.work24_crawler import (
     parse_work24_detail_page,
     parse_work24_search_page,
 )
+from services.job_posting_formatter import format_raw_job_for_analysis
 
 
 SEARCH_HTML = """
@@ -40,6 +41,12 @@ DETAIL_HTML = """
   <table><tr>
     <th>근무 예정지</th>
     <td><div><p>서울특별시 강남구 테헤란로</p></div></td>
+  </tr><tr>
+    <th>경력</th><td>경력 2년 이상</td>
+  </tr><tr>
+    <th>학력</th><td>대졸(4년) 이상</td>
+  </tr><tr>
+    <th>자격 면허</th><td>정보처리기사 우대</td>
   </tr></table>
   <div class="recruiter">채용 담당자 010-0000-0000</div>
 </body></html>
@@ -73,9 +80,17 @@ class Work24ParserTest(unittest.TestCase):
         self.assertEqual("백엔드 개발자", job.title)
         self.assertEqual("테스트 주식회사", job.companyName)
         self.assertEqual("서울특별시 강남구 테헤란로", job.region)
-        self.assertEqual("Python과 FastAPI를 이용한 API 개발", job.content)
+        self.assertIn("직무내용\nPython과 FastAPI를 이용한 API 개발", job.content)
+        self.assertIn("경력\n경력 2년 이상", job.content)
+        self.assertIn("학력\n대졸(4년) 이상", job.content)
+        self.assertIn("자격 면허\n정보처리기사 우대", job.content)
         self.assertNotIn("채용 담당자", job.content)
         self.assertNotIn("더보기", job.content)
+
+        analysis_text = format_raw_job_for_analysis(job)
+        self.assertIn("회사명: 테스트 주식회사", analysis_text)
+        self.assertIn("채용공고 제목: 백엔드 개발자", analysis_text)
+        self.assertIn("접수 마감일: 2026-11-30", analysis_text)
 
 
 class Work24CrawlerTest(unittest.TestCase):
