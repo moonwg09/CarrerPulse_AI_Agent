@@ -21,7 +21,7 @@ SEARCH_HTML = """
       </a>
     </td>
     <td><li class="site"><p>서울특별시 강남구</p></li></td>
-    <td><p>마감일 : 2026-11-30</p></td>
+    <td><p>마감일 : 2026-11-30</p><p>등록일 : 2026-10-28</p></td>
   </tr>
 </table></body></html>
 """
@@ -62,6 +62,7 @@ class Work24ParserTest(unittest.TestCase):
         self.assertEqual("백엔드 개발자", items[0].title)
         self.assertEqual("테스트 주식회사", items[0].company_name)
         self.assertEqual("서울특별시 강남구", items[0].region)
+        self.assertEqual(date(2026, 10, 28), items[0].posted_date)
         self.assertEqual(date(2026, 11, 30), items[0].close_date)
 
     def test_search_page_excludes_external_provider_postings(self):
@@ -78,6 +79,7 @@ class Work24ParserTest(unittest.TestCase):
             title="목록 제목",
             company_name="목록 회사",
             region="서울특별시",
+            posted_date=date(2026, 10, 28),
             close_date=date(2026, 11, 30),
             detail_url="https://www.work24.go.kr/detail/K123",
         )
@@ -85,6 +87,8 @@ class Work24ParserTest(unittest.TestCase):
         job = parse_work24_detail_page(DETAIL_HTML, item)
 
         self.assertEqual("work24_K123", job.jobId)
+        self.assertEqual("K123", job.externalJobId)
+        self.assertEqual(date(2026, 10, 28), job.postedDate)
         self.assertEqual("백엔드 개발자", job.title)
         self.assertEqual("테스트 주식회사", job.companyName)
         self.assertEqual("서울특별시 강남구 테헤란로", job.region)

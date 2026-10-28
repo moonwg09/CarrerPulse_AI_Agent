@@ -44,9 +44,11 @@ class CareerWork24IntegrationTest(unittest.TestCase):
     ):
         job = RawJobPosting(
             jobId="work24_K123",
+            externalJobId="K123",
             title="백엔드 개발자",
             companyName="테스트 주식회사",
             region="서울특별시 강남구",
+            postedDate=date(2026, 10, 28),
             closeDate=date(2026, 11, 30),
             url="https://www.work24.go.kr/detail/K123",
             content="직무내용\nPython API 개발\n\n경력\n경력 2년 이상",
