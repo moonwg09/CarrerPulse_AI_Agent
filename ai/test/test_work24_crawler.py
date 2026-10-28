@@ -16,7 +16,7 @@ SEARCH_HTML = """
   <tr>
     <td>
       <a class="cp_name">테스트 주식회사</a>
-      <a data-emp-detail href="/wk/a/b/1500/empDetailAuthView.do?wantedAuthNo=K123&amp;infoTypeCd=VALIDATION">
+      <a data-emp-detail href="/wk/a/b/1500/empDetailAuthView.do?wantedAuthNo=K123&amp;infoTypeCd=VALIDATION&amp;infoTypeGroup=tb_workinfoworknet">
         백엔드 개발자
       </a>
     </td>
@@ -63,6 +63,14 @@ class Work24ParserTest(unittest.TestCase):
         self.assertEqual("테스트 주식회사", items[0].company_name)
         self.assertEqual("서울특별시 강남구", items[0].region)
         self.assertEqual(date(2026, 11, 30), items[0].close_date)
+
+    def test_search_page_excludes_external_provider_postings(self):
+        external_html = SEARCH_HTML.replace(
+            "infoTypeCd=VALIDATION&amp;infoTypeGroup=tb_workinfoworknet",
+            "infoTypeCd=CSI&amp;infoTypeGroup=tb_workinfogubun",
+        )
+
+        self.assertEqual([], parse_work24_search_page(external_html))
 
     def test_detail_page_collects_only_job_description(self):
         item = Work24SearchItem(
@@ -139,6 +147,27 @@ class Work24CrawlerTest(unittest.TestCase):
 
         self.assertEqual(0, result.collectedCount)
         session.get.assert_not_called()
+
+    def test_collect_uses_software_job_code_and_normalized_keyword(self):
+        search_response = Mock()
+        search_response.text = "<html><body><table></table></body></html>"
+        search_response.raise_for_status = Mock()
+
+        session = Mock()
+        session.headers = {}
+        session.post.return_value = search_response
+
+        Work24Crawler(
+            session=session,
+            request_interval_seconds=0,
+            max_pages=1,
+        ).collect("백엔드 개발자", "서울", limit=1)
+
+        request_data = session.post.call_args.kwargs["data"]
+        self.assertEqual("024", request_data["occupation"])
+        self.assertEqual("백엔드", request_data["keyword"])
+        self.assertEqual("Y", request_data["keywordWantedTitle"])
+        self.assertEqual("Y", request_data["keywordJobCont"])
 
 
 if __name__ == "__main__":
