@@ -26,6 +26,11 @@ from services.recommendation_service import (
     build_recommendation_list,
 )
 from services.requirement_frequency import calculate_requirement_frequency
+from services.job_sources.work24_crawler import (
+    Work24CollectionError,
+    collect_work24_jobs,
+)
+from services.job_posting_formatter import format_raw_job_for_analysis
 
 
 TEMP_DIR = Path("temp_uploads")
@@ -80,6 +85,92 @@ def analyze_job_with_files(
     selfIntro: UploadFile = File(...),
     portfolio: Optional[UploadFile] = File(None),
 ):
+    jobs = [
+        {
+            "jobId": "job-001",
+            "closeDate": closeDate1,
+            "text": jobText1,
+        },
+        {
+            "jobId": "job-002",
+            "closeDate": closeDate2,
+            "text": jobText2,
+        },
+    ]
+
+    return _analyze_jobs_with_files(
+        jobs=jobs,
+        start_date=startDate,
+        end_date=endDate,
+        weekly_available_hours=weeklyAvailableHours,
+        resume=resume,
+        self_intro=selfIntro,
+        portfolio=portfolio,
+    )
+
+
+@router.post("/analyze-work24-files")
+def analyze_work24_with_files(
+    jobKeyword: str = Form(..., min_length=1),
+    region: str = Form(..., min_length=1),
+    limit: int = Form(default=5, ge=1, le=10),
+    startDate: date = Form(...),
+    endDate: date = Form(...),
+    weeklyAvailableHours: float = Form(..., gt=0),
+    resume: UploadFile = File(...),
+    selfIntro: UploadFile = File(...),
+    portfolio: Optional[UploadFile] = File(None),
+):
+    try:
+        collection = collect_work24_jobs(
+            job_keyword=jobKeyword,
+            region=region,
+            limit=limit,
+        )
+    except Work24CollectionError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    jobs = [
+        {
+            "jobId": job.jobId,
+            "closeDate": job.closeDate,
+            "text": format_raw_job_for_analysis(job),
+        }
+        for job in collection.jobs
+        if job.closeDate is not None
+    ]
+
+    if not jobs:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "조건에 맞는 고용24 공고를 찾지 못했거나 "
+                "마감일을 확인할 수 없습니다."
+            ),
+        )
+
+    result = _analyze_jobs_with_files(
+        jobs=jobs,
+        start_date=startDate,
+        end_date=endDate,
+        weekly_available_hours=weeklyAvailableHours,
+        resume=resume,
+        self_intro=selfIntro,
+        portfolio=portfolio,
+    )
+    result["collectedJobs"] = collection.jobs
+    return result
+
+
+def _analyze_jobs_with_files(
+    jobs: list[dict],
+    start_date: date,
+    end_date: date,
+    weekly_available_hours: float,
+    resume: UploadFile,
+    self_intro: UploadFile,
+    portfolio: Optional[UploadFile] = None,
+):
     saved_files: list[Path] = []
 
     try:
@@ -93,7 +184,7 @@ def analyze_job_with_files(
         resume_path = save_temp_file(resume)
         saved_files.append(resume_path)
 
-        self_intro_path = save_temp_file(selfIntro)
+        self_intro_path = save_temp_file(self_intro)
         saved_files.append(self_intro_path)
 
         portfolio_path = None
@@ -168,21 +259,8 @@ def analyze_job_with_files(
         career_agent = build_career_agent()
         print("[6] Career Agent 생성 완료")
 
-        # 7. 공고 2개 Agent 실행
+        # 7. 수집된 공고별 Agent 실행
         print("[7] Career Agent 실행 시작")
-
-        jobs = [
-            {
-                "jobId": "job-001",
-                "closeDate": closeDate1,
-                "text": jobText1,
-            },
-            {
-                "jobId": "job-002",
-                "closeDate": closeDate2,
-                "text": jobText2,
-            },
-        ]
 
         match_results = []
         recommendation_items = []
@@ -269,9 +347,9 @@ def analyze_job_with_files(
             print("[12] Gemini 학습계획 생성 시작")
 
             learning_plan_request = LearningPlanRequest(
-                startDate=startDate,
-                endDate=endDate,
-                weeklyAvailableHours=weeklyAvailableHours,
+                startDate=start_date,
+                endDate=end_date,
+                weeklyAvailableHours=weekly_available_hours,
             )
 
             learning_plan = generate_learning_plan(

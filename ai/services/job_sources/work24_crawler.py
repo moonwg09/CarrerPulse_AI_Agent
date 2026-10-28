@@ -19,6 +19,21 @@ WORK24_SEARCH_URL = (
 WORK24_SOURCE = "WORK24"
 DEFAULT_MAX_PAGES = 5
 DEFAULT_REQUEST_INTERVAL_SECONDS = 0.5
+PUBLIC_REQUIREMENT_LABELS = (
+    "모집 직종",
+    "관련 직종",
+    "직종 키워드",
+    "경력",
+    "학력",
+    "자격 면허",
+    "고용 형태",
+    "임금 조건",
+    "전공",
+    "컴퓨터 활용 능력",
+    "외국어 능력",
+    "우대조건",
+    "기타 우대사항",
+)
 
 
 class Work24CollectionError(RuntimeError):
@@ -56,6 +71,14 @@ def _parse_iso_date(value: Optional[str]) -> Optional[date]:
         return date.fromisoformat("-".join(matched.groups()))
     except ValueError:
         return None
+
+
+def _table_value(document, label: str) -> Optional[str]:
+    cells = document.xpath(
+        "//th[normalize-space()=$label]/following-sibling::td[1]",
+        label=label,
+    )
+    return _first_text(cells)
 
 
 def parse_work24_search_page(page_html: str) -> list[Work24SearchItem]:
@@ -130,12 +153,19 @@ def parse_work24_detail_page(
     content_node = content_nodes[0]
     for removable in content_node.xpath(".//script | .//style | .//button"):
         removable.getparent().remove(removable)
-    content = _clean_text(content_node.text_content())
-    content = re.sub(r"^직무내용\s*", "", content).strip()
-    if not content:
+    job_description = _clean_text(content_node.text_content())
+    job_description = re.sub(r"^직무내용\s*", "", job_description).strip()
+    if not job_description:
         raise Work24CollectionError(
             f"고용24 공고 본문이 비어 있습니다: {search_item.external_job_id}"
         )
+
+    content_parts = [f"직무내용\n{job_description}"]
+    for label in PUBLIC_REQUIREMENT_LABELS:
+        value = _table_value(document, label)
+        if value and value not in {"-", "해당없음"}:
+            content_parts.append(f"{label}\n{value}")
+    content = "\n\n".join(content_parts)
 
     return RawJobPosting(
         jobId=f"work24_{search_item.external_job_id}",
