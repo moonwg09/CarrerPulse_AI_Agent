@@ -47,6 +47,7 @@ class Work24SearchItem:
     title: str
     company_name: str
     region: Optional[str]
+    posted_date: Optional[date]
     close_date: Optional[date]
     detail_url: str
 
@@ -122,6 +123,9 @@ def parse_work24_search_page(page_html: str) -> list[Work24SearchItem]:
         deadline_text = _first_text(
             row.xpath(".//p[contains(normalize-space(.), '마감일')]")
         )
+        posted_date_text = _first_text(
+            row.xpath(".//p[contains(normalize-space(.), '등록일')]")
+        )
 
         items.append(
             Work24SearchItem(
@@ -129,6 +133,7 @@ def parse_work24_search_page(page_html: str) -> list[Work24SearchItem]:
                 title=title,
                 company_name=company_name,
                 region=region,
+                posted_date=_parse_iso_date(posted_date_text),
                 close_date=_parse_iso_date(deadline_text),
                 detail_url=urljoin(WORK24_BASE_URL, detail_href),
             )
@@ -185,9 +190,11 @@ def parse_work24_detail_page(
 
     return RawJobPosting(
         jobId=f"work24_{search_item.external_job_id}",
+        externalJobId=search_item.external_job_id,
         title=title,
         companyName=company_name,
         region=region,
+        postedDate=search_item.posted_date,
         closeDate=search_item.close_date,
         url=search_item.detail_url,
         content=content,
