@@ -1,6 +1,6 @@
 import { getCsrfToken } from "./userApi";
 
-const BASE_URL = "http://localhost:8080/api/v1/analysis";
+const BASE_URL = "/api/v1/analysis";
 
 async function readBody(response) {
   return await response.json().catch(() => null);

@@ -9,6 +9,7 @@ import AnalysisPage from "./pages/AnalysisPage";
 import AnalysisDetailPage from "./pages/AnalysisDetailPage";
 import RecommendationPage from "./pages/RecommendationPage";
 import LearningPage from "./pages/LearningPage";
+import DocumentsPage from "./pages/DocumentsPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -17,6 +18,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/learning" element={<ProtectedRoute><LearningPage /></ProtectedRoute>} />
+        <Route path="/documents" element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
         <Route
           path="/"
           element={<Navigate to="/login" replace />}

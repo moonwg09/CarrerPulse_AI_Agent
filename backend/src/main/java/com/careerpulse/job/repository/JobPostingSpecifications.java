@@ -35,11 +35,13 @@ public final class JobPostingSpecifications {
                     description,
                     normalizeInterestKeyword(interestJobName)
             ));
-            conditions.add(criteriaBuilder.like(
-                    criteriaBuilder.lower(root.get("region")),
-                    likePattern(region),
-                    '\\'
-            ));
+            if (!"전국".equals(region.trim())) {
+                conditions.add(criteriaBuilder.like(
+                        criteriaBuilder.lower(root.get("region")),
+                        likePattern(region),
+                        '\\'
+                ));
+            }
 
             if (hasText(keyword)) {
                 Expression<String> companyName = criteriaBuilder.lower(
