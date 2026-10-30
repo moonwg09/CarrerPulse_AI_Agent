@@ -118,7 +118,7 @@ function RecommendationPage() {
                 {result.items.map((item, index) => (
                   <tr key={item.analysisId}>
                     <td>{index + 1}</td>
-                    <td>{item.jobTitle || item.jobKey}</td>
+                    <td>{item.jobTitle || `공고 ${item.jobId}`}</td>
                     <td>{item.companyName || "-"}</td>
                     <td>{item.closeDate || "-"}</td>
                     <td>{item.overallMatchRate ?? "-"}</td>

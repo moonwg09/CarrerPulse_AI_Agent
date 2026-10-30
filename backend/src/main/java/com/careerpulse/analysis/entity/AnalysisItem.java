@@ -2,15 +2,14 @@ package com.careerpulse.analysis.entity;
 
 import jakarta.persistence.*;
 
-/**
- * 공고 요구사항 1건에 대한 비교 결과.
- *
- * matchedSkills / missingSkills / userEvidence / jobEvidence 는
- * AI 응답의 해당 부분을 JSON 문자열 그대로 저장한다.
- * (근거 원문을 가공하지 않고 보관하기 위한 것)
- */
 @Entity
-@Table(name = "analysis_items")
+@Table(
+        name = "comparison_items",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_comparison_requirement",
+                columnNames = {"comparison_id", "requirement_id"}
+        )
+)
 public class AnalysisItem {
 
     @Id
@@ -19,112 +18,57 @@ public class AnalysisItem {
     private Long itemId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "analysis_id", nullable = false)
+    @JoinColumn(name = "comparison_id", nullable = false)
     private AnalysisResult analysisResult;
 
-    @Column(name = "item_order", nullable = false)
-    private int itemOrder;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "requirement_id", nullable = false)
+    private JobRequirement requirement;
 
-    @Column(name = "requirement", nullable = false, length = 500)
-    private String requirement;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "requirement_category", nullable = false, length = 20)
-    private RequirementCategory requirementCategory;
+    @Column(name = "evidence_chunk_id")
+    private Long evidenceChunkId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "match_status", nullable = false, length = 30)
-    private MatchStatus matchStatus;
+    @Column(name = "judgment", nullable = false, length = 30)
+    private Judgment judgment;
 
-    @Column(name = "reason", length = 1000)
-    private String reason;
+    @Column(name = "analysis_reason", columnDefinition = "TEXT")
+    private String analysisReason;
 
-    @Lob
-    @Column(name = "matched_skills", columnDefinition = "LONGTEXT")
-    private String matchedSkills;
-
-    @Lob
-    @Column(name = "missing_skills", columnDefinition = "LONGTEXT")
-    private String missingSkills;
-
-    @Lob
-    @Column(name = "user_evidence", columnDefinition = "LONGTEXT")
-    private String userEvidence;
-
-    @Lob
-    @Column(name = "job_evidence", columnDefinition = "LONGTEXT")
-    private String jobEvidence;
+    @Column(name = "user_confirmed", nullable = false)
+    private boolean userConfirmed;
 
     protected AnalysisItem() {
     }
 
     public AnalysisItem(
-            int itemOrder,
-            String requirement,
-            RequirementCategory requirementCategory,
-            MatchStatus matchStatus,
-            String reason,
-            String matchedSkills,
-            String missingSkills,
-            String userEvidence,
-            String jobEvidence
+            JobRequirement requirement,
+            Long evidenceChunkId,
+            Judgment judgment,
+            String analysisReason,
+            boolean userConfirmed
     ) {
-        this.itemOrder = itemOrder;
         this.requirement = requirement;
-        this.requirementCategory = requirementCategory;
-        this.matchStatus = matchStatus;
-        this.reason = reason;
-        this.matchedSkills = matchedSkills;
-        this.missingSkills = missingSkills;
-        this.userEvidence = userEvidence;
-        this.jobEvidence = jobEvidence;
+        this.evidenceChunkId = evidenceChunkId;
+        this.judgment = judgment;
+        this.analysisReason = analysisReason;
+        this.userConfirmed = userConfirmed;
     }
 
     void assignTo(AnalysisResult analysisResult) {
         this.analysisResult = analysisResult;
     }
 
-    public Long getItemId() {
-        return itemId;
+    public void confirmNoExperience() {
+        this.judgment = Judgment.NO_EXPERIENCE;
+        this.userConfirmed = true;
     }
 
-    public AnalysisResult getAnalysisResult() {
-        return analysisResult;
-    }
-
-    public int getItemOrder() {
-        return itemOrder;
-    }
-
-    public String getRequirement() {
-        return requirement;
-    }
-
-    public RequirementCategory getRequirementCategory() {
-        return requirementCategory;
-    }
-
-    public MatchStatus getMatchStatus() {
-        return matchStatus;
-    }
-
-    public String getReason() {
-        return reason;
-    }
-
-    public String getMatchedSkills() {
-        return matchedSkills;
-    }
-
-    public String getMissingSkills() {
-        return missingSkills;
-    }
-
-    public String getUserEvidence() {
-        return userEvidence;
-    }
-
-    public String getJobEvidence() {
-        return jobEvidence;
-    }
+    public Long getItemId() { return itemId; }
+    public AnalysisResult getAnalysisResult() { return analysisResult; }
+    public JobRequirement getRequirement() { return requirement; }
+    public Long getEvidenceChunkId() { return evidenceChunkId; }
+    public Judgment getJudgment() { return judgment; }
+    public String getAnalysisReason() { return analysisReason; }
+    public boolean isUserConfirmed() { return userConfirmed; }
 }

@@ -3,10 +3,10 @@ package com.careerpulse.analysis.controller;
 import com.careerpulse.analysis.dto.AnalysisCompareRequest;
 import com.careerpulse.analysis.dto.AnalysisDetailResponse;
 import com.careerpulse.analysis.dto.AnalysisSummaryResponse;
+import com.careerpulse.analysis.dto.NoExperienceConfirmationRequest;
 import com.careerpulse.analysis.dto.RecommendationListResponse;
 import com.careerpulse.analysis.service.AnalysisRecommendationService;
 import com.careerpulse.analysis.service.AnalysisService;
-import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +22,6 @@ import java.util.Map;
  *  POST /api/v1/analysis/compare              [서류와 공고비교] + [fast api 호출] + [결과저장]
  *  GET  /api/v1/analysis                      저장된 분석 결과 목록
  *  GET  /api/v1/analysis/{id}                 분석 결과 상세 (요구사항별 판정 + 근거)
- *  GET  /api/v1/analysis/{id}/raw             AI 응답 원본 JSON
  *  GET  /api/v1/analysis/recommendations      [추천조회]
  *  GET  /api/v1/analysis/ai-health            AI 서버 연결 확인
  *
@@ -122,17 +121,25 @@ public class AnalysisController {
         );
     }
 
-    @GetMapping("/{analysisId}/raw")
-    public ResponseEntity<JsonNode> getRawResult(
+    @PatchMapping("/{analysisId}/items/{itemId}/no-experience")
+    public ResponseEntity<AnalysisDetailResponse> confirmNoExperience(
             Authentication authentication,
 
-            @PathVariable Long analysisId
+            @PathVariable Long analysisId,
+
+            @PathVariable Long itemId,
+
+            @Valid @RequestBody NoExperienceConfirmationRequest request
     ) {
 
         String email = authentication.getName();
 
         return ResponseEntity.ok(
-                analysisService.getRawResult(email, analysisId)
+                analysisService.confirmNoExperience(
+                        email,
+                        analysisId,
+                        itemId
+                )
         );
     }
 }

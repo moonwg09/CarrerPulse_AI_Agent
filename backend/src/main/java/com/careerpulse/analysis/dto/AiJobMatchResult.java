@@ -10,7 +10,7 @@ import java.util.List;
  *
  * status / requirementCategory / recommendationStatus 는 문자열로 받는다.
  * AI 가 예상 밖의 값을 돌려줘도 역직렬화에서 터지지 않게 하고,
- * 실제 enum 변환은 백엔드 규칙(MatchStatus.from 등)이 담당한다.
+ * 실제 상태 검증과 저장용 판정 변환은 AnalysisResultMapper가 담당한다.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AiJobMatchResult(
@@ -21,7 +21,7 @@ public record AiJobMatchResult(
 
         List<RequirementMatch> requirementMatches,
 
-        List<JsonNode> objectiveConditionMatches,
+        List<ObjectiveConditionMatch> objectiveConditionMatches,
 
         MatchScore score,
 
@@ -48,6 +48,17 @@ public record AiJobMatchResult(
             // 근거 원문. 가공하지 않고 저장하기 위해 JsonNode 로 둔다.
             List<JsonNode> jobEvidence,
 
+            List<JsonNode> userEvidence
+    ) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ObjectiveConditionMatch(
+            String conditionType,
+            String requirement,
+            String requirementCategory,
+            String status,
+            String reason,
             List<JsonNode> userEvidence
     ) {
     }

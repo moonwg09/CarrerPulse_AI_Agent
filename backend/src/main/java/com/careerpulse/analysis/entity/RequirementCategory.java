@@ -9,15 +9,12 @@ public enum RequirementCategory {
     REQUIRED,
 
     // 우대
-    PREFERRED,
-
-    // 공고에 명시되지 않아 판단 불가
-    UNCLEAR;
+    PREFERRED;
 
     public static RequirementCategory from(String value) {
 
-        if (value == null) {
-            return UNCLEAR;
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("요구조건의 필수/우대 구분이 없습니다.");
         }
 
         try {
@@ -25,7 +22,10 @@ public enum RequirementCategory {
                     value.trim().toUpperCase()
             );
         } catch (IllegalArgumentException e) {
-            return UNCLEAR;
+            throw new IllegalArgumentException(
+                    "지원하지 않는 요구조건 구분입니다: " + value,
+                    e
+            );
         }
     }
 }

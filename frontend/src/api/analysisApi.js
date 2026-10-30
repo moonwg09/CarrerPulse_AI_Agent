@@ -55,7 +55,7 @@ export async function getAnalyses() {
   return body;
 }
 
-// 분석 결과 상세 (요구사항별 판정 + 근거 원문)
+// 분석 결과 상세
 export async function getAnalysisDetail(analysisId) {
   const response = await fetch(
     `${BASE_URL}/${analysisId}`,
@@ -76,13 +76,18 @@ export async function getAnalysisDetail(analysisId) {
   return body;
 }
 
-// AI 응답 원본 JSON
-export async function getAnalysisRaw(analysisId) {
+export async function confirmNoExperience(analysisId, itemId) {
+  const csrf = await getCsrfToken();
   const response = await fetch(
-    `${BASE_URL}/${analysisId}/raw`,
+    `${BASE_URL}/${analysisId}/items/${itemId}/no-experience`,
     {
-      method: "GET",
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        [csrf.headerName]: csrf.token,
+      },
       credentials: "include",
+      body: JSON.stringify({ confirmed: true }),
     }
   );
 
@@ -90,7 +95,7 @@ export async function getAnalysisRaw(analysisId) {
 
   if (!response.ok) {
     throw new Error(
-      body?.message || "AI 원본 응답을 불러오지 못했습니다."
+      body?.message || "경험 없음 확인에 실패했습니다."
     );
   }
 
