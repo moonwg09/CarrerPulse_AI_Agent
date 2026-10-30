@@ -55,9 +55,38 @@ public class JobRequirement {
             String description,
             String sourceQuote
     ) {
+        this(
+                jobId,
+                requirementKey,
+                requirementType,
+                comparisonKind,
+                requirementName,
+                description,
+                sourceQuote,
+                null
+        );
+    }
+
+    public JobRequirement(
+            Long jobId,
+            String requirementKey,
+            RequirementCategory requirementType,
+            ComparisonKind comparisonKind,
+            String requirementName,
+            String description,
+            String sourceQuote,
+            String evaluationRule
+    ) {
         this.jobId = jobId;
         this.requirementKey = requirementKey;
-        apply(requirementType, comparisonKind, requirementName, description, sourceQuote);
+        apply(
+                requirementType,
+                comparisonKind,
+                requirementName,
+                description,
+                sourceQuote,
+                evaluationRule
+        );
     }
 
     public void apply(
@@ -67,11 +96,32 @@ public class JobRequirement {
             String description,
             String sourceQuote
     ) {
+        apply(
+                requirementType,
+                comparisonKind,
+                requirementName,
+                description,
+                sourceQuote,
+                null
+        );
+    }
+
+    public void apply(
+            RequirementCategory requirementType,
+            ComparisonKind comparisonKind,
+            String requirementName,
+            String description,
+            String sourceQuote,
+            String evaluationRule
+    ) {
         this.requirementType = requirementType;
         this.comparisonKind = comparisonKind;
         this.requirementName = requirementName;
         this.description = description;
         this.sourceQuote = sourceQuote;
+        if (evaluationRule != null && !evaluationRule.isBlank()) {
+            this.evaluationRule = evaluationRule;
+        }
     }
 
     public Long getRequirementId() { return requirementId; }
@@ -82,4 +132,5 @@ public class JobRequirement {
     public String getRequirementName() { return requirementName; }
     public String getDescription() { return description; }
     public String getSourceQuote() { return sourceQuote; }
+    public String getEvaluationRule() { return evaluationRule; }
 }

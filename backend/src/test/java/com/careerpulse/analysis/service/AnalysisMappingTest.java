@@ -92,11 +92,11 @@ class AnalysisMappingTest {
                 List.of(
                         new AiJobMatchResult.RequirementMatch(
                                 "Java 경험", "PREFERRED", "EXPERIENCED", "근거",
-                                List.of(), List.of(), List.of(), evidence
+                                List.of("Java"), List.of(), List.of(), evidence
                         ),
                         new AiJobMatchResult.RequirementMatch(
                                 "Java 경험", "REQUIRED", "EXPERIENCED", "근거",
-                                List.of(), List.of(), List.of(), evidence
+                                List.of("Java"), List.of(), List.of(), evidence
                         )
                 ),
                 List.of(),
@@ -111,6 +111,9 @@ class AnalysisMappingTest {
         assertThat(mapped.items().get(0).getRequirement().getRequirementType())
                 .isEqualTo(RequirementCategory.REQUIRED);
         assertThat(mapped.score().matchedCount()).isEqualTo(1);
+        assertThat(mapped.items().get(0).getRequirement().getEvaluationRule())
+                .contains("Java")
+                .contains("experience");
     }
 
     private AnalysisResultMapper mapper(boolean ownedDocument) {
@@ -123,7 +126,8 @@ class AnalysisMappingTest {
         return new AnalysisResultMapper(
                 requirementRepository,
                 contextRepository,
-                new AnalysisScoreCalculator()
+                new AnalysisScoreCalculator(),
+                new ObjectMapper()
         );
     }
 

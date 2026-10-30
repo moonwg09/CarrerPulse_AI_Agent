@@ -5,6 +5,9 @@ import com.careerpulse.analysis.entity.*;
 import com.careerpulse.analysis.repository.AnalysisContextRepository;
 import com.careerpulse.analysis.repository.JobRequirementRepository;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -14,7 +17,9 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Component
 public class AnalysisResultMapper {
@@ -22,15 +27,22 @@ public class AnalysisResultMapper {
     private final JobRequirementRepository requirementRepository;
     private final AnalysisContextRepository contextRepository;
     private final AnalysisScoreCalculator scoreCalculator;
+    private final ObjectMapper objectMapper;
+
+    private static final Pattern CERTIFICATE_SEPARATOR = Pattern.compile(
+            "\\s*(?:또는|OR|or|/|,|·)\\s*"
+    );
 
     public AnalysisResultMapper(
             JobRequirementRepository requirementRepository,
             AnalysisContextRepository contextRepository,
-            AnalysisScoreCalculator scoreCalculator
+            AnalysisScoreCalculator scoreCalculator,
+            ObjectMapper objectMapper
     ) {
         this.requirementRepository = requirementRepository;
         this.contextRepository = contextRepository;
         this.scoreCalculator = scoreCalculator;
+        this.objectMapper = objectMapper;
     }
 
     public MappedAnalysis map(Long userId, Long jobId, AiJobMatchResult result) {
@@ -44,7 +56,8 @@ public class AnalysisResultMapper {
                     ComparisonKind.EXPERIENCE,
                     category,
                     match.requirement(),
-                    firstJobEvidenceText(match.jobEvidence())
+                    firstJobEvidenceText(match.jobEvidence()),
+                    experienceEvaluationRule(match)
             );
 
             EvidenceReference evidence = evidence(userId, match.userEvidence());
@@ -68,7 +81,8 @@ public class AnalysisResultMapper {
                     ComparisonKind.OBJECTIVE,
                     category,
                     match.requirement(),
-                    match.requirement()
+                    match.requirement(),
+                    objectiveEvaluationRule(match)
             );
 
             EvidenceReference evidence = evidence(userId, match.userEvidence());
@@ -97,7 +111,8 @@ public class AnalysisResultMapper {
             ComparisonKind kind,
             RequirementCategory category,
             String text,
-            String sourceQuote
+            String sourceQuote,
+            String evaluationRule
     ) {
         String normalized = text == null || text.isBlank() ? "미확인 요구조건" : text.trim();
         String key = requirementKey(kind, normalized);
@@ -110,16 +125,72 @@ public class AnalysisResultMapper {
                         kind,
                         truncate(normalized, 255),
                         normalized,
-                        sourceQuote
+                        sourceQuote,
+                        evaluationRule
                 ));
         requirement.apply(
                 category,
                 kind,
                 truncate(normalized, 255),
                 normalized,
-                sourceQuote
+                sourceQuote,
+                evaluationRule
         );
         return requirementRepository.save(requirement);
+    }
+
+    private String experienceEvaluationRule(AiJobMatchResult.RequirementMatch match) {
+        ObjectNode rule = objectMapper.createObjectNode();
+        rule.put("version", 1);
+        ArrayNode skills = rule.putArray("skills");
+        var uniqueSkills = new LinkedHashMap<String, String>();
+        for (String skill : safe(match.matchedSkills())) {
+            addNormalized(uniqueSkills, skill);
+        }
+        for (String skill : safe(match.missingSkills())) {
+            addNormalized(uniqueSkills, skill);
+        }
+        uniqueSkills.values().forEach(skills::add);
+        rule.put("experience", match.requirement() == null ? "" : match.requirement().trim());
+        return boundedRule(rule);
+    }
+
+    private String objectiveEvaluationRule(AiJobMatchResult.ObjectiveConditionMatch match) {
+        if (!"CERTIFICATE".equalsIgnoreCase(match.conditionType())) {
+            return null;
+        }
+        ObjectNode rule = objectMapper.createObjectNode();
+        rule.put("version", 1);
+        ArrayNode certificates = rule.putArray("certificates");
+        var unique = new LinkedHashMap<String, String>();
+        String requirement = match.requirement() == null ? "" : match.requirement().trim();
+        for (String item : CERTIFICATE_SEPARATOR.split(requirement)) {
+            String cleaned = item
+                    .replaceAll("(?i)\\s*(보유자?|소지자?|우대|필수|자격증|면허)\\s*", " ")
+                    .trim();
+            addNormalized(unique, cleaned);
+        }
+        if (unique.isEmpty()) {
+            addNormalized(unique, requirement);
+        }
+        unique.values().forEach(certificates::add);
+        return boundedRule(rule);
+    }
+
+    private void addNormalized(Map<String, String> target, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        String cleaned = String.join(" ", value.trim().split("\\s+"));
+        target.putIfAbsent(cleaned.toLowerCase(Locale.ROOT), cleaned);
+    }
+
+    private String boundedRule(ObjectNode rule) {
+        String value = rule.toString();
+        if (value.length() > 500) {
+            throw new IllegalArgumentException("학습 요구사항 메타데이터가 저장 한도를 초과했습니다.");
+        }
+        return value;
     }
 
     private EvidenceReference evidence(Long userId, List<JsonNode> evidences) {
