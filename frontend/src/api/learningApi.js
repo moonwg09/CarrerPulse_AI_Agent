@@ -1,13 +1,13 @@
 import { getCsrfToken } from "./userApi";
 
 // 세션 쿠키와 CSRF 토큰을 함께 보내 기존 로그인 보안 흐름을 따른다.
-export async function analyzeLearning(source, assessments) {
+export async function analyzeLearning(region) {
   const csrf = await getCsrfToken();
   const response = await fetch("/api/v1/learning/analysis/me", {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
-    body: JSON.stringify({ source, assessments }),
+    body: JSON.stringify({ region }),
   });
   const body = await response.json().catch(() => null);
   if (!response.ok) {

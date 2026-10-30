@@ -1,9 +1,10 @@
 package com.careerpulse.learning.controller;
 
 import com.careerpulse.learning.dto.LearningJobResponse;
+import com.careerpulse.learning.service.LearningContextService;
 import com.careerpulse.learning.service.LearningService;
-import com.careerpulse.user.dto.UserJobResponse;
-import com.careerpulse.user.service.UserService;
+import com.careerpulse.user.entity.User;
+import com.careerpulse.user.service.AuthService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,19 +17,23 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
+
 import java.time.LocalDate;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
-/** 로그인 사용자 기준의 데이터 선택/전달 계약을 DB와 네트워크 없이 검증한다. */
 class LearningAnalysisControllerTest {
-    ObjectMapper mapper = new ObjectMapper();
+    final ObjectMapper mapper = new ObjectMapper();
     LearningService learning;
-    UserService users;
+    LearningContextService contexts;
+    AuthService users;
     LearningAnalysisController controller;
     MockRestServiceServer server;
     final UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
@@ -37,71 +42,77 @@ class LearningAnalysisControllerTest {
     @BeforeEach
     void setup() {
         learning = mock(LearningService.class);
-        users = mock(UserService.class);
+        contexts = mock(LearningContextService.class);
+        users = mock(AuthService.class);
+        User user = mock(User.class);
+        when(user.getUserId()).thenReturn(7L);
+        when(users.findByEmail(auth.getName())).thenReturn(user);
         var builder = RestClient.builder().baseUrl("http://learning.test");
         server = MockRestServiceServer.bindTo(builder).build();
-        controller = new LearningAnalysisController(learning, users, mapper, builder.build());
-        when(users.getMyJobs(auth.getName())).thenReturn(List.of(new UserJobResponse(1L, "BACKEND", "백엔드")));
-    }
-
-    LearningAnalysisController.AnalyzeInput input(String source) {
-        return new LearningAnalysisController.AnalyzeInput(source, mapper.createArrayNode());
+        controller = new LearningAnalysisController(learning, contexts, users, mapper, builder.build());
     }
 
     @Test
-    void testSourceUsesOwnInterestsAndDoesNotReadDatabasePostings() {
+    void authenticatedUsersRegionAndStoredAnalysisAreUsed() {
+        var selected = List.of(new LearningJobResponse(
+                42L, "테스트", "백엔드", "소프트웨어", "원문",
+                LocalDate.of(2026, 10, 20), null, null));
+        when(learning.getMyAvailableJobs(auth.getName(), "서울")).thenReturn(selected);
+        var jobs = mapper.createArrayNode();
+        jobs.addObject().put("jobId", "42").put("jobCategory", "SELECTED")
+                .put("postedDate", "2026-10-20").putArray("requirements")
+                .addObject().put("name", "Spring").put("type", "SKILL").put("category", "REQUIRED");
+        var assessments = mapper.createArrayNode();
+        assessments.addObject().put("name", "Spring").put("type", "SKILL")
+                .put("status", "PARTIAL").put("evidence", "저장된 근거").putArray("missingDetails");
+        when(contexts.build(7L, selected)).thenReturn(new LearningContextService.Context(jobs, assessments, 0));
+
         server.expect(requestTo("http://learning.test/api/v1/learning/analyze"))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(jsonPath("$.interests[0]").value("BACKEND"))
-                // 전체 자체 공고 21개를 전달하고 Python에서 관심 직무별 최대 10개를 선택한다.
-                .andExpect(jsonPath("$.jobs.length()").value(21))
-                .andExpect(jsonPath("$.jobs[0].postedDate").isNotEmpty())
-                .andExpect(jsonPath("$.jobs[0].postedOffsetDays").doesNotExist())
-                .andRespond(withSuccess("{\"targetJobCount\":10}", MediaType.APPLICATION_JSON));
-        var result = controller.analyze(auth, input("TEST"));
-        assertEquals("TEST", result.path("source").asText());
-        verifyNoInteractions(learning);
-        verify(users).getMyJobs("learner@example.com");
-        server.verify();
-    }
-
-    @Test
-    void databaseUsesAuthenticatedUsersJobsAndStructuredRequirements() {
-        when(learning.getMyAvailableJobs(auth.getName())).thenReturn(List.of(new LearningJobResponse(
-                42L, "테스트", "백엔드", "BACKEND", "{\"requirements\":[]}",
-                LocalDate.of(2026, 10, 20), null, null)));
-        server.expect(requestTo("http://learning.test/api/v1/learning/analyze"))
+                .andExpect(jsonPath("$.interests[0]").value("SELECTED"))
                 .andExpect(jsonPath("$.jobs[0].jobId").value("42"))
-                .andExpect(jsonPath("$.jobs[0].requirements").isArray())
-                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
-        assertEquals("DATABASE", controller.analyze(auth, input("DATABASE")).path("source").asText());
+                .andExpect(jsonPath("$.assessments[0].status").value("PARTIAL"))
+                .andRespond(withSuccess("{\"targetJobCount\":1}", MediaType.APPLICATION_JSON));
+
+        var result = controller.analyze(auth, new LearningAnalysisController.AnalyzeInput("서울"));
+        assertEquals("DATABASE", result.path("source").asText());
+        assertEquals("서울", result.path("region").asText());
         server.verify();
     }
 
     @Test
-    void rawDescriptionsAreNotSilentlyAnalyzedAsEmptyRequirements() {
-        when(learning.getMyAvailableJobs(auth.getName())).thenReturn(List.of(new LearningJobResponse(
-                42L, "테스트", "백엔드", "BACKEND", "일반 본문", LocalDate.now(), null, null)));
-        assertEquals(422, assertThrows(ResponseStatusException.class,
-                () -> controller.analyze(auth, input("DATABASE"))).getStatusCode().value());
+    void jobsWithoutStructuredRequirementsAreRejected() {
+        var selected = List.of(new LearningJobResponse(
+                42L, "테스트", "백엔드", "소프트웨어", "원문",
+                LocalDate.now(), null, null));
+        when(learning.getMyAvailableJobs(auth.getName(), "전국")).thenReturn(selected);
+        when(contexts.build(7L, selected)).thenReturn(new LearningContextService.Context(
+                mapper.createArrayNode(), mapper.createArrayNode(), 1));
+        assertEquals(409, assertThrows(ResponseStatusException.class,
+                () -> controller.analyze(auth, new LearningAnalysisController.AnalyzeInput("전국")))
+                .getStatusCode().value());
     }
 
     @Test
-    void rejectsAnonymousAndInvalidSource() {
-        var anonymous = new AnonymousAuthenticationToken("key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
+    void anonymousIsRejected() {
+        var anonymous = new AnonymousAuthenticationToken(
+                "key", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS")));
         assertEquals(401, assertThrows(ResponseStatusException.class,
-                () -> controller.analyze(anonymous, input("TEST"))).getStatusCode().value());
-        assertEquals(400, assertThrows(ResponseStatusException.class,
-                () -> controller.analyze(auth, input("INVALID"))).getStatusCode().value());
-        verifyNoInteractions(users, learning);
+                () -> controller.analyze(anonymous, new LearningAnalysisController.AnalyzeInput("서울")))
+                .getStatusCode().value());
+        verifyNoInteractions(learning, contexts, users);
     }
 
     @Test
     void upstreamValidationErrorRemains422() {
+        when(learning.getMyAvailableJobs(auth.getName(), "서울")).thenReturn(List.of());
+        when(contexts.build(7L, List.of())).thenReturn(new LearningContextService.Context(
+                mapper.createArrayNode(), mapper.createArrayNode(), 0));
         server.expect(requestTo("http://learning.test/api/v1/learning/analyze"))
                 .andRespond(withStatus(HttpStatus.UNPROCESSABLE_ENTITY));
         assertEquals(422, assertThrows(ResponseStatusException.class,
-                () -> controller.analyze(auth, input("TEST"))).getStatusCode().value());
+                () -> controller.analyze(auth, new LearningAnalysisController.AnalyzeInput("서울")))
+                .getStatusCode().value());
         server.verify();
     }
 }

@@ -53,8 +53,7 @@ public class LearningPlanController {
 
     public record PlanInput(@NotNull LocalDate startDate, @NotNull LocalDate endDate,
             @NotNull @DecimalMin("0.01") @DecimalMax("168") @Digits(integer=3, fraction=2) BigDecimal weeklyAvailableHours,
-            @NotNull @Pattern(regexp="TEST|GEMINI") String mode,
-            @NotNull @Pattern(regexp="TEST|DATABASE") String source, @NotNull JsonNode assessments) {}
+            @NotBlank String region) {}
 
     private String email(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken)
@@ -75,7 +74,7 @@ public class LearningPlanController {
         // 브라우저가 보낸 우선순위를 신뢰하지 않고 기존 PLN-01~03 진입점에서 본인 분석을 다시 계산한다.
         // 같은 JVM 내부 호출이며 별도 HTTP 요청이나 사용자 ID 파라미터를 만들지 않는다.
         JsonNode analyzed = analysis.analyze(authentication,
-                new LearningAnalysisController.AnalyzeInput(input.source(), input.assessments()));
+                new LearningAnalysisController.AnalyzeInput(input.region()));
         var priorities = mapper.createArrayNode();
         for (var item : analyzed.path("preparation")) {
             ObjectNode target = mapper.createObjectNode();
@@ -91,14 +90,15 @@ public class LearningPlanController {
         payload.put("startDate", input.startDate().toString());
         payload.put("endDate", input.endDate().toString());
         payload.put("weeklyAvailableHours", input.weeklyAvailableHours());
-        payload.put("mode", input.mode());
+        payload.put("mode", "GEMINI");
         payload.set("priorities", priorities);
         try {
             JsonNode result = ai.post().uri("/api/v1/learning/plans/generate")
                     .contentType(MediaType.APPLICATION_JSON).body(payload).retrieve().body(JsonNode.class);
             if (result == null || !result.isObject() || !result.path("weeks").isArray())
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "계획 생성 응답이 올바르지 않습니다.");
-            ((ObjectNode) result).put("source", input.source());
+            ((ObjectNode) result).put("source", "DATABASE");
+            ((ObjectNode) result).put("region", input.region().trim());
             ((ObjectNode) result).put("referenceDate", analyzed.path("referenceDate").asText());
             ((ObjectNode) result).put("targetJobCount", analyzed.path("targetJobCount").asInt());
             return plans.save(auth.findByEmail(email).getUserId(), result);

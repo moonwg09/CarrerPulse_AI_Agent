@@ -4,9 +4,9 @@
 
 1. 직접 실행 중인 Spring Boot와 Python 서버를 새 코드로 재시작합니다. 별도 중복 서버를 켜지 않습니다.
 2. 기존 Python 실행 명령은 `python -m uvicorn learning_main:app --host 127.0.0.1 --port 8000`입니다.
-3. 로그인한 뒤 `/learning`에서 자체 공고와 가상 사용자 예시로 PLN-01~03 분석을 실행합니다.
+3. 로그인한 뒤 `/learning`에서 관심 직무와 선택 지역의 저장된 분석 결과로 PLN-01~03 분석을 실행합니다.
 4. 아래 **기간 기반 학습계획 생성**에서 시작일·종료일·주당 시간을 입력합니다.
-5. 우선 **자체 테스트 계획**으로 생성·저장을 확인합니다. 테스트 계획의 활동/시간은 가상임을 표시합니다.
+5. 시작일·종료일·주당 학습 가능 시간을 입력해 Gemini 계획을 생성합니다.
 6. 새로고침 후 **내 최신 계획 불러오기**를 누릅니다. 날짜·가능 시간·주차·순서·유형·예상 시간이 복원됩니다.
 7. 실제 Gemini 생성은 Python 서버 환경에 `GEMINI_API_KEY`와 사용할 `GEMINI_MODEL`을 설정한 후 선택합니다.
 
@@ -22,8 +22,7 @@ python -m uvicorn learning_main:app --host 127.0.0.1 --port 8000
 ```
 
 현재 `learning_main`은 .env를 자동으로 읽지 않습니다. 위 터미널의 환경 변수를 사용합니다.
-자체 공고(TEST/DATABASE)와 생성 방식(TEST/GEMINI)은 서로 별개입니다.
-따라서 자체 가상 공고로도 실제 Gemini 생성이 가능합니다.
+운영 Spring API는 DB 공고와 저장된 최신 사용자 비교 결과만 사용하며 생성 방식은 Gemini로 고정합니다.
 
 ## SRS 적용
 
@@ -40,11 +39,11 @@ python -m uvicorn learning_main:app --host 127.0.0.1 --port 8000
 - 기간 부족 시 미배치 활동과 남은 추정 시간을 표시합니다. 모든 활동을 배치한 것처럼 표시하지 않습니다.
 - 조회에는 생성 당시 입력 기간과 주당 가능 시간, 주차별 범위, 준비 항목, 수행 순서, 활동 유형, 예상 시간을 함께 표시합니다.
 - 계획이 없으면 시작일·종료일·주당 가능 시간을 입력하라는 안내를 표시합니다.
-- 예상 소요 시간은 추정치임을 표시합니다. 자체 테스트 계획은 모든 대상에 고정 4시간을 사용하는 검증용 데이터입니다.
+- 예상 소요 시간은 추정치임을 표시합니다.
 
 ## API와 저장
 
-- `POST /api/v1/learning/plans/me`: 세션 로그인·CSRF 보호. `source`, `assessments`, `startDate`, `endDate`, `weeklyAvailableHours`, `mode`를 입력받습니다.
+- `POST /api/v1/learning/plans/me`: 세션 로그인·CSRF 보호. `region`, `startDate`, `endDate`, `weeklyAvailableHours`를 입력받습니다.
 - `GET /api/v1/learning/plans/me/latest`: 본인의 최신 ACTIVE 계획을 읽습니다. 계획 없음은 404이며 Gemini를 재호출하지 않습니다.
 - Python 내부 `POST /api/v1/learning/plans/generate`: 검증된 준비 대상과 기간을 받아 계획을 생성합니다.
 

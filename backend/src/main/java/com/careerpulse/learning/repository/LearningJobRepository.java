@@ -8,6 +8,9 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
+
+import com.careerpulse.user.dto.UserJobResponse;
 
 // 공고 조회를 담당하는 객체로 spring에 등록한다.
 @Repository
@@ -119,5 +122,61 @@ public class LearningJobRepository {
                 ),
                 parameters.toArray()
         );
+    }
+
+    /** 관심 직무명과 요청 지역을 함께 만족하는 모집 중 공고를 최대 10개 조회한다. */
+    public List<LearningJobResponse> findLatestOpenJobsForInterests(
+            List<UserJobResponse> interests,
+            String region,
+            LocalDate referenceDate
+    ) {
+        LinkedHashSet<String> terms = new LinkedHashSet<>();
+        for (UserJobResponse interest : interests) {
+            String name = interest.jobName() == null ? "" : interest.jobName().trim();
+            if (!name.isEmpty()) {
+                terms.add(name);
+                String concise = name.replaceAll("\\s*(개발자|엔지니어|전문가|직무)\\s*$", "").trim();
+                if (!concise.isEmpty()) terms.add(concise);
+            }
+        }
+        if (terms.isEmpty()) return List.of();
+
+        String conditions = String.join(" OR ", Collections.nCopies(
+                terms.size(),
+                "(title LIKE ? OR description LIKE ? OR job_category LIKE ?)"
+        ));
+        boolean nationwide = "전국".equals(region.trim());
+        String regionCondition = nationwide ? "" : " AND region LIKE ? ";
+        String sql = """
+            SELECT job_id,company_name,title,job_category,description,
+                   posted_date,deadline,collected_at
+            FROM job_postings
+            WHERE status='OPEN'
+              AND (deadline IS NULL OR deadline >= ?)
+              %s
+              AND (%s)
+            ORDER BY posted_date DESC,collected_at DESC,job_id DESC
+            LIMIT 10
+            """.formatted(regionCondition, conditions);
+
+        List<Object> parameters = new ArrayList<>();
+        parameters.add(java.sql.Date.valueOf(referenceDate));
+        if (!nationwide) parameters.add("%" + region.trim() + "%");
+        for (String term : terms) {
+            String pattern = "%" + term + "%";
+            parameters.add(pattern);
+            parameters.add(pattern);
+            parameters.add(pattern);
+        }
+        return jdbcTemplate.query(sql, (rs, rowNum) -> new LearningJobResponse(
+                rs.getLong("job_id"),
+                rs.getString("company_name"),
+                rs.getString("title"),
+                rs.getString("job_category"),
+                rs.getString("description"),
+                rs.getObject("posted_date", LocalDate.class),
+                rs.getObject("deadline", LocalDate.class),
+                rs.getObject("collected_at", java.time.LocalDateTime.class)
+        ), parameters.toArray());
     }
 }

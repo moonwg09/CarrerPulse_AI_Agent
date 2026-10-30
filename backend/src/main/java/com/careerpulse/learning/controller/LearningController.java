@@ -59,7 +59,8 @@ public class LearningController {
 // GET /api/v1/learning/jobs/me
     @GetMapping("/jobs/me")
     public List<LearningJobResponse> getMyAvailableJobs(
-            Authentication authentication
+            Authentication authentication,
+            @RequestParam("region") String region
     ) {
         // 로그인하지 않은 요청은 거절한다.
         if (authentication == null
@@ -74,6 +75,9 @@ public class LearningController {
         // 사용자 이메일은 요청 파라미터가 아니라 로그인 정보에서 가져온다.
         String email = authentication.getName();
 
-        return learningService.getMyAvailableJobs(email);
+        if (region == null || region.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "조회할 지역이 필요합니다.");
+        }
+        return learningService.getMyAvailableJobs(email, region);
     }
 }

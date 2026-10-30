@@ -48,7 +48,7 @@ class LearningPlanControllerTest {
 
     LearningPlanController.PlanInput input() {
         return new LearningPlanController.PlanInput(LocalDate.of(2026,10,20), LocalDate.of(2026,11,2),
-                new BigDecimal("8"), "TEST", "TEST", mapper.createArrayNode());
+                new BigDecimal("8"), "서울");
     }
 
     @Test
@@ -59,7 +59,8 @@ class LearningPlanControllerTest {
                 .andRespond(withSuccess("{\"weeks\":[]}", MediaType.APPLICATION_JSON));
         when(plans.save(eq(7L), any())).thenAnswer(call -> call.getArgument(1));
         var result = controller.generate(login, input());
-        assertEquals("TEST", result.path("source").asText());
+        assertEquals("DATABASE", result.path("source").asText());
+        assertEquals("서울", result.path("region").asText());
         verify(analysis).analyze(eq(login), any());
         verify(plans).save(eq(7L), any());
         server.verify();

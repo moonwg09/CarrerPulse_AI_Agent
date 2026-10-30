@@ -51,6 +51,16 @@ public class LearningService {
     public List<LearningJobResponse> getMyAvailableJobs(
             String email
     ) {
+        return getMyAvailableJobs(email, "전국");
+    }
+
+    public List<LearningJobResponse> getMyAvailableJobs(
+            String email,
+            String region
+    ) {
+        if (region == null || region.isBlank()) {
+            throw new IllegalArgumentException("조회할 지역이 필요합니다.");
+        }
         // 기존 서비스를 이용해 해당 사용자의 관심 직무만 가져온다.
         List<UserJobResponse> myJobs =
                 userService.getMyJobs(email);
@@ -58,15 +68,8 @@ public class LearningService {
         // 개발용 연결 기준:
         // 관심 직무의 jobCode와 공고의 job_category가 같다고 본다.
         // 실제 수집 데이터 연결 시 팀의 직무 매핑 기준에 맞춰야 한다.
-        List<String> jobCategories = myJobs.stream()
-                .map(UserJobResponse::jobCode)
-                .filter(code -> code != null && !code.isBlank())
-                .map(String::trim)
-                .distinct()
-                .toList();
-
         // 관심 직무가 없으면 전체 공고를 대신 조회하지 않는다.
-        if (jobCategories.isEmpty()) {
+        if (myJobs.isEmpty()) {
             return List.of();
         }
 
@@ -74,8 +77,9 @@ public class LearningService {
                 LocalDate.now(ZoneId.of("Asia/Seoul"));
 
         // 여러 관심 직무의 공고를 합쳐 최신순 최대 10개 조회한다.
-        return learningJobRepository.findLatestOpenJobsForCategories(
-                jobCategories,
+        return learningJobRepository.findLatestOpenJobsForInterests(
+                myJobs,
+                region.trim(),
                 referenceDate
         );
     }
