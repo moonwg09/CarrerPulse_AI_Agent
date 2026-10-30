@@ -23,7 +23,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,8 +41,10 @@ class JobQueryServiceTest {
 
         when(userRepository.findByEmail("user@example.com"))
                 .thenReturn(Optional.of(user));
-        when(userJobRepository.findAllByUser_UserId(7L))
-                .thenReturn(List.of(new UserJob(user, "BACKEND", "백엔드 개발자")));
+        UserJob interestJob = new UserJob(user, "BACKEND", "백엔드 개발자");
+        ReflectionTestUtils.setField(interestJob, "userJobId", 3L);
+        when(userJobRepository.findByUserJobIdAndUser_UserId(3L, 7L))
+                .thenReturn(Optional.of(interestJob));
         when(jobRepository.findAll(
                 any(Specification.class),
                 any(Pageable.class)
@@ -53,7 +54,7 @@ class JobQueryServiceTest {
                 jobRepository,
                 userRepository,
                 userJobRepository
-        ).search("user@example.com", "서울", "Python");
+        ).search("user@example.com", 3L, "서울", "Python");
 
         assertThat(responses).hasSize(1);
         assertThat(responses.getFirst().jobId()).isEqualTo(10L);
@@ -69,7 +70,7 @@ class JobQueryServiceTest {
     }
 
     @Test
-    void rejectsSearchWhenUserHasNoInterestJob() {
+    void rejectsSearchWhenSelectedInterestJobIsNotRegistered() {
         JobPostingRepository jobRepository = mock(JobPostingRepository.class);
         UserRepository userRepository = mock(UserRepository.class);
         UserJobRepository userJobRepository = mock(UserJobRepository.class);
@@ -77,8 +78,8 @@ class JobQueryServiceTest {
 
         when(userRepository.findByEmail("user@example.com"))
                 .thenReturn(Optional.of(user));
-        when(userJobRepository.findAllByUser_UserId(isNull()))
-                .thenReturn(List.of());
+        when(userJobRepository.findByUserJobIdAndUser_UserId(3L, null))
+                .thenReturn(Optional.empty());
 
         JobQueryService service = new JobQueryService(
                 jobRepository,
@@ -88,10 +89,35 @@ class JobQueryServiceTest {
 
         assertThatThrownBy(() -> service.search(
                 "user@example.com",
-                null,
+                3L,
+                "서울",
                 null
         )).isInstanceOf(ResponseStatusException.class)
-                .hasMessageContaining("관심 직무를 먼저 등록해야 합니다.");
+                .hasMessageContaining("등록한 관심 직무를 선택해야 합니다.");
+
+    }
+
+    @Test
+    void rejectsSearchWhenRegionIsBlank() {
+        JobPostingRepository jobRepository = mock(JobPostingRepository.class);
+        UserRepository userRepository = mock(UserRepository.class);
+        UserJobRepository userJobRepository = mock(UserJobRepository.class);
+        when(userRepository.findByEmail("user@example.com"))
+                .thenReturn(Optional.of(user()));
+
+        JobQueryService service = new JobQueryService(
+                jobRepository,
+                userRepository,
+                userJobRepository
+        );
+
+        assertThatThrownBy(() -> service.search(
+                "user@example.com",
+                3L,
+                " ",
+                null
+        )).isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("지역을 선택해야 합니다.");
     }
 
     @Test

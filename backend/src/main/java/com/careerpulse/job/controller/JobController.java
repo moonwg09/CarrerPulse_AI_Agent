@@ -41,11 +41,13 @@ public class JobController {
     @GetMapping
     public List<JobPostingSummaryResponse> search(
             Authentication authentication,
-            @RequestParam(required = false) String region,
+            @RequestParam Long userJobId,
+            @RequestParam String region,
             @RequestParam(required = false) String keyword
     ) {
         return jobQueryService.search(
                 authentication.getName(),
+                userJobId,
                 region,
                 keyword
         );

@@ -265,7 +265,7 @@ class Work24Crawler:
     def collect(
         self,
         job_keyword: str,
-        region: str,
+        region: str = "전국",
         limit: int = 10,
     ) -> JobCollectionResult:
         keyword = job_keyword.strip()
@@ -292,7 +292,10 @@ class Work24Crawler:
                     continue
                 seen_ids.add(item.external_job_id)
 
-                if not item.region or region_filter not in item.region:
+                if (
+                    region_filter != "전국"
+                    and (not item.region or region_filter not in item.region)
+                ):
                     continue
 
                 try:
@@ -316,7 +319,7 @@ class Work24Crawler:
 
 def collect_work24_jobs(
     job_keyword: str,
-    region: str,
+    region: str = "전국",
     limit: int = 10,
 ) -> JobCollectionResult:
     return Work24Crawler().collect(job_keyword, region, limit)

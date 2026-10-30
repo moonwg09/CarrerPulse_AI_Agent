@@ -106,6 +106,30 @@ class Work24ParserTest(unittest.TestCase):
 
 
 class Work24CrawlerTest(unittest.TestCase):
+    def test_collect_defaults_to_nationwide_scope(self):
+        search_response = Mock()
+        search_response.text = SEARCH_HTML
+        search_response.raise_for_status = Mock()
+
+        detail_response = Mock()
+        detail_response.text = DETAIL_HTML
+        detail_response.raise_for_status = Mock()
+
+        session = Mock()
+        session.headers = {}
+        session.post.return_value = search_response
+        session.get.return_value = detail_response
+
+        result = Work24Crawler(
+            session=session,
+            request_interval_seconds=0,
+            max_pages=1,
+        ).collect("개발자", limit=10)
+
+        self.assertEqual("전국", result.region)
+        self.assertEqual(1, result.collectedCount)
+        session.get.assert_called_once()
+
     def test_collect_filters_region_and_removes_duplicate_jobs(self):
         search_response = Mock()
         search_response.text = SEARCH_HTML.replace(

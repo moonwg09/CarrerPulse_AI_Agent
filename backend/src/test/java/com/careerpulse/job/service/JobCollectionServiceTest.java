@@ -29,7 +29,7 @@ class JobCollectionServiceTest {
         AiRawJobPosting rawJob = rawJob();
         AiJobCollectionResponse aiResponse = new AiJobCollectionResponse(
                 "백엔드 개발자",
-                "서울",
+                "전국",
                 1,
                 1,
                 List.of(rawJob)
@@ -42,13 +42,13 @@ class JobCollectionServiceTest {
         JobCollectionResponse response = new JobCollectionService(
                 client,
                 postingService
-        ).collectAndStore(new JobCollectionRequest("백엔드 개발자", "서울", 1));
+        ).collectAndStore(new JobCollectionRequest("백엔드 개발자", 1));
 
         ArgumentCaptor<AiJobCollectionRequest> requestCaptor =
                 ArgumentCaptor.forClass(AiJobCollectionRequest.class);
         verify(client).collect(requestCaptor.capture());
         assertThat(requestCaptor.getValue().jobKeyword()).isEqualTo("백엔드 개발자");
-        assertThat(requestCaptor.getValue().region()).isEqualTo("서울");
+        assertThat(requestCaptor.getValue().region()).isEqualTo("전국");
         assertThat(requestCaptor.getValue().limit()).isEqualTo(1);
         assertThat(response.collectedCount()).isEqualTo(1);
         assertThat(response.jobs()).containsExactly(savedJob);

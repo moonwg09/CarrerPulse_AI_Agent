@@ -7,7 +7,7 @@ from schemas.raw_job_schema import RawJobPosting
 
 class JobCollectionRequest(BaseModel):
     jobKeyword: str = Field(min_length=1)
-    region: str = Field(min_length=1)
+    region: str = Field(default="전국", min_length=1)
 
     limit: int = Field(
         default=10,

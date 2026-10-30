@@ -40,21 +40,23 @@ public class JobQueryService {
     @Transactional(readOnly = true)
     public List<JobPostingSummaryResponse> search(
             String email,
+            Long userJobId,
             String region,
             String keyword
     ) {
         User user = findUser(email);
-        List<String> interestJobNames = userJobRepository
-                .findAllByUser_UserId(user.getUserId())
-                .stream()
-                .map(UserJob::getJobName)
-                .toList();
-        if (interestJobNames.isEmpty()) {
+        if (region == null || region.isBlank()) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "관심 직무를 먼저 등록해야 합니다."
+                    "지역을 선택해야 합니다."
             );
         }
+        UserJob interestJob = userJobRepository
+                .findByUserJobIdAndUser_UserId(userJobId, user.getUserId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "등록한 관심 직무를 선택해야 합니다."
+                ));
 
         PageRequest pageRequest = PageRequest.of(
                 0,
@@ -66,7 +68,7 @@ public class JobQueryService {
         );
         return jobPostingRepository.findAll(
                         JobPostingSpecifications.search(
-                                interestJobNames,
+                                interestJob.getJobName(),
                                 region,
                                 keyword
                         ),

@@ -16,7 +16,7 @@ public final class JobPostingSpecifications {
     }
 
     public static Specification<JobPosting> search(
-            List<String> interestJobNames,
+            String interestJobName,
             String region,
             String keyword
     ) {
@@ -29,27 +29,17 @@ public final class JobPostingSpecifications {
 
             Expression<String> title = criteriaBuilder.lower(root.get("title"));
             Expression<String> description = criteriaBuilder.lower(root.get("description"));
-            List<Predicate> interestConditions = interestJobNames.stream()
-                    .map(JobPostingSpecifications::normalizeInterestKeyword)
-                    .distinct()
-                    .map(value -> containsEither(
-                            criteriaBuilder,
-                            title,
-                            description,
-                            value
-                    ))
-                    .toList();
-            conditions.add(criteriaBuilder.or(
-                    interestConditions.toArray(Predicate[]::new)
+            conditions.add(containsEither(
+                    criteriaBuilder,
+                    title,
+                    description,
+                    normalizeInterestKeyword(interestJobName)
             ));
-
-            if (hasText(region)) {
-                conditions.add(criteriaBuilder.like(
-                        criteriaBuilder.lower(root.get("region")),
-                        likePattern(region),
-                        '\\'
-                ));
-            }
+            conditions.add(criteriaBuilder.like(
+                    criteriaBuilder.lower(root.get("region")),
+                    likePattern(region),
+                    '\\'
+            ));
 
             if (hasText(keyword)) {
                 Expression<String> companyName = criteriaBuilder.lower(
