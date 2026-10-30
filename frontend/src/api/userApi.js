@@ -1,6 +1,6 @@
 export async function getMyInfo() {
   const response = await fetch(
-    "http://localhost:8080/api/v1/users/me",
+    "/api/v1/users/me",
     {
       method: "GET",
       credentials: "include",
@@ -20,7 +20,7 @@ export async function getMyInfo() {
 
 export async function getCsrfToken() {
   const response = await fetch(
-    "http://localhost:8080/api/v1/auth/csrf",
+    "/api/v1/auth/csrf",
     {
       method: "GET",
       credentials: "include",
@@ -40,7 +40,7 @@ export async function updateMyInfo(data) {
   const csrf = await getCsrfToken();
 
   const response = await fetch(
-    "http://localhost:8080/api/v1/users/me",
+    "/api/v1/users/me",
     {
       method: "PATCH",
       headers: {
@@ -65,7 +65,7 @@ export async function updateMyInfo(data) {
 
 export async function getMyJobs() {
   const response = await fetch(
-    "http://localhost:8080/api/v1/users/me/jobs",
+    "/api/v1/users/me/jobs",
     {
       method: "GET",
       credentials: "include",
@@ -87,7 +87,7 @@ export async function addMyJob(data) {
   const csrf = await getCsrfToken();
 
   const response = await fetch(
-    "http://localhost:8080/api/v1/users/me/jobs",
+    "/api/v1/users/me/jobs",
     {
       method: "POST",
       headers: {
@@ -114,7 +114,7 @@ export async function deleteMyJob(userJobId) {
   const csrf = await getCsrfToken();
 
   const response = await fetch(
-    `http://localhost:8080/api/v1/users/me/jobs/${userJobId}`,
+    `/api/v1/users/me/jobs/${userJobId}`,
     {
       method: "DELETE",
       headers: {
@@ -137,7 +137,7 @@ export async function withdraw() {
   const csrf = await getCsrfToken();
 
   const response = await fetch(
-    "http://localhost:8080/api/v1/users/me",
+    "/api/v1/users/me",
     {
       method: "DELETE",
       headers: {

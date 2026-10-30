@@ -9,6 +9,9 @@ from routers.rag_document_router import router as rag_document_router
 
 app = FastAPI()
 
+from routers.learning_router import router as learning_router
+app.include_router(learning_router)
+
 app.include_router(document_router)
 
 app.include_router(career_router)

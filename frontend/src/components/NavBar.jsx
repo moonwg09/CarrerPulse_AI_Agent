@@ -11,6 +11,8 @@ function NavBar() {
       {" | "}
       <Link to="/recommendations">추천 공고</Link>
       {" | "}
+      <Link to="/learning">준비 역량 분석</Link>
+      {" | "}
       <Link to="/account">계정 관리</Link>
     </nav>
   );

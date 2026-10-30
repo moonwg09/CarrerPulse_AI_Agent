@@ -8,6 +8,7 @@ import AccountPage from "./pages/AccountPage";
 import AnalysisPage from "./pages/AnalysisPage";
 import AnalysisDetailPage from "./pages/AnalysisDetailPage";
 import RecommendationPage from "./pages/RecommendationPage";
+import LearningPage from "./pages/LearningPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -15,6 +16,7 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/learning" element={<ProtectedRoute><LearningPage /></ProtectedRoute>} />
         <Route
           path="/"
           element={<Navigate to="/login" replace />}
