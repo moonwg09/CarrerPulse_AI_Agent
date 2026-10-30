@@ -1,9 +1,9 @@
 """서류 색인 저장소 (SRS RAG-01, DOC-09, PAR-01, PAR-06·07).
 
 서류 파일(PDF·DOCX)에서 텍스트를 추출해 항목으로 나누고 근거로 만들어 보관한다.
-현재는 프로세스 메모리에 둔다. 운영에서는 Chroma나 pgvector로 교체하고,
-ERD의 DOCUMENT_CHUNKS.embedding_ref 에 벡터 ID를 저장한다.
+Chroma에 영속 저장하고 프로세스 시작 시 Evidence와 RetrievalChunk를 복원한다.
 """
+import os
 from threading import Lock
 from typing import Dict, List, Optional
 
@@ -37,8 +37,33 @@ def get_store() -> VectorStore:
     with _lock:
         if _store is None:
             _embedder = Embedder()
-            _store = VectorStore(_embedder)
+            _store = VectorStore(
+                _embedder,
+                persistence_path=os.getenv("RAG_CHROMA_PATH", ".chroma"),
+            )
+            _restore_sequence_numbers(_store)
     return _store
+
+
+def _restore_sequence_numbers(store: VectorStore) -> None:
+    """재시작 후에도 사용자별 표시 ID가 기존 값과 충돌하지 않게 한다."""
+    for evidence in store.evidences:
+        try:
+            number = int(evidence.evidence_id.removeprefix("EV-"))
+        except ValueError:
+            continue
+        _next_index[evidence.user_id] = max(
+            _next_index.get(evidence.user_id, 1), number + 1
+        )
+
+    for chunk in store.chunks:
+        try:
+            number = int(chunk.chunk_id.removeprefix("CH-"))
+        except ValueError:
+            continue
+        _next_chunk_index[chunk.user_id] = max(
+            _next_chunk_index.get(chunk.user_id, 1), number + 1
+        )
 
 
 def embedding_mode() -> str:

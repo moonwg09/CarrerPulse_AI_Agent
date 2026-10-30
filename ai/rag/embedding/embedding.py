@@ -1,6 +1,9 @@
 """임베딩과 벡터 보관 (SRS RAG-01)."""
 import hashlib
+import json
 import os
+from dataclasses import asdict
+from pathlib import Path
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -116,8 +119,10 @@ class VectorStore:
     운영 환경에서는 각각 DB + pgvector/Chroma 등으로 교체 가능
     """
 
-    def __init__(self, embedder: Embedder):
+    def __init__(self, embedder: Embedder, persistence_path: str | None = None):
         self.embedder = embedder
+        self.persistence_path = persistence_path
+        self._collection = None
 
         # Evidence/Chunk의 표시용 ID는 사용자마다 EV-0001/CH-0001부터 시작한다.
         # 따라서 저장 키에는 user_id를 포함해야 다른 사용자의 자료가 덮어써지지 않는다.
@@ -130,6 +135,86 @@ class VectorStore:
 
         # RetrievalChunk.text embedding
         self.vectors = None
+
+        if persistence_path:
+            self._open_persistent_collection(persistence_path)
+            self._restore_persistent_data()
+
+    def _open_persistent_collection(self, persistence_path: str) -> None:
+        """Chroma 영속 컬렉션을 연다. 설정된 운영 저장소는 실패 시 중단한다."""
+        try:
+            import chromadb
+        except ImportError as exc:
+            raise RuntimeError(
+                "RAG_CHROMA_PATH가 설정됐지만 chromadb가 설치되지 않았습니다."
+            ) from exc
+
+        path = str(Path(persistence_path).resolve())
+        client = chromadb.PersistentClient(path=path)
+        self._collection = client.get_or_create_collection(
+            name="careerpulse_rag_chunks",
+            metadata={"hnsw:space": "cosine"},
+        )
+
+    @staticmethod
+    def _record_id(user_id: int, document_id: int, chunk_id: str) -> str:
+        return f"u{user_id}:d{document_id}:{chunk_id}"
+
+    def _restore_persistent_data(self) -> None:
+        if self._collection is None:
+            return
+
+        records = self._collection.get(include=["embeddings", "metadatas"])
+        embeddings = records.get("embeddings")
+        if embeddings is None or len(embeddings) == 0:
+            return
+
+        from ..processor.metadata import Evidence
+        from ..processor.retrieval_chunk import RetrievalChunk
+
+        restored_vectors = []
+        for metadata, embedding in zip(records["metadatas"], embeddings):
+            chunk = RetrievalChunk(**json.loads(metadata["chunk_json"]))
+            key = (chunk.user_id, chunk.chunk_id)
+            self.chunk_by_key[key] = chunk
+            self.vector_chunk_keys.append(key)
+            restored_vectors.append(embedding)
+
+            for row in json.loads(metadata["evidences_json"]):
+                evidence = Evidence(**row)
+                self.evidence_by_key[(evidence.user_id, evidence.evidence_id)] = evidence
+
+        self.vectors = np.asarray(restored_vectors, dtype="float32")
+
+    def _persist_chunks(self, chunks, vecs) -> None:
+        if self._collection is None or not chunks:
+            return
+
+        ids = []
+        documents = []
+        metadatas = []
+        embeddings = []
+        for chunk, vector in zip(chunks, vecs):
+            evidences = self.resolve_evidences(chunk.evidence_ids, chunk.user_id)
+            ids.append(self._record_id(chunk.user_id, chunk.document_id, chunk.chunk_id))
+            documents.append(chunk.text)
+            metadatas.append({
+                "user_id": chunk.user_id,
+                "document_id": chunk.document_id,
+                "chunk_json": json.dumps(asdict(chunk), ensure_ascii=False),
+                "evidences_json": json.dumps(
+                    [asdict(evidence) for evidence in evidences],
+                    ensure_ascii=False,
+                ),
+            })
+            embeddings.append(np.asarray(vector, dtype="float32").tolist())
+
+        self._collection.upsert(
+            ids=ids,
+            documents=documents,
+            metadatas=metadatas,
+            embeddings=embeddings,
+        )
 
     @property
     def evidences(self):
@@ -176,6 +261,7 @@ class VectorStore:
             if self.vectors is None
             else np.vstack([self.vectors, vecs])
         )
+        self._persist_chunks(chunks, vecs)
 
     def add_document(self, evidences, chunks): # 새 v2 경로
         """한 문서에서 생성된 Evidence와 RetrievalChunk를 함께 저장"""
@@ -237,6 +323,18 @@ class VectorStore:
             for key, chunk in self.chunk_by_key.items()
             if chunk.user_id == user_id and chunk.document_id == document_id
         }
+
+        if self._collection is not None:
+            records = self._collection.get(
+                where={
+                    "$and": [
+                        {"user_id": {"$eq": user_id}},
+                        {"document_id": {"$eq": document_id}},
+                    ]
+                }
+            )
+            if records["ids"]:
+                self._collection.delete(ids=records["ids"])
 
         # Chunk 삭제
         self.chunk_by_key = {
