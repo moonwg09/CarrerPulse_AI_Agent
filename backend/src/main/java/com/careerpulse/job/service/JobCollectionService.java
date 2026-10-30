@@ -16,8 +16,6 @@ import java.util.List;
 @Service
 public class JobCollectionService {
 
-    private static final String NATIONWIDE_REGION = "전국";
-
     private final JobCollectionClient jobCollectionClient;
     private final JobPostingService jobPostingService;
 
@@ -34,7 +32,7 @@ public class JobCollectionService {
         try {
             collection = jobCollectionClient.collect(new AiJobCollectionRequest(
                     request.jobKeyword(),
-                    NATIONWIDE_REGION,
+                    request.region(),
                     request.limit()
             ));
         } catch (JobCollectionClientException exception) {

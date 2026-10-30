@@ -22,6 +22,7 @@ public class JobCollectionScheduler {
     private static final Logger log = LoggerFactory.getLogger(JobCollectionScheduler.class);
     private static final int COLLECTION_LIMIT = 10;
     private static final int MAX_ATTEMPTS = 3;
+    private static final String NATIONWIDE_REGION = "전국";
 
     private final UserJobRepository userJobRepository;
     private final JobCollectionService jobCollectionService;
@@ -78,7 +79,7 @@ public class JobCollectionScheduler {
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
                 jobCollectionService.collectAndStore(
-                        new JobCollectionRequest(jobName, COLLECTION_LIMIT)
+                        new JobCollectionRequest(jobName, NATIONWIDE_REGION, COLLECTION_LIMIT)
                 );
                 return;
             } catch (ResponseStatusException exception) {
