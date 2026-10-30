@@ -12,3 +12,5 @@ dependencies:
       - google-genai==2.32.0
       - python-dotenv==1.2.4
       - sentence-transformers==6.1.0
+      - requests==2.34.2
+      - lxml==6.1.3

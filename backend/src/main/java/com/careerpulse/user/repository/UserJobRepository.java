@@ -2,6 +2,7 @@ package com.careerpulse.user.repository;
 
 import com.careerpulse.user.entity.UserJob;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,4 +26,7 @@ extends JpaRepository<UserJob, Long> {
             Long userJobId,
             Long userID
     );
+
+    @Query("select distinct userJob.jobName from UserJob userJob order by userJob.jobName")
+    List<String> findDistinctJobNames();
 }
