@@ -56,18 +56,15 @@ python -m uvicorn learning_main:app --host 127.0.0.1 --port 8000
 배치하지 못한 활동도 표시하지만, 승인된 테이블에 해당 항목을 저장할 컬럼이 없으므로
 재조회 화면은 실제 저장된 주차별 활동만 보여 줍니다.
 
-Gemini 호출은 추가 SDK 설치 없이 Python 표준 라이브러리의 HTTPS 요청을 사용합니다.
-[공식 generateContent REST 문서](https://ai.google.dev/api/generate-content)를 기준으로 연결했으며
-모델 이름은 환경 변수로 바꿀 수 있습니다.
+Gemini 호출은 다른 분석 기능과 같은 `google-genai` 클라이언트와 `GEMINI_MODEL` 설정을 사용합니다.
+API 키 누락이나 호출 실패를 가상 계획 성공으로 대체하지 않습니다.
 
-## 확인한 범위
+## 최종 회귀 테스트 범위
 
-- Python 전체 20개 테스트: 기존 분석 11개 + 기간 계획 9개.
-- Java 전체 테스트에는 계획 API와 MySQL 저장·조회 검증을 포함합니다.
-- MySQL 테스트는 `careerpulse_test`에 검증 데이터를 직접 만들고 트랜잭션으로 롤백합니다.
-- 프런트엔드 빌드와 변경 파일 ESLint 통과.
-- 실제 Gemini 유료 호출과 사용자 브라우저에서의 로그인부터 계획 조회까지 전 과정은 이 검증에 포함되지 않습니다.
-- 외부 공고 크롤링 및 저장된 사용자 문서 자동 분석 연결은 기존과 같이 후속 범위입니다.
+- Python 분석·기간 계획 테스트
+- `careerpulse_test`를 사용하는 Spring Repository 및 API 테스트
+- 프런트엔드 빌드와 ESLint
+- 실제 Gemini 호출과 로그인부터 계획 저장·조회까지의 시연 흐름
 
 ```powershell
 cd C:\CarrerPulse_AI_Agent\ai

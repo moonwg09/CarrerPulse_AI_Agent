@@ -9,16 +9,31 @@ from services.period_learning_plan import PeriodRequest, ActivityProposal, gener
 
 
 def payload(**changes):
-    value = dict(startDate="2026-10-20", endDate="2026-11-02", weeklyAvailableHours=8, mode="TEST",
+    value = dict(startDate="2026-10-20", endDate="2026-11-02", weeklyAvailableHours=8, mode="GEMINI",
         priorities=[dict(name="SQL", preparationType="TECHNICAL", rank=1, targets=["실행 계획"]),
                     dict(name="API", preparationType="PROJECT", rank=2, targets=["API 구현"])])
     value.update(changes)
     return value
 
 
+def fixed_proposal(request):
+    kinds = {"TECHNICAL": "TECH_STUDY", "CERTIFICATE": "CERTIFICATE",
+             "PROJECT": "PROJECT", "DOCUMENT": "DOCUMENT_IMPROVEMENT"}
+    return ActivityProposal(activities=[dict(
+        targetIndex=index,
+        taskName=f"{target.name} 준비",
+        description="준비 범위: " + ", ".join(target.targets),
+        activityType=kinds[target.preparationType],
+        estimatedHours=4,
+    ) for index, target in enumerate(request.priorities)])
+
+
 class PeriodTests(unittest.TestCase):
     def generate(self, **changes):
-        return generate_period_plan(PeriodRequest.model_validate(payload(**changes)))
+        return generate_period_plan(
+            PeriodRequest.model_validate(payload(**changes)),
+            fixed_proposal,
+        )
 
     def test_no_filler_and_preserves_input(self):
         result = self.generate()
@@ -78,12 +93,10 @@ class PeriodTests(unittest.TestCase):
         self.assertEqual(result["weeks"][0]["items"][0]["name"], "SQL")
         self.assertEqual(result["weeks"][0]["totalEstimatedHours"], 4.5)
 
-    def test_http_test_mode_and_missing_api_key(self):
-        response = generate_plan(PeriodRequest.model_validate(payload()))
-        self.assertEqual(response["mode"], "TEST")
+    def test_http_missing_api_key_does_not_return_fake_plan(self):
         with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
             with self.assertRaises(HTTPException) as raised:
-                generate_plan(PeriodRequest.model_validate(payload(mode="GEMINI")))
+                generate_plan(PeriodRequest.model_validate(payload()))
         self.assertEqual(raised.exception.status_code, 503)
 
 
