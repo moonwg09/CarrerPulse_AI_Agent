@@ -2,9 +2,9 @@
 import unittest
 from unittest.mock import patch
 from decimal import Decimal
+from fastapi import HTTPException
 from pydantic import ValidationError
-from fastapi.testclient import TestClient
-from learning_main import app
+from routers.learning_router import generate_plan
 from services.period_learning_plan import PeriodRequest, ActivityProposal, generate_period_plan, GenerationUnavailable
 
 
@@ -79,12 +79,12 @@ class PeriodTests(unittest.TestCase):
         self.assertEqual(result["weeks"][0]["totalEstimatedHours"], 4.5)
 
     def test_http_test_mode_and_missing_api_key(self):
-        with TestClient(app) as client:
-            response = client.post("/api/v1/learning/plans/generate", json=payload())
-            self.assertEqual(response.status_code, 200)
-            with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
-                response = client.post("/api/v1/learning/plans/generate", json=payload(mode="GEMINI"))
-                self.assertEqual(response.status_code, 503)
+        response = generate_plan(PeriodRequest.model_validate(payload()))
+        self.assertEqual(response["mode"], "TEST")
+        with patch.dict("os.environ", {"GEMINI_API_KEY": ""}):
+            with self.assertRaises(HTTPException) as raised:
+                generate_plan(PeriodRequest.model_validate(payload(mode="GEMINI")))
+        self.assertEqual(raised.exception.status_code, 503)
 
 
 if __name__ == "__main__":

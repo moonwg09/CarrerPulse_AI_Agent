@@ -48,18 +48,14 @@ python -m uvicorn learning_main:app --host 127.0.0.1 --port 8000
 - `GET /api/v1/learning/plans/me/latest`: 본인의 최신 ACTIVE 계획을 읽습니다. 계획 없음은 404이며 Gemini를 재호출하지 않습니다.
 - Python 내부 `POST /api/v1/learning/plans/generate`: 검증된 준비 대상과 기간을 받아 계획을 생성합니다.
 
-기존 `learning_plans`, `learning_plan_items`에 헤더·활동을 저장합니다.
-생성 당시 전체 결과는 새 `learning_plan_snapshots` 테이블의 JSON으로 보존합니다.
-세 테이블의 저장은 한 트랜잭션이므로 일부 활동 저장 실패 시 헤더까지 롤백됩니다.
+승인된 `learning_plans`, `learning_plan_items`에 헤더·활동을 저장합니다.
+두 테이블의 저장은 한 트랜잭션이므로 일부 활동 저장 실패 시 헤더까지 롤백됩니다.
 조회 SQL에는 반드시 로그인 사용자의 user_id 조건이 들어갑니다.
 같은 사용자도 새 계획 생성 시 기존 계획을 덮어쓰지 않고 새 plan_id를 저장합니다.
 
-로컬 개발 DB에는 스냅샷 테이블을 추가했습니다. 다른 개발 환경은 다음 SQL을 한 번 실행해야 합니다.
-
-`backend/src/main/resources/db/learning-plan-snapshots.sql`
-
-기존 테이블이나 데이터의 삭제/변경은 없으며 `CREATE TABLE IF NOT EXISTS`를 사용합니다.
-기존 계획 중 스냅샷이 없는 이전 버전 데이터는 이 새 조회 화면의 대상이 아닙니다.
+최신 계획 조회는 계획 헤더와 활동을 다시 조합합니다. 생성 직후 응답에는 기간 안에
+배치하지 못한 활동도 표시하지만, 승인된 테이블에 해당 항목을 저장할 컬럼이 없으므로
+재조회 화면은 실제 저장된 주차별 활동만 보여 줍니다.
 
 Gemini 호출은 추가 SDK 설치 없이 Python 표준 라이브러리의 HTTPS 요청을 사용합니다.
 [공식 generateContent REST 문서](https://ai.google.dev/api/generate-content)를 기준으로 연결했으며
@@ -68,8 +64,8 @@ Gemini 호출은 추가 SDK 설치 없이 Python 표준 라이브러리의 HTTPS
 ## 확인한 범위
 
 - Python 전체 20개 테스트: 기존 분석 11개 + 기간 계획 9개.
-- Java 전체 12개 테스트: 기존 분석 API 5개 + 계획 API 5개 + 실제 MySQL 저장/조회/롤백 2개.
-- MySQL 테스트는 기존 사용자 식별자만 사용하며 검증용 계획·활동·스냅샷은 롤백했습니다.
+- Java 전체 테스트에는 계획 API와 MySQL 저장·조회 검증을 포함합니다.
+- MySQL 테스트는 `careerpulse_test`에 검증 데이터를 직접 만들고 트랜잭션으로 롤백합니다.
 - 프런트엔드 빌드와 변경 파일 ESLint 통과.
 - 실제 Gemini 유료 호출과 사용자 브라우저에서의 로그인부터 계획 조회까지 전 과정은 이 검증에 포함되지 않습니다.
 - 외부 공고 크롤링 및 저장된 사용자 문서 자동 분석 연결은 기존과 같이 후속 범위입니다.
@@ -86,5 +82,5 @@ npm run build
 npx eslint src/components/LearningPlanPanel.jsx src/pages/LearningPage.jsx src/api/learningApi.js
 ```
 
-MySQL 통합 테스트는 별도로 `LEARNING_DB_TEST=true`와 `DB_USERNAME`, `DB_PASSWORD`를 설정하면 실행합니다.
-일반 테스트 실행에서는 실DB 테스트 2개가 생략됩니다.
+MySQL 통합 테스트는 `test` 프로필과 `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`를 사용해
+`careerpulse_test`에서 실행합니다. 개발 DB는 조회하거나 변경하지 않습니다.

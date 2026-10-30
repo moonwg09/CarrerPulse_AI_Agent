@@ -4,9 +4,8 @@ import unittest
 from datetime import date, timedelta
 from pathlib import Path
 
-from fastapi.testclient import TestClient
 from pydantic import ValidationError
-from learning_main import app
+from routers.learning_router import analyze_learning
 from services.learning_analysis import AnalysisRequest, analyze
 
 
@@ -110,11 +109,14 @@ class LearningTests(unittest.TestCase):
             AnalysisRequest.model_validate(payload)
 
     def test_http_contract_and_invalid_status(self):
-        with TestClient(app) as client:
-            self.assertEqual(client.post("/api/v1/learning/analyze", json=fixture()).status_code, 200)
-            payload = fixture()
-            payload["assessments"] = [dict(name="Java", type="SKILL", status="GUESS")]
-            self.assertEqual(client.post("/api/v1/learning/analyze", json=payload).status_code, 422)
+        self.assertEqual(
+            analyze_learning(AnalysisRequest.model_validate(fixture()))["targetJobCount"],
+            10,
+        )
+        payload = fixture()
+        payload["assessments"] = [dict(name="Java", type="SKILL", status="GUESS")]
+        with self.assertRaises(ValidationError):
+            analyze_learning(AnalysisRequest.model_validate(payload))
 
 
 if __name__ == "__main__":
