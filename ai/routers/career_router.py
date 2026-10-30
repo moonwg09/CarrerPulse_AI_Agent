@@ -25,8 +25,12 @@ from services.recommendation_service import (
 )
 from services.requirement_frequency import calculate_requirement_frequency
 from services.rag_validation_service import link_match_result_evidence_metadata
+from services.gemini_client import GEMINI_MODEL, get_gemini_client
 from rag.parser import ParseError
+from rag.prompt.templates import build_guide_prompt
+from rag.retriever.search import search as search_evidence
 from rag.store import embedding_mode, get_scoped_store, get_store, index_file
+from rag.verify.verifier import generate_and_verify
 
 
 TEMP_DIR = Path("temp_uploads")
@@ -65,6 +69,21 @@ class IndexedJobAnalyzeRequest(BaseModel):
         if len(values) != len(set(values)):
             raise ValueError("documentIds는 중복될 수 없습니다.")
         return values
+
+
+class GuidanceRequest(BaseModel):
+    userId: int = Field(gt=0)
+    documentIds: list[int] = Field(min_length=1)
+    requirement: str = Field(min_length=1)
+    requirementType: str = Field(min_length=1)
+    status: str = Field(min_length=1)
+    missingPart: str = ""
+
+
+class GuidanceResponse(BaseModel):
+    status: str
+    lines: list[str]
+    evidenceCount: int
 
 
 def save_temp_file(file: UploadFile) -> Path:
@@ -546,6 +565,62 @@ def analyze_indexed_job(request: IndexedJobAnalyzeRequest):
             status_code=500,
             detail=f"색인 문서 기반 공고 분석 중 오류가 발생했습니다: {exception}",
         ) from exception
+
+
+@router.post(
+    "/guidance",
+    response_model=GuidanceResponse,
+)
+def generate_document_guidance(request: GuidanceRequest):
+    """검색된 사용자 근거만 사용해 서류 보완 방향을 생성하고 검증한다."""
+    rag_store = get_scoped_store(request.userId, request.documentIds)
+    hits = search_evidence(
+        store=rag_store,
+        query=request.requirement,
+        user_id=request.userId,
+        top_k=3,
+    )
+    if not hits:
+        raise HTTPException(
+            status_code=409,
+            detail="관련 사용자 근거가 없어 작성 방향을 생성할 수 없습니다.",
+        )
+
+    requirement = {
+        "text": request.requirement,
+        "type": request.requirementType,
+    }
+    result = {
+        "match_status": request.status,
+        "missing_part": request.missingPart,
+    }
+    client = get_gemini_client()
+
+    def build_prompt():
+        return build_guide_prompt(requirement, result, hits)
+
+    def call_model(prompt: str) -> str:
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+        )
+        text = response.text or ""
+        if not text.strip():
+            raise RuntimeError("Gemini가 작성 방향을 반환하지 않았습니다.")
+        return text
+
+    verified = generate_and_verify(build_prompt, call_model, hits)
+    if not verified["lines"]:
+        raise HTTPException(
+            status_code=422,
+            detail="생성 결과의 근거를 검증하지 못해 제공을 보류했습니다.",
+        )
+
+    return GuidanceResponse(
+        status=verified["status"],
+        lines=verified["lines"],
+        evidenceCount=len(hits),
+    )
 
 
 @router.post(

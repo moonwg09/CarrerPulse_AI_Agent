@@ -103,9 +103,10 @@ function UserJobsPage() {
           />
         </div>
 
-        <button type="submit">
+        <button type="submit" disabled={jobs.length >= 3}>
           관심 직무 추가
         </button>
+        {jobs.length >= 3 && <p>관심 직무는 최대 3개까지 등록할 수 있습니다.</p>}
       </form>
 
       {message && <p>{message}</p>}
@@ -124,6 +125,7 @@ function UserJobsPage() {
 
               <button
                 type="button"
+                disabled={jobs.length <= 1}
                 onClick={() =>
                   handleDelete(job.userJobId)
                 }
@@ -134,6 +136,7 @@ function UserJobsPage() {
           ))}
         </ul>
       )}
+      {jobs.length === 1 && <p>관심 직무는 최소 1개를 유지해야 합니다.</p>}
     </div>
   );
 }

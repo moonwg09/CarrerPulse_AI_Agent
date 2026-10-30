@@ -201,6 +201,18 @@ public class AnalysisResultMapper {
             }
 
             Long documentId = positiveLong(node, "documentId");
+            JsonNode evidenceIdNode = node == null ? null : node.get("evidenceId");
+            String evidenceId = evidenceIdNode != null && evidenceIdNode.isTextual()
+                    ? evidenceIdNode.asText()
+                    : null;
+            var storedChunkId = contextRepository.findOwnedChunkIdByEvidenceRef(
+                    userId,
+                    documentId,
+                    evidenceId
+            );
+            if (storedChunkId.isPresent()) {
+                return new EvidenceReference(true, storedChunkId.get());
+            }
             if (documentId != null
                     && contextRepository.isOwnedCompletedDocument(userId, documentId)) {
                 return new EvidenceReference(true, null);

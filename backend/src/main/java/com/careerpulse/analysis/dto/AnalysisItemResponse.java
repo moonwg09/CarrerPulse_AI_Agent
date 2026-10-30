@@ -10,6 +10,10 @@ public record AnalysisItemResponse(
         String statusLabel,
         String reason,
         Long evidenceChunkId,
+        Long evidenceDocumentId,
+        String evidenceDocumentType,
+        String evidenceText,
+        String evidenceSourceLocation,
         boolean userConfirmed
 ) {
 }

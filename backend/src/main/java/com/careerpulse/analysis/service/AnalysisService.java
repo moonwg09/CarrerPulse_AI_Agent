@@ -141,6 +141,47 @@ public class AnalysisService {
         return aiAnalysisClient.ping();
     }
 
+    public GuidanceResponse generateGuidance(
+            String email,
+            Long analysisId,
+            Long itemId
+    ) {
+        AnalysisResult result = findMyResult(email, analysisId);
+        if (result.getAnalysisStatus() != AnalysisStatus.COMPLETED) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "완료된 분석 결과에서만 작성 방향을 생성할 수 있습니다."
+            );
+        }
+
+        AnalysisItem item = result.getItems().stream()
+                .filter(candidate -> candidate.getItemId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "비교 항목을 찾을 수 없습니다."
+                ));
+        List<Long> documentIds = contextRepository.findCompletedDocumentIds(
+                result.getUser().getUserId()
+        );
+        if (documentIds.isEmpty()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "분석이 완료된 사용자 문서가 없습니다."
+            );
+        }
+
+        JobRequirement requirement = item.getRequirement();
+        return aiAnalysisClient.generateGuidance(
+                result.getUser().getUserId(),
+                documentIds,
+                requirement.getRequirementName(),
+                requirement.getRequirementType().name(),
+                statusLabel(item.getJudgment()),
+                item.getAnalysisReason()
+        );
+    }
+
     AnalysisResult findMyResult(String email, Long analysisId) {
         User user = findUser(email);
         return resultRepository
@@ -210,6 +251,10 @@ public class AnalysisService {
 
     private AnalysisItemResponse toItem(AnalysisItem item) {
         JobRequirement requirement = item.getRequirement();
+        var evidence = contextRepository.findOwnedEvidence(
+                item.getAnalysisResult().getUser().getUserId(),
+                item.getEvidenceChunkId()
+        ).orElse(null);
         return new AnalysisItemResponse(
                 item.getItemId(),
                 requirement.getRequirementId(),
@@ -220,6 +265,10 @@ public class AnalysisService {
                 statusLabel(item.getJudgment()),
                 item.getAnalysisReason(),
                 item.getEvidenceChunkId(),
+                evidence == null ? null : evidence.documentId(),
+                evidence == null ? null : evidence.documentType(),
+                evidence == null ? null : evidence.text(),
+                evidence == null ? null : evidence.sourceLocation(),
                 item.isUserConfirmed()
         );
     }

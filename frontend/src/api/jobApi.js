@@ -25,3 +25,10 @@ export async function searchJobs(userJobId, region, keyword = "") {
   if (!response.ok) throw new Error(result?.message || "채용공고 조회에 실패했습니다.");
   return result;
 }
+
+export async function getJob(jobId) {
+  const response = await fetch(`/api/v1/jobs/${jobId}`, { credentials: "include" });
+  const result = await body(response);
+  if (!response.ok) throw new Error(result?.message || "채용공고를 불러오지 못했습니다.");
+  return result;
+}

@@ -21,6 +21,8 @@ extends JpaRepository<UserJob, Long> {
             Long userId
     );
 
+    long countByUser_UserId(Long userId);
+
     // 현재 로그인 사용자의 특정 관심 직무 조회
     Optional<UserJob> findByUserJobIdAndUser_UserId(
             Long userJobId,

@@ -31,6 +31,12 @@ class RagSearchResult(BaseModel):
     similarity: float
 
 
+class RagEvidenceResponse(BaseModel):
+    evidenceId: str
+    text: str
+    sourceLocation: str
+
+
 class RagDocumentIndexResponse(BaseModel):
     documentId: int
     documentType: DocumentType
@@ -38,6 +44,7 @@ class RagDocumentIndexResponse(BaseModel):
     extractionMethod: str
     pageCount: int
     extractedText: str
+    evidences: List[RagEvidenceResponse] = Field(default_factory=list)
 
 
 class RagDocumentDeleteResponse(BaseModel):

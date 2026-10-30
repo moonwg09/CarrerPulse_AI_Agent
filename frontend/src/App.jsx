@@ -10,6 +10,8 @@ import AnalysisDetailPage from "./pages/AnalysisDetailPage";
 import RecommendationPage from "./pages/RecommendationPage";
 import LearningPage from "./pages/LearningPage";
 import DocumentsPage from "./pages/DocumentsPage";
+import JobDetailPage from "./pages/JobDetailPage";
+import ApplicationsPage from "./pages/ApplicationsPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -53,6 +55,11 @@ function App() {
         />
 
         <Route
+          path="/jobs/:jobId"
+          element={<ProtectedRoute><JobDetailPage /></ProtectedRoute>}
+        />
+
+        <Route
           path="/account"
           element={
             <ProtectedRoute>
@@ -87,6 +94,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/applications" element={<ProtectedRoute><ApplicationsPage /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );

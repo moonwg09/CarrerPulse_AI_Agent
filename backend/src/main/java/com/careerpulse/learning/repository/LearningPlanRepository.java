@@ -26,6 +26,13 @@ public class LearningPlanRepository {
         this.jdbc = jdbc;
     }
 
+    public int invalidateActive(long userId) {
+        return jdbc.update(
+                "UPDATE learning_plans SET status='INVALIDATED' WHERE user_id=? AND status='ACTIVE'",
+                userId
+        );
+    }
+
     @Transactional
     public JsonNode save(long userId, JsonNode result) {
         var key = new GeneratedKeyHolder();

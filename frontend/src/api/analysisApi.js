@@ -102,6 +102,25 @@ export async function confirmNoExperience(analysisId, itemId) {
   return body;
 }
 
+export async function generateGuidance(analysisId, itemId) {
+  const csrf = await getCsrfToken();
+  const response = await fetch(
+    `${BASE_URL}/${analysisId}/items/${itemId}/guidance`,
+    {
+      method: "POST",
+      headers: { [csrf.headerName]: csrf.token },
+      credentials: "include",
+    }
+  );
+  const body = await readBody(response);
+  if (!response.ok) {
+    throw new Error(
+      body?.message || body?.detail || "작성 방향 생성에 실패했습니다."
+    );
+  }
+  return body;
+}
+
 // [추천조회]
 export async function getRecommendations(status, limit) {
   const params = new URLSearchParams();

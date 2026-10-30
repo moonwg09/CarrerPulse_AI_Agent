@@ -114,6 +114,13 @@ public class UserService {
                         )
                 );
 
+        if (userJobRepository.countByUser_UserId(user.getUserId()) >= 3) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "관심 직무는 최대 3개까지 등록할 수 있습니다."
+            );
+        }
+
         boolean exists =
                 userJobRepository.existsByUser_UserIdAndJobCode(
                         user.getUserId(),
@@ -197,6 +204,13 @@ public class UserService {
                                         "관심 직무를 찾을 수 없습니다."
                                 )
                         );
+
+        if (userJobRepository.countByUser_UserId(user.getUserId()) <= 1) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "관심 직무는 최소 1개를 유지해야 합니다. 다른 직무를 먼저 등록해 주세요."
+            );
+        }
 
         userJobRepository.delete(userJob);
     }

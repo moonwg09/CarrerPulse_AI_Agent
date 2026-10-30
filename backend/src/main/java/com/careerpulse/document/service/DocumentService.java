@@ -6,8 +6,11 @@ import com.careerpulse.document.client.DocumentRagIndexResponse;
 import com.careerpulse.document.dto.DocumentResponse;
 import com.careerpulse.document.entity.Document;
 import com.careerpulse.document.entity.DocumentType;
+import com.careerpulse.document.entity.DocumentChunk;
 import com.careerpulse.document.entity.FileFormat;
 import com.careerpulse.document.repository.DocumentRepository;
+import com.careerpulse.analysis.repository.AnalysisResultRepository;
+import com.careerpulse.learning.repository.LearningPlanRepository;
 import com.careerpulse.user.entity.User;
 import com.careerpulse.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,17 +44,23 @@ public class DocumentService {
     private final UserRepository userRepository;
     private final DocumentRepository documentRepository;
     private final DocumentRagClient documentRagClient;
+    private final AnalysisResultRepository analysisResultRepository;
+    private final LearningPlanRepository learningPlanRepository;
     private final Path storageRoot;
 
     public DocumentService(
             UserRepository userRepository,
             DocumentRepository documentRepository,
             DocumentRagClient documentRagClient,
+            AnalysisResultRepository analysisResultRepository,
+            LearningPlanRepository learningPlanRepository,
             @Value("${document.storage-dir:uploads/documents}") String storageDirectory
     ) {
         this.userRepository = userRepository;
         this.documentRepository = documentRepository;
         this.documentRagClient = documentRagClient;
+        this.analysisResultRepository = analysisResultRepository;
+        this.learningPlanRepository = learningPlanRepository;
         this.storageRoot = Path.of(storageDirectory).toAbsolutePath().normalize();
     }
 
@@ -109,12 +118,14 @@ public class DocumentService {
                         user.isConsented(),
                         storedPath
                 );
+                replaceChunks(saved, indexResponse);
                 saved.complete(indexResponse.extractedText());
             } catch (DocumentRagException exception) {
                 saved.fail(exception.getMessage());
             }
 
             documentRepository.saveAndFlush(saved);
+            invalidateDerivedResults(user.getUserId());
             return toResponse(saved);
         } catch (RuntimeException exception) {
             deleteStoredFile(storedPath);
@@ -165,7 +176,33 @@ public class DocumentService {
 
         documentRepository.delete(document);
         documentRepository.flush();
+        invalidateDerivedResults(user.getUserId());
         deleteStoredFile(storedPath);
+    }
+
+    private void replaceChunks(Document document, DocumentRagIndexResponse response) {
+        List<DocumentRagIndexResponse.Evidence> evidences = response.evidences();
+        if (evidences == null || evidences.isEmpty()) {
+            throw new DocumentRagException(
+                    "문서에서 검색 가능한 근거를 만들지 못했습니다.",
+                    null
+            );
+        }
+        document.clearChunks();
+        for (int index = 0; index < evidences.size(); index++) {
+            DocumentRagIndexResponse.Evidence evidence = evidences.get(index);
+            document.addChunk(new DocumentChunk(
+                    index,
+                    evidence.text(),
+                    evidence.sourceLocation(),
+                    evidence.evidenceId()
+            ));
+        }
+    }
+
+    private void invalidateDerivedResults(Long userId) {
+        analysisResultRepository.invalidateCompletedByUserId(userId);
+        learningPlanRepository.invalidateActive(userId);
     }
 
     private User findUser(String email) {

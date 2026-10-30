@@ -93,4 +93,64 @@ public class AnalysisContextRepository {
         );
         return count != null && count == 1;
     }
+
+    public Optional<Long> findOwnedChunkIdByEvidenceRef(
+            Long userId,
+            Long documentId,
+            String evidenceRef
+    ) {
+        if (documentId == null || evidenceRef == null || evidenceRef.isBlank()) {
+            return Optional.empty();
+        }
+        return jdbcTemplate.query(
+                """
+                SELECT c.chunk_id
+                  FROM document_chunks c
+                  JOIN user_documents d ON d.document_id = c.document_id
+                 WHERE d.user_id = ?
+                   AND d.document_id = ?
+                   AND d.processing_status = 'COMPLETED'
+                   AND c.embedding_ref = ?
+                 LIMIT 1
+                """,
+                (rs, rowNum) -> rs.getLong("chunk_id"),
+                userId,
+                documentId,
+                evidenceRef
+        ).stream().findFirst();
+    }
+
+    public Optional<EvidenceSnapshot> findOwnedEvidence(Long userId, Long chunkId) {
+        if (chunkId == null) {
+            return Optional.empty();
+        }
+        return jdbcTemplate.query(
+                """
+                SELECT c.chunk_id, d.document_id, d.document_type,
+                       c.chunk_text, c.source_location
+                  FROM document_chunks c
+                  JOIN user_documents d ON d.document_id = c.document_id
+                 WHERE c.chunk_id = ?
+                   AND d.user_id = ?
+                   AND d.processing_status = 'COMPLETED'
+                """,
+                (rs, rowNum) -> new EvidenceSnapshot(
+                        rs.getLong("chunk_id"),
+                        rs.getLong("document_id"),
+                        rs.getString("document_type"),
+                        rs.getString("chunk_text"),
+                        rs.getString("source_location")
+                ),
+                chunkId,
+                userId
+        ).stream().findFirst();
+    }
+
+    public record EvidenceSnapshot(
+            Long chunkId,
+            Long documentId,
+            String documentType,
+            String text,
+            String sourceLocation
+    ) {}
 }

@@ -4,6 +4,7 @@ import com.careerpulse.analysis.dto.AnalysisCompareRequest;
 import com.careerpulse.analysis.dto.AnalysisDetailResponse;
 import com.careerpulse.analysis.dto.AnalysisSummaryResponse;
 import com.careerpulse.analysis.dto.NoExperienceConfirmationRequest;
+import com.careerpulse.analysis.dto.GuidanceResponse;
 import com.careerpulse.analysis.dto.RecommendationListResponse;
 import com.careerpulse.analysis.service.AnalysisRecommendationService;
 import com.careerpulse.analysis.service.AnalysisService;
@@ -137,6 +138,21 @@ public class AnalysisController {
         return ResponseEntity.ok(
                 analysisService.confirmNoExperience(
                         email,
+                        analysisId,
+                        itemId
+                )
+        );
+    }
+
+    @PostMapping("/{analysisId}/items/{itemId}/guidance")
+    public ResponseEntity<GuidanceResponse> generateGuidance(
+            Authentication authentication,
+            @PathVariable Long analysisId,
+            @PathVariable Long itemId
+    ) {
+        return ResponseEntity.ok(
+                analysisService.generateGuidance(
+                        authentication.getName(),
                         analysisId,
                         itemId
                 )

@@ -2,6 +2,7 @@ package com.careerpulse.analysis.client;
 
 import com.careerpulse.analysis.dto.AiJobMatchResult;
 import com.careerpulse.analysis.dto.JobPostingSnapshot;
+import com.careerpulse.analysis.dto.GuidanceResponse;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -20,6 +21,7 @@ public class AiAnalysisClient {
 
     public static final String ANALYZE_INDEXED_JOB_PATH =
             "/api/v1/career/analyze-indexed-job";
+    public static final String GUIDANCE_PATH = "/api/v1/career/guidance";
 
     private final RestClient aiRestClient;
     private final ObjectMapper objectMapper;
@@ -76,6 +78,46 @@ public class AiAnalysisClient {
     public String ping() {
         try {
             return aiRestClient.get().uri("/").retrieve().body(String.class);
+        } catch (ResourceAccessException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "AI 분석 서버에 연결할 수 없습니다.",
+                    e
+            );
+        }
+    }
+
+    public GuidanceResponse generateGuidance(
+            Long userId,
+            List<Long> documentIds,
+            String requirement,
+            String requirementType,
+            String status,
+            String missingPart
+    ) {
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("userId", userId);
+        body.put("requirement", requirement);
+        body.put("requirementType", requirementType);
+        body.put("status", status);
+        body.put("missingPart", missingPart == null ? "" : missingPart);
+        ArrayNode ids = body.putArray("documentIds");
+        documentIds.forEach(ids::add);
+
+        try {
+            GuidanceResponse response = aiRestClient.post()
+                    .uri(GUIDANCE_PATH)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(GuidanceResponse.class);
+            if (response == null || response.lines() == null || response.lines().isEmpty()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_GATEWAY,
+                        "AI 서버가 검증된 작성 방향을 반환하지 않았습니다."
+                );
+            }
+            return response;
         } catch (ResourceAccessException e) {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE,

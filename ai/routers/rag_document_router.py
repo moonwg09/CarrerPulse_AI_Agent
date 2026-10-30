@@ -1,10 +1,11 @@
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from rag.parser import ParseError
-from rag.store import delete_document, index_file
+from rag.store import delete_document, get_store, index_file
 from schemas.document_schema import DocumentType
 from schemas.rag_schema import (
     RagDocumentDeleteResponse,
+    RagEvidenceResponse,
     RagDocumentIndexResponse,
 )
 
@@ -51,6 +52,17 @@ def index_rag_document(
             detail={"code": exception.code, "message": exception.message},
         ) from exception
 
+    store = get_store()
+    evidences = []
+    for evidence_id in result["evidence_ids"]:
+        evidence = store.get_evidence(evidence_id, userId)
+        if evidence is not None:
+            evidences.append(RagEvidenceResponse(
+                evidenceId=evidence.evidence_id,
+                text=evidence.evidence_text,
+                sourceLocation=evidence.source_location,
+            ))
+
     return RagDocumentIndexResponse(
         documentId=document_id,
         documentType=documentType,
@@ -58,6 +70,7 @@ def index_rag_document(
         extractionMethod=result["extraction_method"],
         pageCount=result["page_count"],
         extractedText=result["extracted_text"],
+        evidences=evidences,
     )
 
 

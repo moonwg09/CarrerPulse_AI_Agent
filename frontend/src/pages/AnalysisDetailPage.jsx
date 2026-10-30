@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { confirmNoExperience, getAnalysisDetail } from "../api/analysisApi";
+import { confirmNoExperience, generateGuidance, getAnalysisDetail } from "../api/analysisApi";
 
 function AnalysisDetailPage() {
   const { analysisId } = useParams();
   const [detail, setDetail] = useState(null);
   const [message, setMessage] = useState("");
+  const [guidanceByItem, setGuidanceByItem] = useState({});
+  const [loadingItemId, setLoadingItemId] = useState(null);
 
   useEffect(() => {
     getAnalysisDetail(analysisId)
@@ -21,6 +23,19 @@ function AnalysisDetailPage() {
       setDetail(await confirmNoExperience(analysisId, itemId));
     } catch (error) {
       setMessage(error.message);
+    }
+  };
+
+  const guide = async (itemId) => {
+    try {
+      setLoadingItemId(itemId);
+      setMessage("");
+      const guidance = await generateGuidance(analysisId, itemId);
+      setGuidanceByItem((previous) => ({ ...previous, [itemId]: guidance }));
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setLoadingItemId(null);
     }
   };
 
@@ -52,8 +67,8 @@ function AnalysisDetailPage() {
           <p>{item.statusLabel}</p>
           <p>{item.reason || "판정 사유 없음"}</p>
           <p>
-            {item.evidenceChunkId
-              ? `대표 근거 청크: ${item.evidenceChunkId}`
+            {item.evidenceText
+              ? `${item.evidenceDocumentType} · ${item.evidenceSourceLocation || "위치 미확인"}: ${item.evidenceText}`
               : "확인 가능한 대표 근거 없음"}
           </p>
           {item.comparisonKind === "EXPERIENCE" &&
@@ -62,6 +77,24 @@ function AnalysisDetailPage() {
                 경험 없음 확인
               </button>
             )}
+          <button
+            type="button"
+            disabled={loadingItemId === item.itemId}
+            onClick={() => guide(item.itemId)}
+          >
+            {loadingItemId === item.itemId ? "근거 확인 중" : "작성 방향 보기"}
+          </button>
+          {guidanceByItem[item.itemId] && (
+            <div>
+              <h4>서류 작성 방향</h4>
+              <ul>
+                {guidanceByItem[item.itemId].lines.map((line, index) => (
+                  <li key={`${item.itemId}-${index}`}>{line}</li>
+                ))}
+              </ul>
+              <p>검증에 사용한 근거: {guidanceByItem[item.itemId].evidenceCount}개</p>
+            </div>
+          )}
         </section>
       ))}
       {message && <p>{message}</p>}

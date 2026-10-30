@@ -66,7 +66,7 @@ export default function AnalysisPage() {
       <h2>수집 공고</h2>
       <table><thead><tr><th>공고</th><th>회사</th><th>지역</th><th>마감일</th><th>분석</th></tr></thead>
         <tbody>{jobs.map(job => <tr key={job.jobId}>
-          <td>{job.originalUrl ? <a href={job.originalUrl} target="_blank" rel="noreferrer">{job.title}</a> : job.title}</td>
+          <td><Link to={`/jobs/${job.jobId}`}>{job.title}</Link></td>
           <td>{job.companyName}</td><td>{job.region}</td><td>{job.deadline || "-"}</td>
           <td><button disabled={!!busy} onClick={() => analyze(job.jobId)}>{busy === String(job.jobId) ? "분석 중" : "근거 비교"}</button></td>
         </tr>)}</tbody>
