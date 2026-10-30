@@ -95,6 +95,18 @@ public class User {
         return careerYears;
     }
 
+    public boolean isConsented() {
+        return consented;
+    }
+
+    public String getConsentVersion() {
+        return consentVersion;
+    }
+
+    public LocalDateTime getConsentedAt() {
+        return consentedAt;
+    }
+
     public void updateProfile(
             String name,
             String phone,
