@@ -6,6 +6,7 @@ import com.careerpulse.job.dto.JobPostingResponse;
 import com.careerpulse.job.entity.JobPosting;
 import com.careerpulse.job.entity.JobPostingStatus;
 import com.careerpulse.job.repository.JobPostingRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ public class JobPostingService {
     private final JobPostingRepository jobPostingRepository;
     private final Clock clock;
 
+    @Autowired
     public JobPostingService(JobPostingRepository jobPostingRepository) {
         this(jobPostingRepository, Clock.systemDefaultZone());
     }
