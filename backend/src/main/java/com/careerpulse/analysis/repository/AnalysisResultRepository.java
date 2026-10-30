@@ -17,10 +17,10 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
     );
 
     @EntityGraph(attributePaths = {"items", "items.requirement"})
-    List<AnalysisResult> findAllByUser_UserIdOrderByCreatedAtDesc(Long userId);
+    List<AnalysisResult> findAllByUser_UserIdOrderByAnalyzedAtDescCreatedAtDesc(Long userId);
 
     @EntityGraph(attributePaths = {"items", "items.requirement"})
-    List<AnalysisResult> findAllByUser_UserIdAndAnalysisStatus(
+    List<AnalysisResult> findAllByUser_UserIdAndAnalysisStatusOrderByAnalyzedAtDesc(
             Long userId,
             AnalysisStatus analysisStatus
     );

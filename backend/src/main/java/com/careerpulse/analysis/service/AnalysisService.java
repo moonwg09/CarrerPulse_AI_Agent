@@ -43,6 +43,14 @@ public class AnalysisService {
     public AnalysisDetailResponse compare(String email, AnalysisCompareRequest request) {
         User user = findUser(email);
         JobPostingSnapshot job = findJob(request.jobId());
+
+        if (!contextRepository.hasAnalysisConsent(user.getUserId())) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "문서 분석 및 근거 검색 동의가 필요합니다."
+            );
+        }
+
         List<Long> documentIds = contextRepository.findCompletedDocumentIds(user.getUserId());
 
         if (documentIds.isEmpty()) {
@@ -74,6 +82,14 @@ public class AnalysisService {
             );
             entity.complete(mapped.score(), mapped.items());
             return toDetail(resultRepository.saveAndFlush(entity));
+        } catch (IllegalArgumentException e) {
+            entity.fail();
+            resultRepository.saveAndFlush(entity);
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "AI 서버 응답이 분석 계약과 일치하지 않습니다.",
+                    e
+            );
         } catch (RuntimeException e) {
             entity.fail();
             resultRepository.saveAndFlush(entity);
@@ -84,7 +100,7 @@ public class AnalysisService {
     public List<AnalysisSummaryResponse> getMyAnalyses(String email) {
         User user = findUser(email);
         return resultRepository
-                .findAllByUser_UserIdOrderByCreatedAtDesc(user.getUserId())
+                .findAllByUser_UserIdOrderByAnalyzedAtDescCreatedAtDesc(user.getUserId())
                 .stream()
                 .map(this::toSummary)
                 .toList();

@@ -14,7 +14,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class AnalysisRecommendationService {
@@ -46,12 +48,14 @@ public class AnalysisRecommendationService {
         LocalDate today = LocalDate.now();
         int limit = resolveLimit(status, limitParam);
 
+        Set<Long> seenJobIds = new HashSet<>();
         List<AnalysisSummaryResponse> items = resultRepository
-                .findAllByUser_UserIdAndAnalysisStatus(
+                .findAllByUser_UserIdAndAnalysisStatusOrderByAnalyzedAtDesc(
                         user.getUserId(),
                         AnalysisStatus.COMPLETED
                 )
                 .stream()
+                .filter(result -> seenJobIds.add(result.getJobId()))
                 .filter(result -> contextRepository.findJob(result.getJobId())
                         .filter(job -> !job.isClosed(today))
                         .isPresent())

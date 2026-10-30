@@ -52,6 +52,15 @@ public class AnalysisContextRepository {
         );
     }
 
+    public boolean hasAnalysisConsent(Long userId) {
+        Boolean consented = jdbcTemplate.queryForObject(
+                "SELECT consented FROM users WHERE user_id = ?",
+                Boolean.class,
+                userId
+        );
+        return Boolean.TRUE.equals(consented);
+    }
+
     public boolean isOwnedCompletedChunk(Long userId, Long chunkId) {
         Integer count = jdbcTemplate.queryForObject(
                 """
