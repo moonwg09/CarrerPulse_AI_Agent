@@ -1,5 +1,8 @@
 package com.careerpulse.learning.controller;
 
+import com.careerpulse.analysis.dto.AnalysisCompareRequest;
+import com.careerpulse.analysis.service.AnalysisService;
+import com.careerpulse.learning.dto.LearningJobResponse;
 import com.careerpulse.learning.service.LearningContextService;
 import com.careerpulse.learning.service.LearningService;
 import com.careerpulse.user.service.AuthService;
@@ -27,6 +30,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.HashSet;
 
 /** 로그인 사용자의 관심 직무·지역·최신 비교 결과만 학습 분석에 사용한다. */
 @RestController
@@ -35,6 +40,7 @@ public class LearningAnalysisController {
     private final LearningService learning;
     private final LearningContextService contexts;
     private final AuthService users;
+    private final AnalysisService analyses;
     private final ObjectMapper mapper;
     private final RestClient ai;
 
@@ -43,22 +49,25 @@ public class LearningAnalysisController {
             LearningService learning,
             LearningContextService contexts,
             AuthService users,
+            AnalysisService analyses,
             ObjectMapper mapper,
             @Value("${ai.server.url}") String aiUrl
     ) {
-        this(learning, contexts, users, mapper, createClient(aiUrl));
+        this(learning, contexts, users, analyses, mapper, createClient(aiUrl));
     }
 
     LearningAnalysisController(
             LearningService learning,
             LearningContextService contexts,
             AuthService users,
+            AnalysisService analyses,
             ObjectMapper mapper,
             RestClient ai
     ) {
         this.learning = learning;
         this.contexts = contexts;
         this.users = users;
+        this.analyses = analyses;
         this.mapper = mapper;
         this.ai = ai;
     }
@@ -79,11 +88,22 @@ public class LearningAnalysisController {
         var selectedJobs = learning.getMyAvailableJobs(email, input.region());
         long userId = users.findByEmail(email).getUserId();
         var context = contexts.build(userId, selectedJobs);
-        if (!selectedJobs.isEmpty() && context.jobs().isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "선택된 공고의 요구사항 분석이 아직 완료되지 않았습니다. 공고 분석을 먼저 실행해 주세요."
-            );
+        int analysisFailureCount = 0;
+        if (!context.needsAnalysisJobIds().isEmpty()) {
+            var failedIds = new HashSet<Long>();
+            for (Long jobId : context.needsAnalysisJobIds()) {
+                try {
+                    analyses.compare(email, new AnalysisCompareRequest(jobId));
+                } catch (RuntimeException exception) {
+                    failedIds.add(jobId);
+                    analysisFailureCount++;
+                }
+            }
+            List<LearningJobResponse> successfulJobs = new ArrayList<>();
+            for (LearningJobResponse job : selectedJobs) {
+                if (!failedIds.contains(job.jobId())) successfulJobs.add(job);
+            }
+            context = contexts.build(userId, successfulJobs);
         }
 
         ObjectNode payload = mapper.createObjectNode();
@@ -104,6 +124,7 @@ public class LearningAnalysisController {
             result.put("source", "DATABASE");
             result.put("region", input.region().trim());
             result.put("skippedJobCount", context.skippedJobCount());
+            result.put("analysisFailureCount", analysisFailureCount);
             return result;
         } catch (RestClientResponseException ex) {
             throw new ResponseStatusException(

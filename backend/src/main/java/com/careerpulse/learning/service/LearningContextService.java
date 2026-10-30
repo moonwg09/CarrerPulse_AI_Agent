@@ -15,6 +15,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /** 저장된 요구조건과 최신 사용자 비교 결과를 Python 학습 분석 계약으로 변환한다. */
 @Service
@@ -84,7 +86,19 @@ public class LearningContextService {
 
         ArrayNode assessmentArray = mapper.createArrayNode();
         accumulated.values().forEach(value -> assessmentArray.add(value.toJson(mapper)));
-        return new Context(jobs, assessmentArray, skipped);
+        Set<Long> comparedJobIds = assessments.stream()
+                .map(LearningAnalysisRepository.AssessmentRow::jobId)
+                .collect(Collectors.toSet());
+        List<Long> needsAnalysisJobIds = selectedJobs.stream()
+                .map(LearningJobResponse::jobId)
+                .filter(jobId -> !comparedJobIds.contains(jobId)
+                        || !byJob.containsKey(jobId)
+                        || byJob.get(jobId).stream().noneMatch(
+                                row -> row.evaluationRule() != null && !row.evaluationRule().isBlank()
+                        ))
+                .distinct()
+                .toList();
+        return new Context(jobs, assessmentArray, skipped, needsAnalysisJobIds);
     }
 
     private List<LearningItem> learningItems(String rawRule) {
@@ -122,7 +136,12 @@ public class LearningContextService {
         };
     }
 
-    public record Context(ArrayNode jobs, ArrayNode assessments, int skippedJobCount) {}
+    public record Context(
+            ArrayNode jobs,
+            ArrayNode assessments,
+            int skippedJobCount,
+            List<Long> needsAnalysisJobIds
+    ) {}
     private record LearningItem(String name, String type) {}
 
     private static class AssessmentAccumulator {

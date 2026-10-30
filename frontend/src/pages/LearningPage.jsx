@@ -40,6 +40,7 @@ export default function LearningPage() {
     {result && <section aria-live="polite">
       <h2>분석 결과</h2>
       <p>{result.message} · 지역 {result.region} · 기준일 {result.referenceDate} · 대상 {result.targetJobCount}건</p>
+      {!!result.analysisFailureCount && <p>자동 분석에 실패해 제외된 공고: {result.analysisFailureCount}건</p>}
       {!!result.skippedJobCount && <p>요구사항 분석이 없어 제외된 공고: {result.skippedJobCount}건</p>}
       <p>대상 공고 ID: {result.targetJobIds.join(", ") || "없음"}</p>
       <h3>요구 역량 빈도</h3>

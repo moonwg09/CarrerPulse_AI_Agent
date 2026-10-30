@@ -1,5 +1,6 @@
 package com.careerpulse.learning.controller;
 
+import com.careerpulse.analysis.service.AnalysisService;
 import com.careerpulse.learning.dto.LearningJobResponse;
 import com.careerpulse.learning.service.LearningContextService;
 import com.careerpulse.learning.service.LearningService;
@@ -34,6 +35,7 @@ class LearningAnalysisControllerTest {
     LearningService learning;
     LearningContextService contexts;
     AuthService users;
+    AnalysisService analyses;
     LearningAnalysisController controller;
     MockRestServiceServer server;
     final UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
@@ -44,12 +46,14 @@ class LearningAnalysisControllerTest {
         learning = mock(LearningService.class);
         contexts = mock(LearningContextService.class);
         users = mock(AuthService.class);
+        analyses = mock(AnalysisService.class);
         User user = mock(User.class);
         when(user.getUserId()).thenReturn(7L);
         when(users.findByEmail(auth.getName())).thenReturn(user);
         var builder = RestClient.builder().baseUrl("http://learning.test");
         server = MockRestServiceServer.bindTo(builder).build();
-        controller = new LearningAnalysisController(learning, contexts, users, mapper, builder.build());
+        controller = new LearningAnalysisController(
+                learning, contexts, users, analyses, mapper, builder.build());
     }
 
     @Test
@@ -65,7 +69,8 @@ class LearningAnalysisControllerTest {
         var assessments = mapper.createArrayNode();
         assessments.addObject().put("name", "Spring").put("type", "SKILL")
                 .put("status", "PARTIAL").put("evidence", "저장된 근거").putArray("missingDetails");
-        when(contexts.build(7L, selected)).thenReturn(new LearningContextService.Context(jobs, assessments, 0));
+        when(contexts.build(7L, selected)).thenReturn(
+                new LearningContextService.Context(jobs, assessments, 0, List.of()));
 
         server.expect(requestTo("http://learning.test/api/v1/learning/analyze"))
                 .andExpect(method(HttpMethod.POST))
@@ -81,16 +86,21 @@ class LearningAnalysisControllerTest {
     }
 
     @Test
-    void jobsWithoutStructuredRequirementsAreRejected() {
+    void failedAutomaticAnalysisIsExcludedAndCounted() {
         var selected = List.of(new LearningJobResponse(
                 42L, "테스트", "백엔드", "소프트웨어", "원문",
                 LocalDate.now(), null, null));
         when(learning.getMyAvailableJobs(auth.getName(), "전국")).thenReturn(selected);
         when(contexts.build(7L, selected)).thenReturn(new LearningContextService.Context(
-                mapper.createArrayNode(), mapper.createArrayNode(), 1));
-        assertEquals(409, assertThrows(ResponseStatusException.class,
-                () -> controller.analyze(auth, new LearningAnalysisController.AnalyzeInput("전국")))
-                .getStatusCode().value());
+                mapper.createArrayNode(), mapper.createArrayNode(), 1, List.of(42L)));
+        doThrow(new RuntimeException("분석 실패"))
+                .when(analyses).compare(eq(auth.getName()), any());
+        when(contexts.build(7L, List.of())).thenReturn(new LearningContextService.Context(
+                mapper.createArrayNode(), mapper.createArrayNode(), 0, List.of()));
+        server.expect(requestTo("http://learning.test/api/v1/learning/analyze"))
+                .andRespond(withSuccess("{\"targetJobCount\":0}", MediaType.APPLICATION_JSON));
+        var result = controller.analyze(auth, new LearningAnalysisController.AnalyzeInput("전국"));
+        assertEquals(1, result.path("analysisFailureCount").asInt());
     }
 
     @Test
@@ -107,7 +117,7 @@ class LearningAnalysisControllerTest {
     void upstreamValidationErrorRemains422() {
         when(learning.getMyAvailableJobs(auth.getName(), "서울")).thenReturn(List.of());
         when(contexts.build(7L, List.of())).thenReturn(new LearningContextService.Context(
-                mapper.createArrayNode(), mapper.createArrayNode(), 0));
+                mapper.createArrayNode(), mapper.createArrayNode(), 0, List.of()));
         server.expect(requestTo("http://learning.test/api/v1/learning/analyze"))
                 .andRespond(withStatus(HttpStatus.UNPROCESSABLE_ENTITY));
         assertEquals(422, assertThrows(ResponseStatusException.class,
