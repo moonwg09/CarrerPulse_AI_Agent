@@ -6,7 +6,7 @@ from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from google.genai import errors
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from agents.career_agent import build_career_agent
 from schemas.document_schema import DocumentAnalysisResult
@@ -26,7 +26,7 @@ from services.recommendation_service import (
 from services.requirement_frequency import calculate_requirement_frequency
 from services.rag_validation_service import link_match_result_evidence_metadata
 from rag.parser import ParseError
-from rag.store import embedding_mode, get_store, index_file
+from rag.store import embedding_mode, get_scoped_store, get_store, index_file
 
 
 TEMP_DIR = Path("temp_uploads")
@@ -42,6 +42,29 @@ class CareerJobAnalyzeRequest(BaseModel):
     jobText: str
     userAnalysis: DocumentAnalysisResult
     embeddedChunks: list[EmbeddedDocumentChunk]
+
+
+class IndexedJobAnalyzeRequest(BaseModel):
+    userId: int = Field(gt=0)
+    jobId: int = Field(gt=0)
+    jobText: str = Field(min_length=1)
+    documentIds: list[int] = Field(min_length=1)
+
+    @field_validator("jobText")
+    @classmethod
+    def validate_job_text(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("jobText는 비어 있을 수 없습니다.")
+        return value
+
+    @field_validator("documentIds")
+    @classmethod
+    def validate_document_ids(cls, values: list[int]) -> list[int]:
+        if any(value <= 0 for value in values):
+            raise ValueError("documentIds는 모두 1 이상이어야 합니다.")
+        if len(values) != len(set(values)):
+            raise ValueError("documentIds는 중복될 수 없습니다.")
+        return values
 
 
 def save_temp_file(file: UploadFile) -> Path:
@@ -66,6 +89,34 @@ def save_temp_file(file: UploadFile) -> Path:
         shutil.copyfileobj(file.file, buffer)
 
     return temp_path
+
+
+def _indexed_document_contents(rag_store):
+    """색인된 원문 근거를 문서 분석기가 받는 위치 포함 형식으로 되돌린다."""
+    contents = {
+        "resume": [],
+        "self_intro": [],
+        "portfolio": [],
+    }
+
+    for evidence in sorted(
+        rag_store.evidences,
+        key=lambda item: (item.document_id, item.evidence_id),
+    ):
+        if evidence.doc_type not in contents:
+            continue
+
+        item = {"text": evidence.evidence_text}
+        location = evidence.source_location or ""
+
+        if location.startswith("p.") and location[2:].isdigit():
+            item["page"] = int(location[2:])
+        elif location.startswith("문단 ") and location[3:].isdigit():
+            item["paragraphIndex"] = int(location[3:])
+
+        contents[evidence.doc_type].append(item)
+
+    return contents
 
 
 @router.post("/analyze-job-files")
@@ -418,6 +469,83 @@ def analyze_job_with_files(
                 path.unlink()
 
         print("[FINALLY] 임시 파일 삭제 완료")
+
+
+@router.post(
+    "/analyze-indexed-job",
+    response_model=JobMatchResult,
+)
+def analyze_indexed_job(request: IndexedJobAnalyzeRequest):
+    """Spring이 저장·색인 완료한 사용자 문서로 공고 한 건을 분석한다."""
+    try:
+        rag_store = get_scoped_store(
+            user_id=request.userId,
+            document_ids=request.documentIds,
+        )
+        indexed_document_ids = {
+            evidence.document_id
+            for evidence in rag_store.evidences
+        }
+        missing_document_ids = sorted(
+            set(request.documentIds) - indexed_document_ids
+        )
+        if missing_document_ids:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "RAG_INDEX_NOT_READY",
+                    "message": "요청한 문서의 RAG 색인이 없거나 사용할 수 없습니다.",
+                    "documentIds": missing_document_ids,
+                },
+            )
+
+        contents = _indexed_document_contents(rag_store)
+        user_analysis = analyze_documents(
+            resume_contents=contents["resume"],
+            self_intro_contents=contents["self_intro"],
+            portfolio_contents=contents["portfolio"],
+        )
+
+        career_agent = build_career_agent()
+        final_state = career_agent.invoke({
+            "jobText": request.jobText,
+            "userAnalysis": user_analysis,
+            "embeddedChunks": [],
+            "userId": request.userId,
+            "ragStore": rag_store,
+            "jobAnalysis": None,
+            "matchResult": None,
+        })
+
+        return link_match_result_evidence_metadata(
+            match_result=final_state["matchResult"],
+            rag_store=rag_store,
+            user_id=request.userId,
+        )
+
+    except HTTPException:
+        raise
+    except errors.ServerError as exception:
+        raise HTTPException(
+            status_code=503,
+            detail="AI 분석 서버가 현재 혼잡합니다. 잠시 후 다시 시도해주세요.",
+        ) from exception
+    except errors.ClientError as exception:
+        status_code = (
+            getattr(exception, "code", None)
+            or getattr(exception, "status_code", None)
+        )
+        if status_code == 429:
+            raise HTTPException(
+                status_code=429,
+                detail="AI 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.",
+            ) from exception
+        raise HTTPException(status_code=502, detail=str(exception)) from exception
+    except Exception as exception:
+        raise HTTPException(
+            status_code=500,
+            detail=f"색인 문서 기반 공고 분석 중 오류가 발생했습니다: {exception}",
+        ) from exception
 
 
 @router.post(

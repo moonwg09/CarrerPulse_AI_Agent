@@ -47,6 +47,58 @@ def embedding_mode() -> str:
     return _embedder.mode if _embedder else "unknown"
 
 
+def get_scoped_store(user_id: int, document_ids: List[int]) -> VectorStore:
+    """요청 사용자의 허용된 문서만 보이는 읽기 전용 검색 저장소를 만든다."""
+    source = get_store()
+    allowed = set(document_ids)
+    scoped = VectorStore(source.embedder)
+
+    scoped.evidence_by_key = {
+        key: evidence
+        for key, evidence in source.evidence_by_key.items()
+        if (
+            evidence.user_id == user_id
+            and evidence.document_id in allowed
+            and evidence.consented
+            and not evidence.deleted
+        )
+    }
+
+    active_evidence_ids = {
+        evidence.evidence_id
+        for evidence in scoped.evidence_by_key.values()
+    }
+    scoped.chunk_by_key = {
+        key: chunk
+        for key, chunk in source.chunk_by_key.items()
+        if (
+            chunk.user_id == user_id
+            and chunk.document_id in allowed
+            and any(
+                evidence_id in active_evidence_ids
+                for evidence_id in chunk.evidence_ids
+            )
+        )
+    }
+
+    allowed_chunk_keys = set(scoped.chunk_by_key)
+    keep_indices = [
+        index
+        for index, key in enumerate(source.vector_chunk_keys)
+        if key in allowed_chunk_keys
+    ]
+    scoped.vector_chunk_keys = [
+        source.vector_chunk_keys[index]
+        for index in keep_indices
+    ]
+    scoped.vectors = (
+        source.vectors[keep_indices]
+        if keep_indices and source.vectors is not None
+        else None
+    )
+    return scoped
+
+
 def _build_legacy_retrieval_chunks(
     evidences,
     user_id: int,
