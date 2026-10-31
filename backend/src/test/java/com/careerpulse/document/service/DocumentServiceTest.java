@@ -9,6 +9,8 @@ import com.careerpulse.document.entity.DocumentType;
 import com.careerpulse.document.entity.FileFormat;
 import com.careerpulse.document.entity.ProcessingStatus;
 import com.careerpulse.document.repository.DocumentRepository;
+import com.careerpulse.analysis.repository.AnalysisResultRepository;
+import com.careerpulse.learning.repository.LearningPlanRepository;
 import com.careerpulse.user.entity.User;
 import com.careerpulse.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -346,7 +348,12 @@ class DocumentServiceTest {
                 1,
                 "test",
                 1,
-                "추출된 문서"
+                "추출된 문서",
+                List.of(new DocumentRagIndexResponse.Evidence(
+                        "EV-0001",
+                        "추출된 문서",
+                        "paragraph:1"
+                ))
         ));
         return service(userRepository, documentRepository, ragClient);
     }
@@ -360,6 +367,8 @@ class DocumentServiceTest {
                 userRepository,
                 documentRepository,
                 ragClient,
+                mock(AnalysisResultRepository.class),
+                mock(LearningPlanRepository.class),
                 storageDirectory.toString()
         );
     }
