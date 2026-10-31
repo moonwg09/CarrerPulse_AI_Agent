@@ -35,6 +35,13 @@ erDiagram
         DATETIME created_at "NOT NULL DEFAULT CURRENT_TIMESTAMP"
     }
 
+    user_preferred_companies {
+        BIGINT preferred_company_id PK "AUTO_INCREMENT"
+        BIGINT user_id FK "NOT NULL"
+        VARCHAR_255 company_name "NOT NULL"
+        DATETIME created_at "NOT NULL DEFAULT CURRENT_TIMESTAMP"
+    }
+
     user_documents {
         BIGINT document_id PK "AUTO_INCREMENT"
         BIGINT user_id FK "NOT NULL"
@@ -111,6 +118,9 @@ erDiagram
         VARCHAR_30 judgment "NOT NULL"
         TEXT analysis_reason
         BOOLEAN user_confirmed "NOT NULL DEFAULT FALSE"
+        VARCHAR_30 user_response_type
+        TEXT user_experience_text
+        DATETIME rejudged_at
         DATETIME created_at "NOT NULL DEFAULT CURRENT_TIMESTAMP"
     }
 
@@ -150,6 +160,21 @@ erDiagram
         DATETIME updated_at "NOT NULL DEFAULT CURRENT_TIMESTAMP, ON UPDATE CURRENT_TIMESTAMP"
     }
 
+    job_bookmarks {
+        BIGINT bookmark_id PK "AUTO_INCREMENT"
+        BIGINT user_id FK "NOT NULL"
+        BIGINT job_id FK "NOT NULL"
+        DATETIME created_at "NOT NULL DEFAULT CURRENT_TIMESTAMP"
+    }
+
+    notification_deliveries {
+        BIGINT notification_id PK "AUTO_INCREMENT"
+        BIGINT user_id FK "NOT NULL"
+        BIGINT job_id FK "NOT NULL"
+        VARCHAR_30 notification_type "NOT NULL"
+        DATETIME sent_at "NOT NULL DEFAULT CURRENT_TIMESTAMP"
+    }
+
     company_reviews {
         BIGINT review_id PK "AUTO_INCREMENT"
         BIGINT user_id FK "NOT NULL"
@@ -175,6 +200,7 @@ erDiagram
 
     users ||--o{ user_auths : "fk_auth_user / ON DELETE CASCADE"
     users ||--o{ user_jobs : "fk_user_jobs_user / ON DELETE CASCADE"
+    users ||--o{ user_preferred_companies : "fk_preferred_companies_user / ON DELETE CASCADE"
     users ||--o{ user_documents : "fk_documents_user / ON DELETE CASCADE"
 
     user_documents ||--o{ document_chunks : "fk_chunks_document / ON DELETE CASCADE"
@@ -194,6 +220,10 @@ erDiagram
 
     users ||--o{ user_applications : "fk_applications_user / ON DELETE CASCADE"
     job_postings ||--o{ user_applications : "fk_applications_job / ON DELETE CASCADE"
+    users ||--o{ job_bookmarks : "fk_bookmarks_user / ON DELETE CASCADE"
+    job_postings ||--o{ job_bookmarks : "fk_bookmarks_job / ON DELETE CASCADE"
+    users ||--o{ notification_deliveries : "fk_notifications_user / ON DELETE CASCADE"
+    job_postings ||--o{ notification_deliveries : "fk_notifications_job / ON DELETE CASCADE"
 
     users ||--o{ company_reviews : "fk_reviews_user / ON DELETE CASCADE"
     company_reviews ||--o{ review_interview_questions : "fk_review_questions_review / ON DELETE CASCADE"
@@ -243,6 +273,12 @@ erDiagram
     %% user_jobs CONSTRAINTS
     %% ==========================================
     %% uk_user_job UNIQUE (user_id, job_code)
+
+    %% ==========================================
+    %% user_preferred_companies CONSTRAINTS
+    %% ==========================================
+    %% uk_user_preferred_company UNIQUE (user_id, company_name)
+    %% 관심 기업 최대 3개 제한은 서비스 계층에서 검증
 
 
     %% ==========================================
@@ -334,6 +370,11 @@ erDiagram
     %% chk_no_experience_confirmation:
     %% judgment <> 'NO_EXPERIENCE'
     %% OR user_confirmed = TRUE
+    %%
+    %% chk_user_response_type:
+    %% user_response_type IS NULL OR user_response_type IN (
+    %% 'EXPERIENCED', 'PARTIAL', 'NO_EXPERIENCE'
+    %% )
 
 
     %% ==========================================
@@ -373,6 +414,20 @@ erDiagram
     %% chk_application_status:
     %% application_status IN
     %% ('APPLIED', 'DOCUMENT_PASS', 'INTERVIEW', 'FINAL_PASS', 'REJECTED')
+
+    %% ==========================================
+    %% job_bookmarks CONSTRAINTS
+    %% ==========================================
+    %% uk_user_job_bookmark UNIQUE (user_id, job_id)
+
+    %% ==========================================
+    %% notification_deliveries CONSTRAINTS
+    %% ==========================================
+    %% uk_notification_delivery
+    %% UNIQUE (user_id, job_id, notification_type)
+    %%
+    %% chk_notification_type:
+    %% notification_type IN ('NEW_RECOMMENDATION', 'DEADLINE_REMINDER')
 
 
     %% ==========================================

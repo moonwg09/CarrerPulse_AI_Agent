@@ -64,6 +64,17 @@ CREATE TABLE user_jobs (
         REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+CREATE TABLE user_preferred_companies (
+    preferred_company_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    company_name VARCHAR(255) NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT uk_user_preferred_company UNIQUE (user_id, company_name),
+    CONSTRAINT fk_preferred_companies_user FOREIGN KEY (user_id)
+        REFERENCES users(user_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
 CREATE TABLE user_documents (
     document_id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT NOT NULL,
@@ -191,6 +202,9 @@ CREATE TABLE comparison_items (
     judgment VARCHAR(30) NOT NULL,
     analysis_reason TEXT,
     user_confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+    user_response_type VARCHAR(30),
+    user_experience_text TEXT,
+    rejudged_at DATETIME,
     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT uk_comparison_requirement UNIQUE (comparison_id, requirement_id),
@@ -207,6 +221,11 @@ CREATE TABLE comparison_items (
     ),
     CONSTRAINT chk_no_experience_confirmation CHECK (
         judgment <> 'NO_EXPERIENCE' OR user_confirmed = TRUE
+    ),
+    CONSTRAINT chk_user_response_type CHECK (
+        user_response_type IS NULL OR user_response_type IN (
+            'EXPERIENCED', 'PARTIAL', 'NO_EXPERIENCE'
+        )
     ),
     CONSTRAINT fk_items_comparison FOREIGN KEY (comparison_id)
         REFERENCES comparison_results(comparison_id) ON DELETE CASCADE,
@@ -273,6 +292,36 @@ CREATE TABLE user_applications (
     CONSTRAINT fk_applications_user FOREIGN KEY (user_id)
         REFERENCES users(user_id) ON DELETE CASCADE,
     CONSTRAINT fk_applications_job FOREIGN KEY (job_id)
+        REFERENCES job_postings(job_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE job_bookmarks (
+    bookmark_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    job_id BIGINT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT uk_user_job_bookmark UNIQUE (user_id, job_id),
+    CONSTRAINT fk_bookmarks_user FOREIGN KEY (user_id)
+        REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_bookmarks_job FOREIGN KEY (job_id)
+        REFERENCES job_postings(job_id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE notification_deliveries (
+    notification_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    job_id BIGINT NOT NULL,
+    notification_type VARCHAR(30) NOT NULL,
+    sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT uk_notification_delivery UNIQUE (user_id, job_id, notification_type),
+    CONSTRAINT chk_notification_type CHECK (
+        notification_type IN ('NEW_RECOMMENDATION', 'DEADLINE_REMINDER')
+    ),
+    CONSTRAINT fk_notifications_user FOREIGN KEY (user_id)
+        REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_notifications_job FOREIGN KEY (job_id)
         REFERENCES job_postings(job_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
