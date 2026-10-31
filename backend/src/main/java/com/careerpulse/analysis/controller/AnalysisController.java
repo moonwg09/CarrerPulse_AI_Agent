@@ -6,6 +6,7 @@ import com.careerpulse.analysis.dto.AnalysisSummaryResponse;
 import com.careerpulse.analysis.dto.NoExperienceConfirmationRequest;
 import com.careerpulse.analysis.dto.GuidanceResponse;
 import com.careerpulse.analysis.dto.RecommendationListResponse;
+import com.careerpulse.analysis.dto.ExperienceRejudgmentRequest;
 import com.careerpulse.analysis.service.AnalysisRecommendationService;
 import com.careerpulse.analysis.service.AnalysisService;
 import jakarta.validation.Valid;
@@ -157,5 +158,20 @@ public class AnalysisController {
                         itemId
                 )
         );
+    }
+
+    @PatchMapping("/{analysisId}/items/{itemId}/experience")
+    public ResponseEntity<AnalysisDetailResponse> rejudgeExperience(
+            Authentication authentication,
+            @PathVariable Long analysisId,
+            @PathVariable Long itemId,
+            @Valid @RequestBody ExperienceRejudgmentRequest request
+    ) {
+        return ResponseEntity.ok(analysisService.rejudgeExperience(
+                authentication.getName(),
+                analysisId,
+                itemId,
+                request
+        ));
     }
 }

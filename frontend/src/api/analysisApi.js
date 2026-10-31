@@ -121,6 +121,27 @@ export async function generateGuidance(analysisId, itemId) {
   return body;
 }
 
+export async function rejudgeExperience(analysisId, itemId, data) {
+  const csrf = await getCsrfToken();
+  const response = await fetch(
+    `${BASE_URL}/${analysisId}/items/${itemId}/experience`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        [csrf.headerName]: csrf.token,
+      },
+      credentials: "include",
+      body: JSON.stringify(data),
+    }
+  );
+  const body = await readBody(response);
+  if (!response.ok) {
+    throw new Error(body?.message || body?.detail || "추가 경험 재판정에 실패했습니다.");
+  }
+  return body;
+}
+
 // [추천조회]
 export async function getRecommendations(status, limit) {
   const params = new URLSearchParams();

@@ -1,3 +1,4 @@
+import json
 import shutil
 import uuid
 from datetime import date
@@ -27,7 +28,7 @@ from services.requirement_frequency import calculate_requirement_frequency
 from services.rag_validation_service import link_match_result_evidence_metadata
 from services.gemini_client import GEMINI_MODEL, get_gemini_client
 from rag.parser import ParseError
-from rag.prompt.templates import build_guide_prompt
+from rag.prompt.templates import build_evidence_block, build_guide_prompt
 from rag.retriever.search import search as search_evidence
 from rag.store import embedding_mode, get_scoped_store, get_store, index_file
 from rag.verify.verifier import generate_and_verify
@@ -84,6 +85,30 @@ class GuidanceResponse(BaseModel):
     status: str
     lines: list[str]
     evidenceCount: int
+
+
+class ExperienceRejudgmentRequest(BaseModel):
+    userId: int = Field(gt=0)
+    documentIds: list[int] = Field(min_length=1)
+    requirement: str = Field(min_length=1)
+    requirementType: str = Field(min_length=1)
+    userResponseType: str
+    userExperienceText: str = Field(min_length=1, max_length=4000)
+
+    @field_validator("userResponseType")
+    @classmethod
+    def validate_response_type(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if normalized not in {"EXPERIENCED", "PARTIAL"}:
+            raise ValueError("재판정 요청은 EXPERIENCED 또는 PARTIAL이어야 합니다.")
+        return normalized
+
+
+class ExperienceRejudgmentResponse(BaseModel):
+    status: str
+    reason: str
+    evidenceId: Optional[str] = None
+    documentId: Optional[int] = None
 
 
 def save_temp_file(file: UploadFile) -> Path:
@@ -620,6 +645,93 @@ def generate_document_guidance(request: GuidanceRequest):
         status=verified["status"],
         lines=verified["lines"],
         evidenceCount=len(hits),
+    )
+
+
+@router.post(
+    "/rejudge-experience",
+    response_model=ExperienceRejudgmentResponse,
+)
+def rejudge_experience(request: ExperienceRejudgmentRequest):
+    """사용자 추가 설명과 기존 문서 근거를 함께 비교해 경험 상태를 재판정한다."""
+    rag_store = get_scoped_store(request.userId, request.documentIds)
+    hits = search_evidence(
+        store=rag_store,
+        query=request.requirement,
+        user_id=request.userId,
+        top_k=3,
+    )
+    evidence_block = build_evidence_block(hits)
+    prompt = f"""
+당신은 채용공고 요구사항과 사용자 경험을 근거 기반으로 비교합니다.
+
+[요구 항목]
+- 구분: {request.requirementType}
+- 내용: {request.requirement}
+
+[사용자 직접 응답]
+- 선택: {request.userResponseType}
+- 추가 설명: {request.userExperienceText}
+
+[사용자 문서 검색 근거]
+{evidence_block}
+
+[판정 규칙]
+1. 사용자 추가 설명과 문서 근거만 사용하고 없는 사실을 추측하지 마십시오.
+2. 기술명 나열만으로 수행 경험을 인정하지 마십시오.
+3. 사용자가 직접 수행한 범위가 명확한지 확인하십시오.
+4. 팀 전체 성과를 사용자 개인 성과로 간주하지 마십시오.
+5. 인용은 위 문서 검색 근거에 실제 존재하는 Evidence ID만 사용하십시오.
+6. 경험 상태를 직접 출력하지 말고 아래 사실 필드만 JSON으로 출력하십시오.
+
+[출력 JSON]
+{{"has_relevant_experience": true/false,
+  "scope_specified": true/false,
+  "partially_satisfied": true/false,
+  "cited_evidence_ids": ["EV-0001"],
+  "reason": "판단 근거 한 문장"}}
+"""
+    client = get_gemini_client()
+    response = client.models.generate_content(
+        model=GEMINI_MODEL,
+        contents=prompt,
+        config={"response_mime_type": "application/json"},
+    )
+    try:
+        result = json.loads(response.text or "")
+    except json.JSONDecodeError as exception:
+        raise HTTPException(
+            status_code=502,
+            detail="Gemini 재판정 응답이 JSON 형식이 아닙니다.",
+        ) from exception
+
+    allowed = {
+        evidence.evidence_id: evidence
+        for _, evidence in hits
+    }
+    cited = [
+        evidence_id
+        for evidence_id in result.get("cited_evidence_ids", [])
+        if evidence_id in allowed
+    ]
+    representative = allowed[cited[0]] if cited else None
+
+    if not result.get("has_relevant_experience", False):
+        status = "INSUFFICIENT"
+    elif request.userResponseType == "PARTIAL":
+        status = "PARTIAL"
+    elif result.get("scope_specified", False) and not result.get(
+        "partially_satisfied", False
+    ):
+        status = "EXPERIENCED"
+    else:
+        status = "PARTIAL"
+
+    return ExperienceRejudgmentResponse(
+        status=status,
+        reason=str(result.get("reason") or "추가 경험 내용을 재검토했습니다."),
+        evidenceId=representative.evidence_id if representative else None,
+        documentId=representative.document_id if representative else None,
     )
 
 

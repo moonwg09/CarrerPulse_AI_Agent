@@ -2,6 +2,8 @@ package com.careerpulse.analysis.entity;
 
 import jakarta.persistence.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(
         name = "comparison_items",
@@ -38,6 +40,15 @@ public class AnalysisItem {
     @Column(name = "user_confirmed", nullable = false)
     private boolean userConfirmed;
 
+    @Column(name = "user_response_type", length = 30)
+    private String userResponseType;
+
+    @Column(name = "user_experience_text", columnDefinition = "TEXT")
+    private String userExperienceText;
+
+    @Column(name = "rejudged_at")
+    private LocalDateTime rejudgedAt;
+
     protected AnalysisItem() {
     }
 
@@ -62,6 +73,28 @@ public class AnalysisItem {
     public void confirmNoExperience() {
         this.judgment = Judgment.NO_EXPERIENCE;
         this.userConfirmed = true;
+        this.userResponseType = Judgment.NO_EXPERIENCE.name();
+        this.userExperienceText = null;
+        this.rejudgedAt = LocalDateTime.now();
+    }
+
+    public void applyUserRejudgment(
+            String responseType,
+            String experienceText,
+            Judgment judgment,
+            String reason,
+            Long evidenceChunkId
+    ) {
+        if (judgment == Judgment.NO_EXPERIENCE) {
+            throw new IllegalArgumentException("경험 없음은 별도 확인 절차를 사용해야 합니다.");
+        }
+        this.userResponseType = responseType;
+        this.userExperienceText = experienceText;
+        this.judgment = judgment;
+        this.analysisReason = reason;
+        this.evidenceChunkId = evidenceChunkId;
+        this.userConfirmed = true;
+        this.rejudgedAt = LocalDateTime.now();
     }
 
     public Long getItemId() { return itemId; }
@@ -71,4 +104,7 @@ public class AnalysisItem {
     public Judgment getJudgment() { return judgment; }
     public String getAnalysisReason() { return analysisReason; }
     public boolean isUserConfirmed() { return userConfirmed; }
+    public String getUserResponseType() { return userResponseType; }
+    public String getUserExperienceText() { return userExperienceText; }
+    public LocalDateTime getRejudgedAt() { return rejudgedAt; }
 }

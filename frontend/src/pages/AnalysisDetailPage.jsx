@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { confirmNoExperience, generateGuidance, getAnalysisDetail } from "../api/analysisApi";
+import { confirmNoExperience, generateGuidance, getAnalysisDetail, rejudgeExperience } from "../api/analysisApi";
 
 function AnalysisDetailPage() {
   const { analysisId } = useParams();
@@ -8,6 +8,7 @@ function AnalysisDetailPage() {
   const [message, setMessage] = useState("");
   const [guidanceByItem, setGuidanceByItem] = useState({});
   const [loadingItemId, setLoadingItemId] = useState(null);
+  const [responses, setResponses] = useState({});
 
   useEffect(() => {
     getAnalysisDetail(analysisId)
@@ -23,6 +24,23 @@ function AnalysisDetailPage() {
       setDetail(await confirmNoExperience(analysisId, itemId));
     } catch (error) {
       setMessage(error.message);
+    }
+  };
+
+  const rejudge = async (itemId) => {
+    const response = responses[itemId] || {};
+    if (!response.userResponseType || !response.userExperienceText?.trim()) {
+      setMessage("경험 구분과 수행 내용을 입력해 주세요.");
+      return;
+    }
+    try {
+      setLoadingItemId(itemId);
+      setDetail(await rejudgeExperience(analysisId, itemId, response));
+      setMessage("추가 경험을 반영해 다시 판정했습니다.");
+    } catch (error) {
+      setMessage(error.message);
+    } finally {
+      setLoadingItemId(null);
     }
   };
 
@@ -73,9 +91,39 @@ function AnalysisDetailPage() {
           </p>
           {item.comparisonKind === "EXPERIENCE" &&
             item.status !== "NO_EXPERIENCE" && (
-              <button type="button" onClick={() => confirm(item.itemId)}>
-                경험 없음 확인
-              </button>
+              <div>
+                <select
+                  value={responses[item.itemId]?.userResponseType || ""}
+                  onChange={(event) => setResponses((previous) => ({
+                    ...previous,
+                    [item.itemId]: {
+                      ...previous[item.itemId],
+                      userResponseType: event.target.value,
+                    },
+                  }))}
+                >
+                  <option value="">경험 구분 선택</option>
+                  <option value="EXPERIENCED">경험 있음</option>
+                  <option value="PARTIAL">일부 경험</option>
+                </select>
+                <textarea
+                  placeholder="직접 수행한 내용과 범위를 입력하세요."
+                  value={responses[item.itemId]?.userExperienceText || ""}
+                  onChange={(event) => setResponses((previous) => ({
+                    ...previous,
+                    [item.itemId]: {
+                      ...previous[item.itemId],
+                      userExperienceText: event.target.value,
+                    },
+                  }))}
+                />
+                <button type="button" onClick={() => rejudge(item.itemId)}>
+                  추가 경험으로 재판정
+                </button>
+                <button type="button" onClick={() => confirm(item.itemId)}>
+                  경험 없음 확인
+                </button>
+              </div>
             )}
           <button
             type="button"

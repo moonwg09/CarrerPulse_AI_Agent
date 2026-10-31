@@ -7,6 +7,7 @@ import com.careerpulse.analysis.repository.AnalysisContextRepository;
 import com.careerpulse.analysis.repository.AnalysisResultRepository;
 import com.careerpulse.user.entity.User;
 import com.careerpulse.user.repository.UserRepository;
+import com.careerpulse.learning.repository.LearningPlanRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -23,6 +24,7 @@ public class AnalysisService {
     private final AiAnalysisClient aiAnalysisClient;
     private final AnalysisResultMapper resultMapper;
     private final AnalysisScoreCalculator scoreCalculator;
+    private final LearningPlanRepository learningPlanRepository;
 
     public AnalysisService(
             UserRepository userRepository,
@@ -30,7 +32,8 @@ public class AnalysisService {
             AnalysisContextRepository contextRepository,
             AiAnalysisClient aiAnalysisClient,
             AnalysisResultMapper resultMapper,
-            AnalysisScoreCalculator scoreCalculator
+            AnalysisScoreCalculator scoreCalculator,
+            LearningPlanRepository learningPlanRepository
     ) {
         this.userRepository = userRepository;
         this.resultRepository = resultRepository;
@@ -38,6 +41,7 @@ public class AnalysisService {
         this.aiAnalysisClient = aiAnalysisClient;
         this.resultMapper = resultMapper;
         this.scoreCalculator = scoreCalculator;
+        this.learningPlanRepository = learningPlanRepository;
     }
 
     public AnalysisDetailResponse compare(String email, AnalysisCompareRequest request) {
@@ -134,6 +138,75 @@ public class AnalysisService {
         item.confirmNoExperience();
         AnalysisScore score = scoreCalculator.calculate(result.getItems());
         result.refreshScore(score);
+        learningPlanRepository.invalidateActive(result.getUser().getUserId());
+        return toDetail(resultRepository.saveAndFlush(result));
+    }
+
+    public AnalysisDetailResponse rejudgeExperience(
+            String email,
+            Long analysisId,
+            Long itemId,
+            ExperienceRejudgmentRequest request
+    ) {
+        AnalysisResult result = findMyResult(email, analysisId);
+        AnalysisItem item = result.getItems().stream()
+                .filter(candidate -> candidate.getItemId().equals(itemId))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "비교 항목을 찾을 수 없습니다."
+                ));
+        if (item.getRequirement().getComparisonKind() != ComparisonKind.EXPERIENCE) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "경험 요구조건만 추가 경험으로 재판정할 수 있습니다."
+            );
+        }
+
+        List<Long> documentIds = contextRepository.findCompletedDocumentIds(
+                result.getUser().getUserId()
+        );
+        AiExperienceRejudgment ai = aiAnalysisClient.rejudgeExperience(
+                result.getUser().getUserId(),
+                documentIds,
+                item.getRequirement().getRequirementName(),
+                item.getRequirement().getRequirementType().name(),
+                request.userResponseType(),
+                request.userExperienceText()
+        );
+        Judgment judgment;
+        try {
+            judgment = Judgment.valueOf(ai.status());
+        } catch (RuntimeException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "AI 서버가 지원하지 않는 경험 상태를 반환했습니다.",
+                    exception
+            );
+        }
+        if (judgment != Judgment.EXPERIENCED
+                && judgment != Judgment.PARTIAL
+                && judgment != Judgment.INSUFFICIENT) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "사용자 추가 경험으로 허용되지 않는 판정입니다."
+            );
+        }
+
+        Long evidenceChunkId = contextRepository.findOwnedChunkIdByEvidenceRef(
+                result.getUser().getUserId(),
+                ai.documentId(),
+                ai.evidenceId()
+        ).orElse(null);
+        item.applyUserRejudgment(
+                request.userResponseType(),
+                request.userExperienceText().trim(),
+                judgment,
+                ai.reason(),
+                evidenceChunkId
+        );
+        result.refreshScore(scoreCalculator.calculate(result.getItems()));
+        learningPlanRepository.invalidateActive(result.getUser().getUserId());
         return toDetail(resultRepository.saveAndFlush(result));
     }
 
@@ -269,7 +342,10 @@ public class AnalysisService {
                 evidence == null ? null : evidence.documentType(),
                 evidence == null ? null : evidence.text(),
                 evidence == null ? null : evidence.sourceLocation(),
-                item.isUserConfirmed()
+                item.isUserConfirmed(),
+                item.getUserResponseType(),
+                item.getUserExperienceText(),
+                item.getRejudgedAt()
         );
     }
 

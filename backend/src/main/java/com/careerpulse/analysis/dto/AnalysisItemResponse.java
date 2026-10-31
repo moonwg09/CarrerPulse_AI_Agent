@@ -14,6 +14,9 @@ public record AnalysisItemResponse(
         String evidenceDocumentType,
         String evidenceText,
         String evidenceSourceLocation,
-        boolean userConfirmed
+        boolean userConfirmed,
+        String userResponseType,
+        String userExperienceText,
+        java.time.LocalDateTime rejudgedAt
 ) {
 }
