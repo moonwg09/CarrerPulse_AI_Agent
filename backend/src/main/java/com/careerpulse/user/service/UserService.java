@@ -4,6 +4,9 @@ import com.careerpulse.user.dto.UpdateUserRequest;
 import com.careerpulse.user.dto.UserJobRequest;
 import com.careerpulse.user.dto.UserJobResponse;
 import com.careerpulse.user.dto.UserResponse;
+import com.careerpulse.user.dto.PreparationTargetDateRequest;
+import com.careerpulse.user.dto.DevelopmentJobResponse;
+import com.careerpulse.user.model.DevelopmentJobCatalog;
 import com.careerpulse.user.entity.User;
 import com.careerpulse.user.entity.UserJob;
 import com.careerpulse.user.repository.UserJobRepository;
@@ -47,6 +50,7 @@ public class UserService {
                 user.getPhone(),
                 user.getCareerType(),
                 user.getCareerYears(),
+                user.getPreparationTargetDate(),
                 user.getAccountStatus()
         );
     }
@@ -97,8 +101,23 @@ public class UserService {
                 user.getPhone(),
                 user.getCareerType(),
                 user.getCareerYears(),
+                user.getPreparationTargetDate(),
                 user.getAccountStatus()
         );
+    }
+
+    @Transactional
+    public UserResponse updatePreparationTargetDate(
+            String email,
+            PreparationTargetDateRequest request
+    ) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "사용자를 찾을 수 없습니다."
+                ));
+        user.updatePreparationTargetDate(request.preparationTargetDate());
+        return getMyInfo(email);
     }
     @Transactional
     public UserJobResponse addUserJob(
@@ -121,10 +140,17 @@ public class UserService {
             );
         }
 
+        DevelopmentJobCatalog catalog;
+        try {
+            catalog = DevelopmentJobCatalog.fromCode(request.jobCode());
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage());
+        }
+
         boolean exists =
                 userJobRepository.existsByUser_UserIdAndJobCode(
                         user.getUserId(),
-                        request.jobCode()
+                        catalog.name()
                 );
 
         if (exists) {
@@ -136,8 +162,8 @@ public class UserService {
 
         UserJob userJob = new UserJob(
                 user,
-                request.jobCode(),
-                request.jobName()
+                catalog.name(),
+                catalog.displayName()
         );
 
         UserJob savedJob =
@@ -148,6 +174,16 @@ public class UserService {
                 savedJob.getJobCode(),
                 savedJob.getJobName()
         );
+    }
+
+    public List<DevelopmentJobResponse> getDevelopmentJobCatalog() {
+        return java.util.Arrays.stream(DevelopmentJobCatalog.values())
+                .map(job -> new DevelopmentJobResponse(
+                        job.name(),
+                        job.displayName(),
+                        job.searchExpressions()
+                ))
+                .toList();
     }
 
     @Transactional(readOnly = true)

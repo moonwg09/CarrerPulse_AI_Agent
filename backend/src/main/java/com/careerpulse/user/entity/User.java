@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "users")
@@ -28,6 +29,9 @@ public class User {
 
     @Column(name = "career_years")
     private BigDecimal careerYears;
+
+    @Column(name = "preparation_target_date")
+    private LocalDate preparationTargetDate;
 
     @Column(name ="consented", nullable = false)
     private boolean consented;
@@ -95,6 +99,10 @@ public class User {
         return careerYears;
     }
 
+    public LocalDate getPreparationTargetDate() {
+        return preparationTargetDate;
+    }
+
     public boolean isConsented() {
         return consented;
     }
@@ -130,5 +138,9 @@ public class User {
 
     public void withdraw() {
         this.accountStatus = "DELETED";
+    }
+
+    public void updatePreparationTargetDate(LocalDate preparationTargetDate) {
+        this.preparationTargetDate = preparationTargetDate;
     }
 }

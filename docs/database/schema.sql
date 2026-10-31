@@ -12,6 +12,7 @@ CREATE TABLE users (
     phone VARCHAR(30),
     career_type VARCHAR(20) NOT NULL,
     career_years DECIMAL(4,1),
+    preparation_target_date DATE,
     consented BOOLEAN NOT NULL DEFAULT FALSE,
     consent_version VARCHAR(30),
     consented_at DATETIME,

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { generateLearningPlan, getLatestLearningPlan } from "../api/learningApi";
+import { getMyInfo, updatePreparationTargetDate } from "../api/userApi";
 
 const activityNames = { TECH_STUDY: "기술 학습", PROJECT: "프로젝트", CERTIFICATE: "자격증", DOCUMENT_IMPROVEMENT: "서류 보완" };
 
@@ -11,7 +12,16 @@ export default function LearningPlanPanel({ region, canGenerate }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [saveAsTarget, setSaveAsTarget] = useState(false);
   const change = e => setInput(old => ({ ...old, [e.target.name]: e.target.value }));
+
+  useEffect(() => {
+    getMyInfo().then((user) => {
+      if (user.preparationTargetDate) {
+        setInput((old) => ({ ...old, endDate: user.preparationTargetDate }));
+      }
+    }).catch(() => {});
+  }, []);
 
   async function generate(event) {
     event.preventDefault();
@@ -19,6 +29,9 @@ export default function LearningPlanPanel({ region, canGenerate }) {
     try {
       const saved = await generateLearningPlan({ ...input, region,
         weeklyAvailableHours: Number(input.weeklyAvailableHours) });
+      if (saveAsTarget) {
+        await updatePreparationTargetDate(input.endDate);
+      }
       setPlan(saved);
       setMessage("계획을 생성하고 저장했습니다.");
     } catch (e) { setError(e.message); }
@@ -42,6 +55,7 @@ export default function LearningPlanPanel({ region, canGenerate }) {
         <legend>학습 기간과 시간</legend>
         <label>시작일 <input required type="date" name="startDate" value={input.startDate} onChange={change} /></label>
         <label>종료일 <input required type="date" name="endDate" min={input.startDate || undefined} value={input.endDate} onChange={change} /></label>
+        <label><input type="checkbox" checked={saveAsTarget} onChange={e => setSaveAsTarget(e.target.checked)} /> 이 종료일을 내 준비 목표일로 저장</label>
         <label>주당 학습 가능 시간 <input required type="number" name="weeklyAvailableHours" min="0.01" max="168" step="0.01" value={input.weeklyAvailableHours} onChange={change} /> 시간</label>
         <p>주당 시간은 상한이며 남는 시간을 억지로 채우지 않습니다. 마지막 부분 주차는 일수 비례 상한을 적용합니다.</p>
         <p>검증된 준비 대상·부족 세부 항목·기간·주당 시간을 Gemini에 전달합니다.</p>

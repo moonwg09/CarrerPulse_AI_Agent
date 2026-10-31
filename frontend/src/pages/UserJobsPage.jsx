@@ -2,22 +2,27 @@ import { useEffect, useState } from "react";
 import NavBar from "../components/NavBar";
 import {
   getMyJobs,
+  getDevelopmentJobCatalog,
   addMyJob,
   deleteMyJob,
 } from "../api/userApi";
 
 function UserJobsPage() {
   const [jobs, setJobs] = useState([]);
+  const [catalog, setCatalog] = useState([]);
 
   const [form, setForm] = useState({
     jobCode: "",
-    jobName: "",
   });
 
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     loadJobs();
+    getDevelopmentJobCatalog().then((items) => {
+      setCatalog(items);
+      if (items.length) setForm({ jobCode: items[0].jobCode });
+    }).catch((error) => setMessage(error.message));
   }, []);
 
   const loadJobs = async () => {
@@ -47,8 +52,7 @@ function UserJobsPage() {
       await addMyJob(form);
 
       setForm({
-        jobCode: "",
-        jobName: "",
+        jobCode: catalog[0]?.jobCode || "",
       });
 
       setMessage("관심 직무가 등록되었습니다.");
@@ -79,31 +83,15 @@ function UserJobsPage() {
       <h1>관심 직무 관리</h1>
 
       <form onSubmit={handleAdd}>
-        <div>
-          <label>직무 코드</label>
+        <label>개발 직무
+          <select name="jobCode" value={form.jobCode} onChange={handleChange} required>
+            {catalog.map((job) => (
+              <option key={job.jobCode} value={job.jobCode}>{job.jobName}</option>
+            ))}
+          </select>
+        </label>
 
-          <input
-            type="text"
-            name="jobCode"
-            value={form.jobCode}
-            onChange={handleChange}
-            placeholder="예: BACKEND"
-          />
-        </div>
-
-        <div>
-          <label>직무 이름</label>
-
-          <input
-            type="text"
-            name="jobName"
-            value={form.jobName}
-            onChange={handleChange}
-            placeholder="예: 백엔드 개발자"
-          />
-        </div>
-
-        <button type="submit" disabled={jobs.length >= 3}>
+        <button type="submit" disabled={jobs.length >= 3 || !form.jobCode}>
           관심 직무 추가
         </button>
         {jobs.length >= 3 && <p>관심 직무는 최대 3개까지 등록할 수 있습니다.</p>}

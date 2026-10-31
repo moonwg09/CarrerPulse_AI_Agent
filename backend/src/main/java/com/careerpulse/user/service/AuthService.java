@@ -75,6 +75,7 @@ public class AuthService {
                 request.careerYears(),
                 request.consentVersion()
         );
+        user.updatePreparationTargetDate(request.preparationTargetDate());
 
         // users 테이블 저장
         User savedUser = userRepository.save(user);

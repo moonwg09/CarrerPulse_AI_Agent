@@ -69,6 +69,8 @@ public class LearningPlanController {
     @PostMapping
     public JsonNode generate(Authentication authentication, @Valid @RequestBody PlanInput input) {
         String email = email(authentication);
+        if (input.endDate().isBefore(LocalDate.now()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "종료일은 오늘 이후의 준비 목표일이어야 합니다.");
         if (input.endDate().isBefore(input.startDate()) || ChronoUnit.DAYS.between(input.startDate(), input.endDate()) >= 730)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "종료일은 시작일 이후여야 하며 최대 기간은 730일입니다.");
         // 브라우저가 보낸 우선순위를 신뢰하지 않고 기존 PLN-01~03 진입점에서 본인 분석을 다시 계산한다.

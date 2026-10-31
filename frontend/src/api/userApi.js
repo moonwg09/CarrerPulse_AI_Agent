@@ -63,6 +63,27 @@ export async function updateMyInfo(data) {
   return body;
 }
 
+export async function updatePreparationTargetDate(preparationTargetDate) {
+  const csrf = await getCsrfToken();
+  const response = await fetch(
+    "/api/v1/users/me/preparation-target-date",
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        [csrf.headerName]: csrf.token,
+      },
+      credentials: "include",
+      body: JSON.stringify({ preparationTargetDate }),
+    }
+  );
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(body?.message || "준비 목표일 저장에 실패했습니다.");
+  }
+  return body;
+}
+
 export async function getMyJobs() {
   const response = await fetch(
     "/api/v1/users/me/jobs",
@@ -80,6 +101,17 @@ export async function getMyJobs() {
     );
   }
 
+  return body;
+}
+
+export async function getDevelopmentJobCatalog() {
+  const response = await fetch("/api/v1/users/jobs/catalog", {
+    credentials: "include",
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(body?.message || "개발 직무 목록을 불러오지 못했습니다.");
+  }
   return body;
 }
 

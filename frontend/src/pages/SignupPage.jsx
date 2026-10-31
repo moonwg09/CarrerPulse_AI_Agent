@@ -9,6 +9,7 @@ function SignupPage() {
     name: "",
     careerType: "NEW",
     careerYears: "",
+    preparationTargetDate: "",
     consented: false,
     consentVersion: "v1.0",
   });
@@ -42,6 +43,7 @@ function SignupPage() {
           : null,
       consented: form.consented,
       consentVersion: form.consentVersion,
+      preparationTargetDate: form.preparationTargetDate || null,
     };
 
     try {
@@ -115,6 +117,18 @@ function SignupPage() {
             />
           </div>
         )}
+
+        <div>
+          <label>준비 목표일 (선택)</label>
+          <input
+            type="date"
+            name="preparationTargetDate"
+            min={new Date().toISOString().slice(0, 10)}
+            value={form.preparationTargetDate}
+            onChange={handleChange}
+          />
+          <p>지금 정하지 않아도 학습계획 생성 전에 입력할 수 있습니다.</p>
+        </div>
 
         <div>
           <label>

@@ -4,6 +4,8 @@ import com.careerpulse.user.dto.UpdateUserRequest;
 import com.careerpulse.user.dto.UserJobRequest;
 import com.careerpulse.user.dto.UserJobResponse;
 import com.careerpulse.user.dto.UserResponse;
+import com.careerpulse.user.dto.PreparationTargetDateRequest;
+import com.careerpulse.user.dto.DevelopmentJobResponse;
 import com.careerpulse.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -77,6 +79,22 @@ public class UserController {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(response);
+    }
+
+    @GetMapping("/jobs/catalog")
+    public ResponseEntity<List<DevelopmentJobResponse>> getDevelopmentJobCatalog() {
+        return ResponseEntity.ok(userService.getDevelopmentJobCatalog());
+    }
+
+    @PatchMapping("/me/preparation-target-date")
+    public ResponseEntity<UserResponse> updatePreparationTargetDate(
+            Authentication authentication,
+            @Valid @RequestBody PreparationTargetDateRequest request
+    ) {
+        return ResponseEntity.ok(userService.updatePreparationTargetDate(
+                authentication.getName(),
+                request
+        ));
     }
 
     @GetMapping("/me/jobs")

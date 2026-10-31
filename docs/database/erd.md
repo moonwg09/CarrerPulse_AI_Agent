@@ -7,6 +7,7 @@ erDiagram
         VARCHAR_30 phone
         VARCHAR_20 career_type "NOT NULL"
         DECIMAL_4_1 career_years
+        DATE preparation_target_date
         BOOLEAN consented "NOT NULL DEFAULT FALSE"
         VARCHAR_30 consent_version
         DATETIME consented_at
