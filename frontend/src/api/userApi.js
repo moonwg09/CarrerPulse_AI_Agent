@@ -187,3 +187,36 @@ export async function withdraw() {
     );
   }
 }
+
+export async function getPreferredCompanies() {
+  const response = await fetch("/api/v1/users/me/preferred-companies", { credentials: "include" });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(body?.message || "관심 기업을 불러오지 못했습니다.");
+  return body;
+}
+
+export async function addPreferredCompany(companyName) {
+  const csrf = await getCsrfToken();
+  const response = await fetch("/api/v1/users/me/preferred-companies", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
+    credentials: "include",
+    body: JSON.stringify({ companyName }),
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(body?.message || "관심 기업 등록에 실패했습니다.");
+  return body;
+}
+
+export async function deletePreferredCompany(id) {
+  const csrf = await getCsrfToken();
+  const response = await fetch(`/api/v1/users/me/preferred-companies/${id}`, {
+    method: "DELETE",
+    headers: { [csrf.headerName]: csrf.token },
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || "관심 기업 삭제에 실패했습니다.");
+  }
+}

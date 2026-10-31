@@ -3,6 +3,9 @@ import NavBar from "../components/NavBar";
 import {
   getMyInfo,
   updateMyInfo,
+  getPreferredCompanies,
+  addPreferredCompany,
+  deletePreferredCompany,
 } from "../api/userApi";
 
 function MyPage() {
@@ -15,6 +18,8 @@ function MyPage() {
 
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [companies, setCompanies] = useState([]);
+  const [companyName, setCompanyName] = useState("");
 
   useEffect(() => {
     loadMyInfo();
@@ -23,6 +28,7 @@ function MyPage() {
   const loadMyInfo = async () => {
     try {
       const user = await getMyInfo();
+      setCompanies(await getPreferredCompanies());
 
       setForm({
         name: user.name ?? "",
@@ -35,6 +41,21 @@ function MyPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const addCompany = async () => {
+    try {
+      await addPreferredCompany(companyName);
+      setCompanies(await getPreferredCompanies());
+      setCompanyName("");
+    } catch (error) { setMessage(error.message); }
+  };
+
+  const removeCompany = async (id) => {
+    try {
+      await deletePreferredCompany(id);
+      setCompanies(await getPreferredCompanies());
+    } catch (error) { setMessage(error.message); }
   };
 
   const handleChange = (e) => {
@@ -137,6 +158,25 @@ function MyPage() {
           수정하기
         </button>
       </form>
+
+      <h2>관심 기업</h2>
+      <p>최대 3개까지 등록할 수 있습니다.</p>
+      <input
+        value={companyName}
+        onChange={(event) => setCompanyName(event.target.value)}
+        placeholder="기업명"
+      />
+      <button type="button" disabled={!companyName.trim() || companies.length >= 3} onClick={addCompany}>
+        관심 기업 추가
+      </button>
+      <ul>
+        {companies.map((company) => (
+          <li key={company.preferredCompanyId}>
+            {company.companyName}
+            <button type="button" onClick={() => removeCompany(company.preferredCompanyId)}>삭제</button>
+          </li>
+        ))}
+      </ul>
 
       {message && <p>{message}</p>}
     </div>

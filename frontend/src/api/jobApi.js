@@ -32,3 +32,24 @@ export async function getJob(jobId) {
   if (!response.ok) throw new Error(result?.message || "채용공고를 불러오지 못했습니다.");
   return result;
 }
+
+export async function getBookmarkStatus(jobId) {
+  const response = await fetch(`/api/v1/jobs/${jobId}/bookmark`, { credentials: "include" });
+  const result = await body(response);
+  if (!response.ok) throw new Error(result?.message || "관심 공고 상태를 불러오지 못했습니다.");
+  return result;
+}
+
+export async function setBookmark(jobId, bookmarked) {
+  const csrf = await getCsrfToken();
+  const response = await fetch(`/api/v1/jobs/${jobId}/bookmark`, {
+    method: bookmarked ? "POST" : "DELETE",
+    headers: { [csrf.headerName]: csrf.token },
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const result = await body(response);
+    throw new Error(result?.message || "관심 공고 변경에 실패했습니다.");
+  }
+  return bookmarked;
+}

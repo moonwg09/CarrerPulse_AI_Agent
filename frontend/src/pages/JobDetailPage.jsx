@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getJob } from "../api/jobApi";
+import { getJob, getBookmarkStatus, setBookmark } from "../api/jobApi";
 import { createApplication } from "../api/applicationApi";
 
 export default function JobDetailPage() {
   const { jobId } = useParams();
   const [job, setJob] = useState(null);
   const [message, setMessage] = useState("");
+  const [bookmarked, setBookmarkedState] = useState(false);
 
   async function apply() {
     try {
@@ -17,7 +18,19 @@ export default function JobDetailPage() {
 
   useEffect(() => {
     getJob(jobId).then(setJob).catch((error) => setMessage(error.message));
+    getBookmarkStatus(jobId)
+      .then((result) => setBookmarkedState(result.bookmarked))
+      .catch((error) => setMessage(error.message));
   }, [jobId]);
+
+  async function toggleBookmark() {
+    try {
+      const next = !bookmarked;
+      await setBookmark(jobId, next);
+      setBookmarkedState(next);
+      setMessage(next ? "관심 공고로 저장했습니다." : "관심 공고에서 삭제했습니다.");
+    } catch (error) { setMessage(error.message); }
+  }
 
   if (!job) return <main>{message || "불러오는 중"}</main>;
 
@@ -36,6 +49,9 @@ export default function JobDetailPage() {
     <p style={{ whiteSpace: "pre-wrap" }}>{job.description}</p>
     {job.originalUrl && <p><a href={job.originalUrl} target="_blank" rel="noreferrer">원문 공고 보기</a></p>}
     <button type="button" onClick={apply}>지원 현황에 등록</button>
+    <button type="button" onClick={toggleBookmark}>
+      {bookmarked ? "관심 공고 해제" : "관심 공고 저장"}
+    </button>
     {message && <p>{message}</p>}
   </main>;
 }

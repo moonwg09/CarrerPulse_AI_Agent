@@ -6,6 +6,8 @@ import com.careerpulse.job.dto.JobPostingResponse;
 import com.careerpulse.job.dto.JobPostingSummaryResponse;
 import com.careerpulse.job.service.JobCollectionService;
 import com.careerpulse.job.service.JobQueryService;
+import com.careerpulse.job.service.JobBookmarkService;
+import com.careerpulse.job.dto.JobBookmarkResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.security.core.Authentication;
 
 import java.util.List;
@@ -24,13 +27,16 @@ public class JobController {
 
     private final JobCollectionService jobCollectionService;
     private final JobQueryService jobQueryService;
+    private final JobBookmarkService jobBookmarkService;
 
     public JobController(
             JobCollectionService jobCollectionService,
-            JobQueryService jobQueryService
+            JobQueryService jobQueryService,
+            JobBookmarkService jobBookmarkService
     ) {
         this.jobCollectionService = jobCollectionService;
         this.jobQueryService = jobQueryService;
+        this.jobBookmarkService = jobBookmarkService;
     }
 
     @PostMapping("/collect")
@@ -56,5 +62,20 @@ public class JobController {
     @GetMapping("/{jobId}")
     public JobPostingResponse get(@PathVariable Long jobId) {
         return jobQueryService.get(jobId);
+    }
+
+    @GetMapping("/{jobId}/bookmark")
+    public JobBookmarkResponse bookmarkStatus(Authentication authentication, @PathVariable Long jobId) {
+        return jobBookmarkService.status(authentication.getName(), jobId);
+    }
+
+    @PostMapping("/{jobId}/bookmark")
+    public JobBookmarkResponse addBookmark(Authentication authentication, @PathVariable Long jobId) {
+        return jobBookmarkService.add(authentication.getName(), jobId);
+    }
+
+    @DeleteMapping("/{jobId}/bookmark")
+    public void deleteBookmark(Authentication authentication, @PathVariable Long jobId) {
+        jobBookmarkService.delete(authentication.getName(), jobId);
     }
 }
