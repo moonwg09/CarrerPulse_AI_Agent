@@ -4,6 +4,7 @@ import com.careerpulse.job.entity.JobPostingStatus;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record JobPostingResponse(
         Long jobId,
@@ -19,6 +20,7 @@ public record JobPostingResponse(
         String originalUrl,
         JobPostingStatus status,
         LocalDateTime collectedAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        List<JobRequirementResponse> requirements
 ) {
 }

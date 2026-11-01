@@ -2,6 +2,8 @@ package com.careerpulse.job.service;
 
 import com.careerpulse.job.dto.JobPostingResponse;
 import com.careerpulse.job.dto.JobPostingSummaryResponse;
+import com.careerpulse.job.dto.JobRequirementResponse;
+import com.careerpulse.analysis.repository.JobRequirementRepository;
 import com.careerpulse.job.entity.JobPosting;
 import com.careerpulse.job.repository.JobPostingRepository;
 import com.careerpulse.job.repository.JobPostingSpecifications;
@@ -27,15 +29,18 @@ public class JobQueryService {
     private final JobPostingRepository jobPostingRepository;
     private final UserRepository userRepository;
     private final UserJobRepository userJobRepository;
+    private final JobRequirementRepository jobRequirementRepository;
 
     public JobQueryService(
             JobPostingRepository jobPostingRepository,
             UserRepository userRepository,
-            UserJobRepository userJobRepository
+            UserJobRepository userJobRepository,
+            JobRequirementRepository jobRequirementRepository
     ) {
         this.jobPostingRepository = jobPostingRepository;
         this.userRepository = userRepository;
         this.userJobRepository = userJobRepository;
+        this.jobRequirementRepository = jobRequirementRepository;
     }
 
     @Transactional(readOnly = true)
@@ -126,7 +131,19 @@ public class JobQueryService {
                 posting.getOriginalUrl(),
                 posting.getStatus(),
                 posting.getCollectedAt(),
-                posting.getUpdatedAt()
+                posting.getUpdatedAt(),
+                jobRequirementRepository
+                        .findAllByJobIdOrderByRequirementId(posting.getJobId())
+                        .stream()
+                        .map(requirement -> new JobRequirementResponse(
+                                requirement.getRequirementId(),
+                                requirement.getRequirementType().name(),
+                                requirement.getComparisonKind().name(),
+                                requirement.getRequirementName(),
+                                requirement.getDescription(),
+                                requirement.getSourceQuote()
+                        ))
+                        .toList()
         );
     }
 }

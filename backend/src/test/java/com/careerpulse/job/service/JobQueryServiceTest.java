@@ -5,6 +5,7 @@ import com.careerpulse.job.dto.JobPostingSummaryResponse;
 import com.careerpulse.job.entity.JobPosting;
 import com.careerpulse.job.entity.JobPostingStatus;
 import com.careerpulse.job.repository.JobPostingRepository;
+import com.careerpulse.analysis.repository.JobRequirementRepository;
 import com.careerpulse.user.entity.User;
 import com.careerpulse.user.entity.UserJob;
 import com.careerpulse.user.repository.UserJobRepository;
@@ -53,7 +54,8 @@ class JobQueryServiceTest {
         List<JobPostingSummaryResponse> responses = new JobQueryService(
                 jobRepository,
                 userRepository,
-                userJobRepository
+                userJobRepository,
+                mock(JobRequirementRepository.class)
         ).search("user@example.com", 3L, "서울", "Python");
 
         assertThat(responses).hasSize(1);
@@ -84,7 +86,8 @@ class JobQueryServiceTest {
         JobQueryService service = new JobQueryService(
                 jobRepository,
                 userRepository,
-                userJobRepository
+                userJobRepository,
+                mock(JobRequirementRepository.class)
         );
 
         assertThatThrownBy(() -> service.search(
@@ -108,7 +111,8 @@ class JobQueryServiceTest {
         JobQueryService service = new JobQueryService(
                 jobRepository,
                 userRepository,
-                userJobRepository
+                userJobRepository,
+                mock(JobRequirementRepository.class)
         );
 
         assertThatThrownBy(() -> service.search(
@@ -130,7 +134,8 @@ class JobQueryServiceTest {
         JobPostingResponse response = new JobQueryService(
                 jobRepository,
                 mock(UserRepository.class),
-                mock(UserJobRepository.class)
+                mock(UserJobRepository.class),
+                mock(JobRequirementRepository.class)
         ).get(10L);
 
         assertThat(response.jobId()).isEqualTo(10L);

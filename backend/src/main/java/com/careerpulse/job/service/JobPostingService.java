@@ -110,7 +110,8 @@ public class JobPostingService {
                 posting.getOriginalUrl(),
                 posting.getStatus(),
                 posting.getCollectedAt(),
-                posting.getUpdatedAt()
+                posting.getUpdatedAt(),
+                java.util.List.of()
         );
     }
 }

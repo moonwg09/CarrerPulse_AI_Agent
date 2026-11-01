@@ -34,6 +34,20 @@ export default function JobDetailPage() {
 
   if (!job) return <main>{message || "불러오는 중"}</main>;
 
+  const requirements = job.requirements || [];
+  const byType = (type) => requirements.filter((item) =>
+    item.comparisonKind === "EXPERIENCE" && item.requirementType === type
+  );
+  const objective = requirements.filter((item) => item.comparisonKind === "OBJECTIVE");
+
+  const requirementList = (title, items) => items.length > 0 && <section>
+    <h2>{title}</h2>
+    <ul>{items.map((item) => <li key={item.requirementId}>
+      {item.name}
+      {item.sourceQuote && <small> · 원문: {item.sourceQuote}</small>}
+    </li>)}</ul>
+  </section>;
+
   return <main>
     <Link to="/analysis">채용공고 목록</Link>
     <h1>{job.title}</h1>
@@ -47,6 +61,14 @@ export default function JobDetailPage() {
     </dl>
     <h2>공고 내용</h2>
     <p style={{ whiteSpace: "pre-wrap" }}>{job.description}</p>
+    {requirements.length === 0
+      ? <p>아직 구조화된 요구조건이 없습니다. 공고 비교를 실행하면 분석 결과가 표시됩니다.</p>
+      : <>
+        {requirementList("필수 조건", byType("REQUIRED"))}
+        {requirementList("우대 조건", byType("PREFERRED"))}
+        {requirementList("구분 불명확", byType("UNCLEAR"))}
+        {requirementList("객관 조건", objective)}
+      </>}
     {job.originalUrl && <p><a href={job.originalUrl} target="_blank" rel="noreferrer">원문 공고 보기</a></p>}
     <button type="button" onClick={apply}>지원 현황에 등록</button>
     <button type="button" onClick={toggleBookmark}>

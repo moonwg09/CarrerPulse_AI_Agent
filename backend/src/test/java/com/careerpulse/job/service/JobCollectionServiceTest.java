@@ -85,7 +85,8 @@ class JobCollectionServiceTest {
                 "https://www.work24.go.kr/detail/K123",
                 JobPostingStatus.OPEN,
                 now,
-                now
+                now,
+                List.of()
         );
     }
 }
