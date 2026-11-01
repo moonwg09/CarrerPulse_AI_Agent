@@ -153,7 +153,7 @@ CREATE TABLE job_requirements (
 
     CONSTRAINT uk_job_requirement UNIQUE (job_id, requirement_key),
     CONSTRAINT chk_requirement_type CHECK (
-        requirement_type IN ('REQUIRED', 'PREFERRED')
+        requirement_type IN ('REQUIRED', 'PREFERRED', 'UNCLEAR')
     ),
     CONSTRAINT chk_comparison_kind CHECK (
         comparison_kind IN ('EXPERIENCE', 'OBJECTIVE')

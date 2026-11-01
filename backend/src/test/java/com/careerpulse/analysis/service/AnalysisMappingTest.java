@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -26,19 +25,20 @@ class AnalysisMappingTest {
                 item(RequirementCategory.REQUIRED, ComparisonKind.EXPERIENCE, Judgment.EXPERIENCED),
                 item(RequirementCategory.REQUIRED, ComparisonKind.EXPERIENCE, Judgment.PARTIAL),
                 item(RequirementCategory.PREFERRED, ComparisonKind.EXPERIENCE, Judgment.INSUFFICIENT),
+                item(RequirementCategory.UNCLEAR, ComparisonKind.EXPERIENCE, Judgment.EXPERIENCED),
                 item(RequirementCategory.REQUIRED, ComparisonKind.OBJECTIVE, Judgment.MET)
         );
 
         AnalysisScore score = calculator.calculate(items);
 
-        assertThat(score.matchedCount()).isEqualTo(2);
-        assertThat(score.comparableCount()).isEqualTo(3);
+        assertThat(score.matchedCount()).isEqualTo(3);
+        assertThat(score.comparableCount()).isEqualTo(4);
         assertThat(score.unknownCount()).isEqualTo(1);
-        assertThat(score.overallMatchRate()).isEqualByComparingTo("66.67");
+        assertThat(score.overallMatchRate()).isEqualByComparingTo("75.00");
         assertThat(score.requiredMatchRate()).isEqualByComparingTo("66.67");
         assertThat(score.preferredMatchRate()).isNull();
         assertThat(score.objectiveMatchRate()).isEqualByComparingTo("100.00");
-        assertThat(score.evaluationCoverage()).isEqualByComparingTo("75.00");
+        assertThat(score.evaluationCoverage()).isEqualByComparingTo("80.00");
     }
 
     @Test
@@ -75,9 +75,9 @@ class AnalysisMappingTest {
     }
 
     @Test
-    void 알수없는_필수우대_구분은_저장하지_않는다() {
-        assertThatThrownBy(() -> RequirementCategory.from("UNCLEAR"))
-                .isInstanceOf(IllegalArgumentException.class);
+    void 불명확한_필수우대_구분을_그대로_저장한다() {
+        assertThat(RequirementCategory.from("UNCLEAR"))
+                .isEqualTo(RequirementCategory.UNCLEAR);
     }
 
     @Test

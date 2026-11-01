@@ -324,7 +324,7 @@ erDiagram
     %% uk_job_requirement UNIQUE (job_id, requirement_key)
     %%
     %% chk_requirement_type:
-    %% requirement_type IN ('REQUIRED', 'PREFERRED')
+    %% requirement_type IN ('REQUIRED', 'PREFERRED', 'UNCLEAR')
     %%
     %% chk_comparison_kind:
     %% comparison_kind IN ('EXPERIENCE', 'OBJECTIVE')

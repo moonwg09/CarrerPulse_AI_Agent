@@ -9,7 +9,10 @@ public enum RequirementCategory {
     REQUIRED,
 
     // 우대
-    PREFERRED;
+    PREFERRED,
+
+    // 공고 원문에서 필수/우대 구분이 명확하지 않음
+    UNCLEAR;
 
     public static RequirementCategory from(String value) {
 
