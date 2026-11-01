@@ -53,3 +53,14 @@ export async function setBookmark(jobId, bookmarked) {
   }
   return bookmarked;
 }
+
+export async function getBookmarks() {
+  const response = await fetch("/api/v1/jobs/bookmarks", {
+    credentials: "include",
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(body?.message || "관심 공고를 불러오지 못했습니다.");
+  }
+  return body;
+}

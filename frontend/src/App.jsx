@@ -12,6 +12,7 @@ import LearningPage from "./pages/LearningPage";
 import DocumentsPage from "./pages/DocumentsPage";
 import JobDetailPage from "./pages/JobDetailPage";
 import ApplicationsPage from "./pages/ApplicationsPage";
+import BookmarksPage from "./pages/BookmarksPage";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -95,6 +96,7 @@ function App() {
           }
         />
         <Route path="/applications" element={<ProtectedRoute><ApplicationsPage /></ProtectedRoute>} />
+        <Route path="/bookmarks" element={<ProtectedRoute><BookmarksPage /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );

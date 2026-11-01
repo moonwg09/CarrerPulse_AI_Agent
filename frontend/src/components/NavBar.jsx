@@ -13,6 +13,8 @@ function NavBar() {
       {" | "}
       <Link to="/recommendations">추천 공고</Link>
       {" | "}
+      <Link to="/bookmarks">관심 공고</Link>
+      {" | "}
       <Link to="/learning">준비 역량 분석</Link>
       {" | "}
       <Link to="/applications">지원 현황</Link>

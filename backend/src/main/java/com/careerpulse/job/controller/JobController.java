@@ -64,6 +64,11 @@ public class JobController {
         return jobQueryService.get(jobId);
     }
 
+    @GetMapping("/bookmarks")
+    public List<JobPostingSummaryResponse> bookmarks(Authentication authentication) {
+        return jobBookmarkService.list(authentication.getName());
+    }
+
     @GetMapping("/{jobId}/bookmark")
     public JobBookmarkResponse bookmarkStatus(Authentication authentication, @PathVariable Long jobId) {
         return jobBookmarkService.status(authentication.getName(), jobId);

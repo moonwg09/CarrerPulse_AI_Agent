@@ -1,6 +1,7 @@
 package com.careerpulse.job.service;
 
 import com.careerpulse.job.dto.JobBookmarkResponse;
+import com.careerpulse.job.dto.JobPostingSummaryResponse;
 import com.careerpulse.job.entity.JobBookmark;
 import com.careerpulse.job.entity.JobPosting;
 import com.careerpulse.job.repository.JobBookmarkRepository;
@@ -11,6 +12,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
 
 @Service
 public class JobBookmarkService {
@@ -34,6 +37,27 @@ public class JobBookmarkService {
         return bookmarkRepository.findByUser_UserIdAndJob_JobId(user.getUserId(), jobId)
                 .map(this::response)
                 .orElseGet(() -> new JobBookmarkResponse(jobId, false, null));
+    }
+
+    @Transactional(readOnly = true)
+    public List<JobPostingSummaryResponse> list(String email) {
+        User user = user(email);
+        return bookmarkRepository
+                .findAllByUser_UserIdOrderByCreatedAtDesc(user.getUserId())
+                .stream()
+                .map(JobBookmark::getJob)
+                .map(job -> new JobPostingSummaryResponse(
+                        job.getJobId(),
+                        job.getCompanyName(),
+                        job.getTitle(),
+                        job.getJobCategory(),
+                        job.getRegion(),
+                        job.getPostedDate(),
+                        job.getDeadline(),
+                        job.getOriginalUrl(),
+                        job.getStatus()
+                ))
+                .toList();
     }
 
     @Transactional
