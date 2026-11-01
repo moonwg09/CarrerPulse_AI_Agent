@@ -61,7 +61,10 @@ def enforce_experience_evidence_quality(
     result: JobMatchResult,
 ) -> JobMatchResult:
     """기술명·숙련도 표만으로 확정 경험이 되는 것을 차단한다."""
-    for requirement in result.requirementMatches:
+    for requirement in [
+        *result.requirementMatches,
+        *result.responsibilityMatches,
+    ]:
         if requirement.status != MatchStatus.EXPERIENCED:
             continue
 
@@ -85,7 +88,10 @@ def normalize_match_statuses(
     result: JobMatchResult
 ) -> JobMatchResult:
 
-    for requirement in result.requirementMatches:
+    for requirement in [
+        *result.requirementMatches,
+        *result.responsibilityMatches,
+    ]:
 
         # NO_EXPERIENCE는
         # 사용자가 "경험이 없다"고 명확하게 밝힌 근거가 있어야 함
@@ -137,7 +143,7 @@ def match_user_to_job(
 당신은 사용자의 경력 및 역량과 채용공고 요구사항을 비교하는 AI 시스템입니다.
 
 아래 USER ANALYSIS와 JOB ANALYSIS를 비교하여
-각 채용공고 requirement에 대한 판단 결과를 생성하세요.
+각 채용공고 requirement와 주요 업무에 대한 판단 결과를 생성하세요.
 
 반드시 다음 규칙을 지키세요.
 
@@ -201,6 +207,13 @@ def match_user_to_job(
     해당 조건들은 objectiveConditionMatches에서 별도로 비교합니다.
 
 18. 모든 requirement에 대해 반드시 하나의 RequirementMatch를 생성합니다.
+
+18-1. JOB ANALYSIS의 responsibilities도 하나씩 사용자 경험과 비교합니다.
+    각 주요 업무마다 responsibilityMatches에 하나의 RequirementMatch를 생성합니다.
+    requirement에는 responsibilities의 원문을 그대로 사용하고
+    requirementCategory는 UNCLEAR로 설정합니다.
+    jobEvidence에는 해당 주요 업무 원문을 넣고 section은 responsibilities로 설정합니다.
+    주요 업무 비교 결과는 자격요건 일치율 계산에 포함하지 않습니다.
 
 19. conditionType이 OR이고 하나 이상의 선택 조건을 충분히 충족하여
     status가 EXPERIENCED인 경우, 충족하지 않은 대안 기술은

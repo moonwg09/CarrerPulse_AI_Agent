@@ -156,7 +156,7 @@ CREATE TABLE job_requirements (
         requirement_type IN ('REQUIRED', 'PREFERRED', 'UNCLEAR')
     ),
     CONSTRAINT chk_comparison_kind CHECK (
-        comparison_kind IN ('EXPERIENCE', 'OBJECTIVE')
+        comparison_kind IN ('EXPERIENCE', 'OBJECTIVE', 'RESPONSIBILITY')
     ),
     CONSTRAINT fk_requirements_job FOREIGN KEY (job_id)
         REFERENCES job_postings(job_id) ON DELETE CASCADE

@@ -702,7 +702,10 @@ def link_match_result_evidence_metadata(
     if rag_store is None or user_id is None:
         return match_result
 
-    for requirement_match in match_result.requirementMatches:
+    for requirement_match in [
+        *match_result.requirementMatches,
+        *match_result.responsibilityMatches,
+    ]:
         linked_evidence = link_indexed_evidence_metadata(
             store=rag_store,
             evidences=requirement_match.userEvidence,

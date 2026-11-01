@@ -71,6 +71,9 @@ class JobMatchResult(BaseModel):
 
     requirementMatches: List[RequirementMatch] = Field(default_factory=list)
 
+    # 주요 업무는 사용자 수행 경험과 비교하지만 자격요건 일치율에는 반영하지 않는다.
+    responsibilityMatches: List[RequirementMatch] = Field(default_factory=list)
+
     objectiveConditionMatches: List[ObjectiveConditionMatch] = Field(
         default_factory=list
     )

@@ -90,7 +90,7 @@ function AnalysisDetailPage() {
               ? `${item.evidenceDocumentType} · ${item.evidenceSourceLocation || "위치 미확인"}: ${item.evidenceText}`
               : "확인 가능한 대표 근거 없음"}
           </p>
-          {item.comparisonKind === "EXPERIENCE" &&
+          {["EXPERIENCE", "RESPONSIBILITY"].includes(item.comparisonKind) &&
             item.status !== "NO_EXPERIENCE" && (
               <div>
                 <select

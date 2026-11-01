@@ -26,7 +26,8 @@ class AnalysisMappingTest {
                 item(RequirementCategory.REQUIRED, ComparisonKind.EXPERIENCE, Judgment.PARTIAL),
                 item(RequirementCategory.PREFERRED, ComparisonKind.EXPERIENCE, Judgment.INSUFFICIENT),
                 item(RequirementCategory.UNCLEAR, ComparisonKind.EXPERIENCE, Judgment.EXPERIENCED),
-                item(RequirementCategory.REQUIRED, ComparisonKind.OBJECTIVE, Judgment.MET)
+                item(RequirementCategory.REQUIRED, ComparisonKind.OBJECTIVE, Judgment.MET),
+                item(RequirementCategory.UNCLEAR, ComparisonKind.RESPONSIBILITY, Judgment.EXPERIENCED)
         );
 
         AnalysisScore score = calculator.calculate(items);
@@ -39,6 +40,48 @@ class AnalysisMappingTest {
         assertThat(score.preferredMatchRate()).isNull();
         assertThat(score.objectiveMatchRate()).isEqualByComparingTo("100.00");
         assertThat(score.evaluationCoverage()).isEqualByComparingTo("80.00");
+    }
+
+    @Test
+    void 주요업무는_비교항목으로_저장하지만_일치율에서는_제외한다() {
+        AnalysisResultMapper mapper = mapper(true);
+        var evidence = List.<com.fasterxml.jackson.databind.JsonNode>of(
+                new ObjectMapper().createObjectNode().put("documentId", 11)
+        );
+        var responsibility = new AiJobMatchResult.RequirementMatch(
+                "REST API 설계 및 구현",
+                "UNCLEAR",
+                "EXPERIENCED",
+                "프로젝트 수행 근거 확인",
+                List.of("REST API"),
+                List.of(),
+                List.of(new ObjectMapper().createObjectNode()
+                        .put("text", "REST API 설계 및 구현")
+                        .put("section", "responsibilities")),
+                evidence
+        );
+        AiJobMatchResult result = new AiJobMatchResult(
+                "백엔드 개발자",
+                "A회사",
+                List.of(),
+                List.of(),
+                List.of(responsibility),
+                null,
+                null,
+                List.of()
+        );
+
+        AnalysisResultMapper.MappedAnalysis mapped = mapper.map(7L, 3L, result);
+
+        assertThat(mapped.items()).hasSize(1);
+        assertThat(mapped.items().getFirst().getRequirement().getComparisonKind())
+                .isEqualTo(ComparisonKind.RESPONSIBILITY);
+        assertThat(mapped.items().getFirst().getRequirement().getSourceQuote())
+                .isEqualTo("REST API 설계 및 구현");
+        assertThat(mapped.score().matchedCount()).isZero();
+        assertThat(mapped.score().comparableCount()).isZero();
+        assertThat(mapped.score().overallMatchRate()).isNull();
+        assertThat(mapped.score().evaluationCoverage()).isNull();
     }
 
     @Test

@@ -39,6 +39,7 @@ export default function JobDetailPage() {
     item.comparisonKind === "EXPERIENCE" && item.requirementType === type
   );
   const objective = requirements.filter((item) => item.comparisonKind === "OBJECTIVE");
+  const responsibilities = requirements.filter((item) => item.comparisonKind === "RESPONSIBILITY");
 
   const requirementList = (title, items) => items.length > 0 && <section>
     <h2>{title}</h2>
@@ -64,6 +65,7 @@ export default function JobDetailPage() {
     {requirements.length === 0
       ? <p>아직 구조화된 요구조건이 없습니다. 공고 비교를 실행하면 분석 결과가 표시됩니다.</p>
       : <>
+        {requirementList("주요 업무", responsibilities)}
         {requirementList("필수 조건", byType("REQUIRED"))}
         {requirementList("우대 조건", byType("PREFERRED"))}
         {requirementList("구분 불명확", byType("UNCLEAR"))}

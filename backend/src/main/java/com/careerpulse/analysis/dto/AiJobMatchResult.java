@@ -23,12 +23,35 @@ public record AiJobMatchResult(
 
         List<ObjectiveConditionMatch> objectiveConditionMatches,
 
+        List<RequirementMatch> responsibilityMatches,
+
         MatchScore score,
 
         String recommendationStatus,
 
         List<String> warnings
 ) {
+
+    public AiJobMatchResult(
+            String jobTitle,
+            String companyName,
+            List<RequirementMatch> requirementMatches,
+            List<ObjectiveConditionMatch> objectiveConditionMatches,
+            MatchScore score,
+            String recommendationStatus,
+            List<String> warnings
+    ) {
+        this(
+                jobTitle,
+                companyName,
+                requirementMatches,
+                objectiveConditionMatches,
+                List.of(),
+                score,
+                recommendationStatus,
+                warnings
+        );
+    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record RequirementMatch(

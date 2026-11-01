@@ -12,19 +12,23 @@ import java.util.function.Predicate;
 public class AnalysisScoreCalculator {
 
     public AnalysisScore calculate(List<AnalysisItem> items) {
-        int matched = count(items, item -> item.getJudgment().isMatched());
-        int comparable = count(items, item -> item.getJudgment().isComparable());
-        int unknown = items.size() - comparable;
+        List<AnalysisItem> scoredItems = items.stream()
+                .filter(item -> item.getRequirement().getComparisonKind()
+                        != ComparisonKind.RESPONSIBILITY)
+                .toList();
+        int matched = count(scoredItems, item -> item.getJudgment().isMatched());
+        int comparable = count(scoredItems, item -> item.getJudgment().isComparable());
+        int unknown = scoredItems.size() - comparable;
 
         return new AnalysisScore(
                 matched,
                 comparable,
                 unknown,
                 rate(matched, comparable),
-                categoryRate(items, RequirementCategory.REQUIRED),
-                categoryRate(items, RequirementCategory.PREFERRED),
-                kindRate(items, ComparisonKind.OBJECTIVE),
-                rate(comparable, items.size())
+                categoryRate(scoredItems, RequirementCategory.REQUIRED),
+                categoryRate(scoredItems, RequirementCategory.PREFERRED),
+                kindRate(scoredItems, ComparisonKind.OBJECTIVE),
+                rate(comparable, scoredItems.size())
         );
     }
 

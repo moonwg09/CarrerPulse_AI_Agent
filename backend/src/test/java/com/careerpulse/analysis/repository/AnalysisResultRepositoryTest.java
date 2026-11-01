@@ -81,6 +81,15 @@ class AnalysisResultRepositoryTest {
                 "Spring Boot 개발 경험",
                 "Spring Boot 개발 경험 필수"
         ));
+        JobRequirement responsibility = requirementRepository.save(new JobRequirement(
+                jobId,
+                "RESP-TEST-" + UUID.randomUUID(),
+                RequirementCategory.UNCLEAR,
+                ComparisonKind.RESPONSIBILITY,
+                "백엔드 API 설계 및 구현",
+                "백엔드 API 설계 및 구현",
+                "백엔드 API 설계 및 구현"
+        ));
         AnalysisItem item = new AnalysisItem(
                 requirement,
                 null,
@@ -88,9 +97,18 @@ class AnalysisResultRepositoryTest {
                 "사용자 문서에서 수행 근거를 확인했습니다.",
                 false
         );
-        AnalysisScore score = new AnalysisScoreCalculator().calculate(List.of(item));
+        AnalysisItem responsibilityItem = new AnalysisItem(
+                responsibility,
+                null,
+                Judgment.EXPERIENCED,
+                "사용자 문서에서 유사한 주요 업무 수행 근거를 확인했습니다.",
+                false
+        );
+        AnalysisScore score = new AnalysisScoreCalculator().calculate(
+                List.of(item, responsibilityItem)
+        );
         AnalysisResult result = new AnalysisResult(owner, jobId);
-        result.complete(score, List.of(item));
+        result.complete(score, List.of(item, responsibilityItem));
 
         resultRepository.saveAndFlush(result);
 
@@ -102,8 +120,10 @@ class AnalysisResultRepositoryTest {
                 .orElseThrow();
         assertThat(found.getAnalysisStatus()).isEqualTo(AnalysisStatus.COMPLETED);
         assertThat(found.getMatchRate()).isEqualByComparingTo("100.00");
-        assertThat(found.getItems()).hasSize(1);
+        assertThat(found.getItems()).hasSize(2);
         assertThat(found.getItems().get(0).getJudgment()).isEqualTo(Judgment.EXPERIENCED);
+        assertThat(found.getItems().get(1).getRequirement().getComparisonKind())
+                .isEqualTo(ComparisonKind.RESPONSIBILITY);
     }
 
     @Test

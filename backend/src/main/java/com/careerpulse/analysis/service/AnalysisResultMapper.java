@@ -99,6 +99,27 @@ public class AnalysisResultMapper {
             ));
         }
 
+        for (AiJobMatchResult.RequirementMatch match
+                : deduplicateExperience(result.responsibilityMatches())) {
+            JobRequirement requirement = requirement(
+                    jobId,
+                    ComparisonKind.RESPONSIBILITY,
+                    RequirementCategory.UNCLEAR,
+                    match.requirement(),
+                    firstJobEvidenceText(match.jobEvidence()),
+                    null
+            );
+            EvidenceReference evidence = evidence(userId, match.userEvidence());
+            Judgment judgment = experienceJudgment(match.status(), evidence.valid());
+            items.add(new AnalysisItem(
+                    requirement,
+                    evidence.chunkId(),
+                    judgment,
+                    reason(match.reason(), match.status(), evidence.valid()),
+                    false
+            ));
+        }
+
         if (items.isEmpty()) {
             throw new IllegalArgumentException("AI 응답에 비교할 요구조건이 없습니다.");
         }

@@ -327,7 +327,7 @@ erDiagram
     %% requirement_type IN ('REQUIRED', 'PREFERRED', 'UNCLEAR')
     %%
     %% chk_comparison_kind:
-    %% comparison_kind IN ('EXPERIENCE', 'OBJECTIVE')
+    %% comparison_kind IN ('EXPERIENCE', 'OBJECTIVE', 'RESPONSIBILITY')
 
 
     %% ==========================================

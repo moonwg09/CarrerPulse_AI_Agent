@@ -128,17 +128,19 @@ public class AnalysisService {
                         "비교 항목을 찾을 수 없습니다."
                 ));
 
-        if (item.getRequirement().getComparisonKind() != ComparisonKind.EXPERIENCE) {
+        if (!isExperienceComparison(item)) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "경험 요구조건만 경험 없음으로 확인할 수 있습니다."
+                    "경험 또는 주요 업무 항목만 경험 없음으로 확인할 수 있습니다."
             );
         }
 
         item.confirmNoExperience();
         AnalysisScore score = scoreCalculator.calculate(result.getItems());
         result.refreshScore(score);
-        learningPlanRepository.invalidateActive(result.getUser().getUserId());
+        if (item.getRequirement().getComparisonKind() == ComparisonKind.EXPERIENCE) {
+            learningPlanRepository.invalidateActive(result.getUser().getUserId());
+        }
         return toDetail(resultRepository.saveAndFlush(result));
     }
 
@@ -156,10 +158,10 @@ public class AnalysisService {
                         HttpStatus.NOT_FOUND,
                         "비교 항목을 찾을 수 없습니다."
                 ));
-        if (item.getRequirement().getComparisonKind() != ComparisonKind.EXPERIENCE) {
+        if (!isExperienceComparison(item)) {
             throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "경험 요구조건만 추가 경험으로 재판정할 수 있습니다."
+                    "경험 또는 주요 업무 항목만 추가 경험으로 재판정할 수 있습니다."
             );
         }
 
@@ -206,8 +208,16 @@ public class AnalysisService {
                 evidenceChunkId
         );
         result.refreshScore(scoreCalculator.calculate(result.getItems()));
-        learningPlanRepository.invalidateActive(result.getUser().getUserId());
+        if (item.getRequirement().getComparisonKind() == ComparisonKind.EXPERIENCE) {
+            learningPlanRepository.invalidateActive(result.getUser().getUserId());
+        }
         return toDetail(resultRepository.saveAndFlush(result));
+    }
+
+    private boolean isExperienceComparison(AnalysisItem item) {
+        ComparisonKind kind = item.getRequirement().getComparisonKind();
+        return kind == ComparisonKind.EXPERIENCE
+                || kind == ComparisonKind.RESPONSIBILITY;
     }
 
     public String pingAiServer() {
@@ -296,7 +306,10 @@ public class AnalysisService {
                 result.getMatchedCount(),
                 result.getComparableCount(),
                 result.getUnknownCount(),
-                result.getItems().size(),
+                (int) result.getItems().stream()
+                        .filter(item -> item.getRequirement().getComparisonKind()
+                                != ComparisonKind.RESPONSIBILITY)
+                        .count(),
                 result.getAnalyzedAt(),
                 result.getCreatedAt()
         );

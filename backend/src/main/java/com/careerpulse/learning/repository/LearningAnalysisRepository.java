@@ -26,6 +26,7 @@ public class LearningAnalysisRepository {
                    requirement_name,evaluation_rule
             FROM job_requirements
             WHERE job_id IN (%s)
+              AND comparison_kind <> 'RESPONSIBILITY'
             ORDER BY job_id,requirement_id
             """.formatted(placeholders), (rs, row) -> new RequirementRow(
                 rs.getLong("requirement_id"),
@@ -64,6 +65,7 @@ public class LearningAnalysisRepository {
             JOIN comparison_items ci ON ci.comparison_id=r.comparison_id
             JOIN job_requirements jr ON jr.requirement_id=ci.requirement_id
             WHERE r.ranking_no=1
+              AND jr.comparison_kind <> 'RESPONSIBILITY'
             ORDER BY r.job_id,jr.requirement_id
             """.formatted(placeholders), (rs, row) -> new AssessmentRow(
                 rs.getLong("job_id"),
