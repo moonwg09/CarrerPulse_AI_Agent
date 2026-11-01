@@ -2,6 +2,7 @@ package com.careerpulse.document.client;
 
 import com.careerpulse.document.entity.DocumentType;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -21,6 +22,7 @@ public class DocumentRagClient {
 
     private final RestClient restClient;
 
+    @Autowired
     public DocumentRagClient(
             RestClient.Builder restClientBuilder,
             @Value("${ai.server.url:http://127.0.0.1:8000}") String aiServerUrl
