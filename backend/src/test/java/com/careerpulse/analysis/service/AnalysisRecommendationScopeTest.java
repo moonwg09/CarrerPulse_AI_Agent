@@ -1,5 +1,6 @@
 package com.careerpulse.analysis.service;
 
+import com.careerpulse.user.model.DevelopmentJobCatalog;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -10,6 +11,9 @@ class AnalysisRecommendationScopeTest {
 
     @Test
     void 관심직무와_선택지역에_맞는_공고만_허용한다() {
+        assertThat(DevelopmentJobCatalog.FULLSTACK.searchTerms())
+                .contains("풀스택 개발자", "웹개발", "Full Stack");
+
         assertThat(AnalysisRecommendationService.matchesInterest(
                 "Java 백엔드 개발자",
                 "소프트웨어",

@@ -30,7 +30,11 @@ export default function AnalysisPage() {
     if (!selected) return;
     setBusy("collect"); setMessage("");
     try {
-      const collected = await collectJobs({ jobKeyword: selected.jobName, region, limit: 10 });
+      const collected = await collectJobs({
+        jobKeyword: selected.searchKeyword || selected.jobName,
+        region,
+        limit: 10,
+      });
       localStorage.setItem("careerpulse.region", region.trim());
       const result = await searchJobs(selected.userJobId, region);
       setJobs(result);

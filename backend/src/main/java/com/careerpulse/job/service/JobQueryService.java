@@ -7,6 +7,7 @@ import com.careerpulse.job.repository.JobPostingRepository;
 import com.careerpulse.job.repository.JobPostingSpecifications;
 import com.careerpulse.user.entity.User;
 import com.careerpulse.user.entity.UserJob;
+import com.careerpulse.user.model.DevelopmentJobCatalog;
 import com.careerpulse.user.repository.UserJobRepository;
 import com.careerpulse.user.repository.UserRepository;
 import org.springframework.data.domain.PageRequest;
@@ -68,7 +69,7 @@ public class JobQueryService {
         );
         return jobPostingRepository.findAll(
                         JobPostingSpecifications.search(
-                                interestJob.getJobName(),
+                                DevelopmentJobCatalog.fromCode(interestJob.getJobCode()).searchTerms(),
                                 region,
                                 keyword
                         ),

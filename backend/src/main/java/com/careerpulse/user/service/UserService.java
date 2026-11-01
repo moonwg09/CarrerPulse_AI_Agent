@@ -172,7 +172,9 @@ public class UserService {
         return new UserJobResponse(
                 savedJob.getUserJobId(),
                 savedJob.getJobCode(),
-                savedJob.getJobName()
+                savedJob.getJobName(),
+                catalog.searchKeyword(),
+                catalog.searchExpressions()
         );
     }
 
@@ -181,6 +183,7 @@ public class UserService {
                 .map(job -> new DevelopmentJobResponse(
                         job.name(),
                         job.displayName(),
+                        job.searchKeyword(),
                         job.searchExpressions()
                 ))
                 .toList();
@@ -205,13 +208,20 @@ public class UserService {
                 )
                 .stream()
                 .map(job ->
-                        new UserJobResponse(
-                                job.getUserJobId(),
-                                job.getJobCode(),
-                                job.getJobName()
-                        )
+                        response(job)
                 )
                 .toList();
+    }
+
+    private UserJobResponse response(UserJob job) {
+        DevelopmentJobCatalog catalog = DevelopmentJobCatalog.fromCode(job.getJobCode());
+        return new UserJobResponse(
+                job.getUserJobId(),
+                job.getJobCode(),
+                job.getJobName(),
+                catalog.searchKeyword(),
+                catalog.searchExpressions()
+        );
     }
 
     @Transactional

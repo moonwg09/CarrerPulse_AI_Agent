@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.LinkedHashSet;
 
 import com.careerpulse.user.dto.UserJobResponse;
+import com.careerpulse.user.model.DevelopmentJobCatalog;
 
 // 공고 조회를 담당하는 객체로 spring에 등록한다.
 @Repository
@@ -132,11 +133,18 @@ public class LearningJobRepository {
     ) {
         LinkedHashSet<String> terms = new LinkedHashSet<>();
         for (UserJobResponse interest : interests) {
-            String name = interest.jobName() == null ? "" : interest.jobName().trim();
-            if (!name.isEmpty()) {
-                terms.add(name);
-                String concise = name.replaceAll("\\s*(개발자|엔지니어|전문가|직무)\\s*$", "").trim();
-                if (!concise.isEmpty()) terms.add(concise);
+            for (String value : DevelopmentJobCatalog
+                    .fromCode(interest.jobCode())
+                    .searchTerms()) {
+                String term = value == null ? "" : value.trim();
+                if (!term.isEmpty()) {
+                    terms.add(term);
+                    String concise = term.replaceAll(
+                            "\\s*(개발자|엔지니어|전문가|직무)\\s*$",
+                            ""
+                    ).trim();
+                    if (!concise.isEmpty()) terms.add(concise);
+                }
             }
         }
         if (terms.isEmpty()) return List.of();

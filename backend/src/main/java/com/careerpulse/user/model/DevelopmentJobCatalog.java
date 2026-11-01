@@ -1,6 +1,7 @@
 package com.careerpulse.user.model;
 
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 public enum DevelopmentJobCatalog {
@@ -31,6 +32,14 @@ public enum DevelopmentJobCatalog {
     public String displayName() { return displayName; }
     public String searchKeyword() { return searchKeyword; }
     public List<String> searchExpressions() { return searchExpressions; }
+
+    public List<String> searchTerms() {
+        LinkedHashSet<String> terms = new LinkedHashSet<>();
+        terms.add(searchKeyword);
+        terms.add(displayName);
+        terms.addAll(searchExpressions);
+        return List.copyOf(terms);
+    }
 
     public static DevelopmentJobCatalog fromCode(String code) {
         if (code == null) throw new IllegalArgumentException("직무 코드가 필요합니다.");

@@ -7,6 +7,7 @@ import com.careerpulse.analysis.entity.RecommendationStatus;
 import com.careerpulse.analysis.repository.AnalysisContextRepository;
 import com.careerpulse.analysis.repository.AnalysisResultRepository;
 import com.careerpulse.user.entity.User;
+import com.careerpulse.user.model.DevelopmentJobCatalog;
 import com.careerpulse.user.repository.UserJobRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -55,7 +56,12 @@ public class AnalysisRecommendationService {
         List<String> interestKeywords = userJobRepository
                 .findAllByUser_UserId(user.getUserId())
                 .stream()
-                .map(userJob -> normalizeInterest(userJob.getJobName()))
+                .flatMap(userJob -> DevelopmentJobCatalog
+                        .fromCode(userJob.getJobCode())
+                        .searchTerms()
+                        .stream())
+                .map(AnalysisRecommendationService::normalizeInterest)
+                .distinct()
                 .toList();
         LocalDate today = LocalDate.now();
         int limit = resolveLimit(status, limitParam);

@@ -16,7 +16,7 @@ public final class JobPostingSpecifications {
     }
 
     public static Specification<JobPosting> search(
-            String interestJobName,
+            List<String> interestTerms,
             String region,
             String keyword
     ) {
@@ -29,11 +29,17 @@ public final class JobPostingSpecifications {
 
             Expression<String> title = criteriaBuilder.lower(root.get("title"));
             Expression<String> description = criteriaBuilder.lower(root.get("description"));
-            conditions.add(containsEither(
-                    criteriaBuilder,
-                    title,
-                    description,
-                    normalizeInterestKeyword(interestJobName)
+            List<Predicate> interestConditions = interestTerms.stream()
+                    .filter(JobPostingSpecifications::hasText)
+                    .map(term -> containsEither(
+                            criteriaBuilder,
+                            title,
+                            description,
+                            normalizeInterestKeyword(term)
+                    ))
+                    .toList();
+            conditions.add(criteriaBuilder.or(
+                    interestConditions.toArray(Predicate[]::new)
             ));
             if (!"전국".equals(region.trim())) {
                 conditions.add(criteriaBuilder.like(
