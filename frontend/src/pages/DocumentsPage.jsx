@@ -43,11 +43,6 @@ export default function DocumentsPage() {
     <NavBar />
     <h1>사용자 문서</h1>
     <p>PDF 또는 DOCX 파일을 등록합니다. 같은 유형을 다시 올리면 기존 문서를 교체합니다.</p>
-    <section>
-      <h2>Git 저장소</h2>
-      <p>미등록</p>
-      <p>Git 저장소가 없어도 등록한 서류만으로 분석합니다.</p>
-    </section>
     {message && <p role="status">{message}</p>}
     {types.map(([path, code, label]) => {
       const saved = documents.find(document => document.documentType === code);
