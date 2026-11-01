@@ -8,7 +8,7 @@ import { getMyJobs } from "../api/userApi";
 export default function AnalysisPage() {
   const [interests, setInterests] = useState([]);
   const [selectedInterest, setSelectedInterest] = useState("");
-  const [region, setRegion] = useState("");
+  const [region, setRegion] = useState(() => localStorage.getItem("careerpulse.region") || "");
   const [jobs, setJobs] = useState([]);
   const [analyses, setAnalyses] = useState([]);
   const [message, setMessage] = useState("");
@@ -31,6 +31,7 @@ export default function AnalysisPage() {
     setBusy("collect"); setMessage("");
     try {
       const collected = await collectJobs({ jobKeyword: selected.jobName, region, limit: 10 });
+      localStorage.setItem("careerpulse.region", region.trim());
       const result = await searchJobs(selected.userJobId, region);
       setJobs(result);
       setMessage(`${collected.collectedCount}개를 수집했고, 조건에 맞는 공고 ${result.length}개를 찾았습니다.`);

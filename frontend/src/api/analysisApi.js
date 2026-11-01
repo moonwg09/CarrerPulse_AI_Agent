@@ -143,7 +143,7 @@ export async function rejudgeExperience(analysisId, itemId, data) {
 }
 
 // [추천조회]
-export async function getRecommendations(status, limit) {
+export async function getRecommendations(status, limit, region) {
   const params = new URLSearchParams();
 
   if (status) {
@@ -153,6 +153,8 @@ export async function getRecommendations(status, limit) {
   if (limit) {
     params.set("limit", String(limit));
   }
+
+  params.set("region", region);
 
   const query = params.toString();
 

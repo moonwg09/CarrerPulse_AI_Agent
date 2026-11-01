@@ -84,7 +84,10 @@ public class AnalysisController {
             String status,
 
             @RequestParam(name = "limit", required = false)
-            Integer limit
+            Integer limit,
+
+            @RequestParam(name = "region")
+            String region
     ) {
 
         String email = authentication.getName();
@@ -93,7 +96,8 @@ public class AnalysisController {
                 recommendationService.getRecommendations(
                         email,
                         status,
-                        limit
+                        limit,
+                        region
                 )
         );
     }

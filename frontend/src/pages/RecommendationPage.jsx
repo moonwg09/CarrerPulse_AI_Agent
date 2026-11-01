@@ -12,6 +12,7 @@ const STATUS_OPTIONS = [
 function RecommendationPage() {
   const [status, setStatus] = useState("RECOMMENDED");
   const [limit, setLimit] = useState("");
+  const [region, setRegion] = useState(() => localStorage.getItem("careerpulse.region") || "");
 
   const [result, setResult] = useState(null);
   const [message, setMessage] = useState("");
@@ -24,7 +25,8 @@ function RecommendationPage() {
       try {
         const data = await getRecommendations(
           status,
-          limit === "" ? null : Number(limit)
+          limit === "" ? null : Number(limit),
+          region.trim()
         );
 
         setResult(data);
@@ -35,8 +37,9 @@ function RecommendationPage() {
       }
     };
 
-    load();
-  }, [status, limit, reloadKey]);
+    if (region.trim()) load();
+    else setMessage("추천 공고를 조회할 지역을 입력해 주세요.");
+  }, [status, limit, region, reloadKey]);
 
   const handleReload = () => {
     setReloadKey((key) => key + 1);
@@ -55,6 +58,17 @@ function RecommendationPage() {
       </p>
 
       <div>
+        <label>지역</label>
+        <input
+          required
+          value={region}
+          onChange={(e) => {
+            setRegion(e.target.value);
+            localStorage.setItem("careerpulse.region", e.target.value.trim());
+          }}
+          placeholder="서울특별시 또는 전국"
+        />
+
         <label>추천 구분</label>
 
         <select
