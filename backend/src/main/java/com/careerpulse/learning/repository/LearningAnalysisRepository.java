@@ -51,7 +51,7 @@ public class LearningAnalysisRepository {
                        ROW_NUMBER() OVER (
                            PARTITION BY job_id
                            ORDER BY COALESCE(analyzed_at,created_at) DESC,comparison_id DESC
-                       ) AS row_number
+                       ) AS ranking_no
                 FROM comparison_results
                 WHERE user_id=?
                   AND analysis_status='COMPLETED'
@@ -63,7 +63,7 @@ public class LearningAnalysisRepository {
             FROM ranked r
             JOIN comparison_items ci ON ci.comparison_id=r.comparison_id
             JOIN job_requirements jr ON jr.requirement_id=ci.requirement_id
-            WHERE r.row_number=1
+            WHERE r.ranking_no=1
             ORDER BY r.job_id,jr.requirement_id
             """.formatted(placeholders), (rs, row) -> new AssessmentRow(
                 rs.getLong("job_id"),
