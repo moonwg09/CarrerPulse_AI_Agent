@@ -46,6 +46,33 @@ class LearningTests(unittest.TestCase):
         self.assertEqual((java["totalJobCount"], java["requiredCount"], java["preferredCount"]), (7, 7, 0))
         self.assertEqual(len(java["jobIds"]), 7)
 
+    def test_unclear_requirement_counts_once_without_required_or_preferred(self):
+        payload = {
+            "jobs": [{
+                "jobId": "1",
+                "jobCategory": "BACKEND",
+                "postedDate": TODAY.isoformat(),
+                "status": "OPEN",
+                "requirements": [
+                    dict(name="FastAPI", type="SKILL", category="UNCLEAR")
+                ],
+            }],
+            "interests": ["BACKEND"],
+            "referenceDate": TODAY.isoformat(),
+        }
+
+        result = self.run_analysis(payload)
+
+        self.assertEqual(result["frequency"], [{
+            "name": "FastAPI",
+            "type": "SKILL",
+            "totalJobCount": 1,
+            "requiredCount": 0,
+            "preferredCount": 0,
+            "jobIds": ["1"],
+        }])
+        self.assertEqual(result["needsConfirmation"][0]["name"], "FastAPI")
+
     def test_fewer_than_ten_and_deadline_today_is_open(self):
         payload = fixture()
         payload["jobs"] = payload["jobs"][:2]

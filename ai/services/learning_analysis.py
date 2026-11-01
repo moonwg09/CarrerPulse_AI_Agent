@@ -18,7 +18,7 @@ class StrictModel(BaseModel):
 class Requirement(StrictModel):
     name: str = Field(min_length=1, max_length=200)
     type: Literal["SKILL", "CERTIFICATE", "EXPERIENCE"]
-    category: Literal["REQUIRED", "PREFERRED"]
+    category: Literal["REQUIRED", "PREFERRED", "UNCLEAR"]
 
     @field_validator("name")
     @classmethod
@@ -99,7 +99,10 @@ def analyze(request: AnalysisRequest) -> dict:
             row = frequency.setdefault(key, {"name": req.name, "type": req.type,
                 "totalJobCount": 0, "requiredCount": 0, "preferredCount": 0, "jobIds": []})
             row["totalJobCount"] += 1
-            row["requiredCount" if req.category == "REQUIRED" else "preferredCount"] += 1
+            if req.category == "REQUIRED":
+                row["requiredCount"] += 1
+            elif req.category == "PREFERRED":
+                row["preferredCount"] += 1
             row["jobIds"].append(job.jobId)
     # PLN-03의 동일 빈도 처리 기준은 SRS에서 미정이다. 이름/종류순은 표시 안정성만
     # 위한 기준이며 같은 빈도의 항목에는 같은 순위를 부여해 추가 우선순위를 주장하지 않는다.
