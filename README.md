@@ -81,10 +81,12 @@ MySQL 서버를 설치하고 실행합니다.
 로컬 개발용 데이터베이스:
 
 ```sql
-CREATE DATABASE IF NOT EXISTS careerpulse_test
+CREATE DATABASE IF NOT EXISTS careerpulse_mvp_dev
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 ```
+
+Repository 통합 테스트는 별도의 `careerpulse_test` 데이터베이스만 사용합니다.
 
 프로젝트 전용 MySQL 계정을 생성하고 필요한 권한을 부여합니다.
 
@@ -150,3 +152,8 @@ http://localhost:8080
 * Python 패키지를 변경하면 environment.yml도 갱신합니다.
 * 실제 API 키와 DB 비밀번호를 GitHub에 업로드하지 않습니다.
 * 기능 개발은 별도 브랜치에서 진행하고 Pull Request로 병합합니다.
+
+## 11. MVP 시연
+
+문서 업로드부터 근거 기반 비교, 추천, 학습계획까지의 시연 순서는
+[`docs/demo/mvp-demo-guide.md`](docs/demo/mvp-demo-guide.md)를 따릅니다.

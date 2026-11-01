@@ -35,3 +35,6 @@ Thumbs.db
 
 # old backend backup
 /backend-old/
+
+# Runtime uploads
+/backend/uploads/
