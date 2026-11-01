@@ -71,6 +71,7 @@ function AnalysisDetailPage() {
       <h2>일치율</h2>
       <ul>
         <li>전체: {summary.overallMatchRate ?? "평가 중"}%</li>
+        <li>일치 자격요건: {summary.matchedCount ?? 0} / {summary.comparableCount ?? 0}</li>
         <li>필수: {summary.requiredMatchRate ?? "평가 불가"}%</li>
         <li>우대: {summary.preferredMatchRate ?? "평가 불가"}%</li>
         <li>객관 조건: {summary.objectiveMatchRate ?? "평가 불가"}%</li>

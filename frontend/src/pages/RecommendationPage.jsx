@@ -122,6 +122,7 @@ function RecommendationPage() {
                   <th>회사</th>
                   <th>마감일</th>
                   <th>전체 일치율</th>
+                  <th>일치 자격요건</th>
                   <th>필수 충족률</th>
                   <th>평가 가능 비율</th>
                   <th>상세</th>
@@ -136,6 +137,7 @@ function RecommendationPage() {
                     <td>{item.companyName || "-"}</td>
                     <td>{item.closeDate || "-"}</td>
                     <td>{item.overallMatchRate ?? "-"}</td>
+                    <td>{item.matchedCount ?? 0} / {item.comparableCount ?? 0}</td>
                     <td>{item.requiredMatchRate ?? "-"}</td>
                     <td>{item.evaluationCoverage ?? "-"}</td>
                     <td>
