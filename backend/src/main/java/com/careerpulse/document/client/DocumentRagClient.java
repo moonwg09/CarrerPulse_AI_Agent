@@ -4,6 +4,7 @@ import com.careerpulse.document.entity.DocumentType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -24,9 +25,18 @@ public class DocumentRagClient {
             RestClient.Builder restClientBuilder,
             @Value("${ai.server.url:http://127.0.0.1:8000}") String aiServerUrl
     ) {
+        SimpleClientHttpRequestFactory requestFactory =
+                new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(5000);
+        requestFactory.setReadTimeout(180000);
         this.restClient = restClientBuilder
                 .baseUrl(aiServerUrl)
+                .requestFactory(requestFactory)
                 .build();
+    }
+
+    DocumentRagClient(RestClient restClient) {
+        this.restClient = restClient;
     }
 
     public DocumentRagIndexResponse index(

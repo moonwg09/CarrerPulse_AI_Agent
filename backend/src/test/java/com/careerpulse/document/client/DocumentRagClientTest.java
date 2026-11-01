@@ -30,9 +30,10 @@ class DocumentRagClientTest {
 
     @BeforeEach
     void setUp() {
-        RestClient.Builder builder = RestClient.builder();
+        RestClient.Builder builder = RestClient.builder()
+                .baseUrl("http://127.0.0.1:8000");
         server = MockRestServiceServer.bindTo(builder).build();
-        client = new DocumentRagClient(builder, "http://127.0.0.1:8000");
+        client = new DocumentRagClient(builder.build());
     }
 
     @Test
