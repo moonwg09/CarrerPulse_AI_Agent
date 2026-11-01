@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import NavBar from "../components/NavBar";
 import { deleteDocument, getDocuments, uploadDocument } from "../api/documentApi";
 
@@ -12,7 +12,9 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState([]);
   const [files, setFiles] = useState({});
   const [busy, setBusy] = useState("");
+  const [saveProgress, setSaveProgress] = useState("");
   const [message, setMessage] = useState("");
+  const fileInputs = useRef({});
 
   const load = async () => {
     try { setDocuments(await getDocuments()); }
@@ -20,16 +22,42 @@ export default function DocumentsPage() {
   };
   useEffect(() => { getDocuments().then(setDocuments).catch(error => setMessage(error.message)); }, []);
 
-  async function upload(path, label) {
-    if (!files[path]) return;
-    setBusy(path); setMessage("");
-    try {
-      const result = await uploadDocument(path, files[path]);
-      setMessage(`${label} 처리 상태: ${result.processingStatus}`);
-      setFiles(old => ({ ...old, [path]: null }));
-      await load();
-    } catch (error) { setMessage(error.message); }
-    finally { setBusy(""); }
+  async function save() {
+    const pending = types.filter(([path]) => files[path]);
+    if (pending.length === 0) return;
+
+    setBusy("save"); setMessage("");
+    const succeeded = [];
+    const failed = [];
+
+    for (let index = 0; index < pending.length; index += 1) {
+      const [path, code, label] = pending[index];
+      setSaveProgress(`${label} 저장 및 색인 중 (${index + 1}/${pending.length})`);
+      try {
+        const result = await uploadDocument(path, files[path]);
+        succeeded.push(path);
+        setDocuments(old => [result, ...old.filter(document => document.documentType !== code)]);
+      } catch (error) {
+        failed.push(`${label}: ${error.message}`);
+      }
+    }
+
+    setFiles(old => {
+      const next = { ...old };
+      succeeded.forEach(path => { delete next[path]; });
+      return next;
+    });
+    succeeded.forEach(path => {
+      if (fileInputs.current[path]) fileInputs.current[path].value = "";
+    });
+    await load();
+
+    if (failed.length > 0) {
+      setMessage(`일부 문서를 저장하지 못했습니다. ${failed.join(" / ")}`);
+    } else {
+      setMessage(`${succeeded.length}개 문서를 저장했습니다.`);
+    }
+    setSaveProgress(""); setBusy("");
   }
 
   async function remove(path, label) {
@@ -46,14 +74,22 @@ export default function DocumentsPage() {
     {message && <p role="status">{message}</p>}
     {types.map(([path, code, label]) => {
       const saved = documents.find(document => document.documentType === code);
+      const pendingFile = files[path];
       return <section key={code}>
         <h2>{label}</h2>
-        {saved ? <p>{saved.originalFilename} · {saved.fileFormat} · {saved.fileSize} bytes · {saved.processingStatus}{saved.processingError ? ` · ${saved.processingError}` : ""}</p> : <p>등록된 문서가 없습니다.</p>}
-        <input type="file" accept=".pdf,.docx" disabled={!!busy}
+        {pendingFile
+          ? <p>{pendingFile.name} · 저장 대기{saved ? " (기존 문서 교체 예정)" : ""}</p>
+          : saved
+            ? <p>{saved.originalFilename} · {saved.fileFormat} · {saved.fileSize} bytes · {saved.processingStatus}{saved.processingError ? ` · ${saved.processingError}` : ""}</p>
+            : <p>등록된 문서가 없습니다.</p>}
+        <input ref={element => { fileInputs.current[path] = element; }} type="file" accept=".pdf,.docx" disabled={!!busy}
           onChange={event => setFiles(old => ({ ...old, [path]: event.target.files?.[0] || null }))} />
-        <button type="button" disabled={!files[path] || !!busy} onClick={() => upload(path, label)}>{busy === path ? "처리 중" : "업로드·교체"}</button>{" "}
         {saved && <button type="button" disabled={!!busy} onClick={() => remove(path, label)}>삭제</button>}
       </section>;
     })}
+    <button type="button" disabled={!Object.values(files).some(Boolean) || !!busy} onClick={save}>
+      {busy === "save" ? "저장 중" : "저장"}
+    </button>
+    {saveProgress && <p role="status">{saveProgress}</p>}
   </main>;
 }
