@@ -6,13 +6,25 @@ import { collectJobs, searchJobs } from "../api/jobApi";
 import { getMyJobs } from "../api/userApi";
 import { regions } from "../constants/regions";
 
+function initialRegions() {
+  const savedRegions = localStorage.getItem("careerpulse.regions");
+  if (savedRegions) {
+    try {
+      const parsed = JSON.parse(savedRegions);
+      const valid = parsed.filter(item => regions.includes(item));
+      if (valid.length > 0) return valid;
+    } catch {
+      // 기존 단일 지역 값으로 복구합니다.
+    }
+  }
+  const savedRegion = localStorage.getItem("careerpulse.region");
+  return regions.includes(savedRegion) ? [savedRegion] : ["전국"];
+}
+
 export default function AnalysisPage() {
   const [interests, setInterests] = useState([]);
   const [selectedInterest, setSelectedInterest] = useState("");
-  const [region, setRegion] = useState(() => {
-    const saved = localStorage.getItem("careerpulse.region");
-    return regions.includes(saved) ? saved : "전국";
-  });
+  const [selectedRegions, setSelectedRegions] = useState(initialRegions);
   const [jobs, setJobs] = useState([]);
   const [analyses, setAnalyses] = useState([]);
   const [message, setMessage] = useState("");
@@ -29,20 +41,38 @@ export default function AnalysisPage() {
 
   const selected = interests.find(item => String(item.userJobId) === selectedInterest);
 
+  function toggleRegion(item) {
+    setSelectedRegions(current => {
+      if (item === "전국") return current.includes(item) ? [] : [item];
+      if (current.includes(item)) return current.filter(region => region !== item);
+      return [...current.filter(region => region !== "전국"), item];
+    });
+  }
+
   async function collectAndSearch(event) {
     event.preventDefault();
-    if (!selected) return;
+    if (!selected || selectedRegions.length === 0) return;
     setBusy("collect"); setMessage("");
     try {
-      const collected = await collectJobs({
-        jobKeyword: selected.searchKeyword || selected.jobName,
-        region,
-        limit: 10,
-      });
-      localStorage.setItem("careerpulse.region", region.trim());
-      const result = await searchJobs(selected.userJobId, region);
+      let collectedCount = 0;
+      const foundJobs = new Map();
+      for (let index = 0; index < selectedRegions.length; index += 1) {
+        const region = selectedRegions[index];
+        setMessage(`${region} 공고 수집 중 (${index + 1}/${selectedRegions.length})`);
+        const collected = await collectJobs({
+          jobKeyword: selected.searchKeyword || selected.jobName,
+          region,
+          limit: 10,
+        });
+        collectedCount += collected.collectedCount;
+        const result = await searchJobs(selected.userJobId, region);
+        result.forEach(job => foundJobs.set(job.jobId, job));
+      }
+      localStorage.setItem("careerpulse.regions", JSON.stringify(selectedRegions));
+      localStorage.setItem("careerpulse.region", selectedRegions[0]);
+      const result = [...foundJobs.values()];
       setJobs(result);
-      setMessage(`${collected.collectedCount}개를 수집했고, 조건에 맞는 공고 ${result.length}개를 찾았습니다.`);
+      setMessage(`${selectedRegions.length}개 지역에서 ${collectedCount}개를 수집했고, 조건에 맞는 공고 ${result.length}개를 찾았습니다.`);
     } catch (error) { setMessage(error.message); }
     finally { setBusy(""); }
   }
@@ -66,10 +96,13 @@ export default function AnalysisPage() {
       <label>관심 직무 <select required value={selectedInterest} onChange={event => setSelectedInterest(event.target.value)}>
         {interests.map(item => <option key={item.userJobId} value={item.userJobId}>{item.jobName}</option>)}
       </select></label>{" "}
-      <label>지역 <select required value={region} onChange={event => setRegion(event.target.value)}>
-        {regions.map(item => <option key={item} value={item}>{item}</option>)}
-      </select></label>{" "}
-      <button disabled={!selected || !!busy}>{busy === "collect" ? "수집 중" : "공고 수집·조회"}</button>
+      <fieldset>
+        <legend>지역 (복수 선택 가능)</legend>
+        {regions.map(item => <label key={item}>
+          <input type="checkbox" checked={selectedRegions.includes(item)} onChange={() => toggleRegion(item)} /> {item}{" "}
+        </label>)}
+      </fieldset>
+      <button disabled={!selected || selectedRegions.length === 0 || !!busy}>{busy === "collect" ? "수집 중" : "공고 수집·조회"}</button>
     </form>
     {message && <p role="status">{message}</p>}
 
