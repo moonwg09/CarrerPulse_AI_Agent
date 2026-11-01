@@ -271,6 +271,42 @@ class DocumentServiceTest {
     }
 
     @Test
+    void deletesFailedDocumentEvenWhenRagCleanupFails() throws Exception {
+        UserRepository userRepository = mock(UserRepository.class);
+        DocumentRepository documentRepository = mock(DocumentRepository.class);
+        DocumentRagClient ragClient = mock(DocumentRagClient.class);
+        User user = user(7L);
+        Path storedFile = storageDirectory.resolve("failed-resume.pdf");
+        Files.writeString(storedFile, "content");
+        Document document = new Document(
+                user,
+                DocumentType.RESUME,
+                "failed-resume.pdf",
+                storedFile.toString(),
+                FileFormat.PDF,
+                Files.size(storedFile)
+        );
+        ReflectionTestUtils.setField(document, "documentId", 42L);
+        document.fail("문서 색인 실패");
+
+        when(userRepository.findByEmail(EMAIL)).thenReturn(Optional.of(user));
+        when(documentRepository.findByUser_UserIdAndDocumentType(
+                7L,
+                DocumentType.RESUME
+        )).thenReturn(Optional.of(document));
+        org.mockito.Mockito.doThrow(
+                new DocumentRagException("검색 데이터 삭제 실패", new RuntimeException())
+        ).when(ragClient).delete(7L, 42L);
+
+        service(userRepository, documentRepository, ragClient)
+                .deleteDocument(EMAIL, DocumentType.RESUME);
+
+        verify(documentRepository).delete(document);
+        verify(documentRepository).flush();
+        assertFalse(Files.exists(storedFile));
+    }
+
+    @Test
     void rejectsUnsupportedFileBeforeDatabaseAccess() {
         DocumentService service = service(
                 mock(UserRepository.class),

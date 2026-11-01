@@ -8,12 +8,15 @@ import com.careerpulse.document.entity.Document;
 import com.careerpulse.document.entity.DocumentType;
 import com.careerpulse.document.entity.DocumentChunk;
 import com.careerpulse.document.entity.FileFormat;
+import com.careerpulse.document.entity.ProcessingStatus;
 import com.careerpulse.document.repository.DocumentRepository;
 import com.careerpulse.analysis.repository.AnalysisResultRepository;
 import com.careerpulse.learning.repository.LearningPlanRepository;
 import com.careerpulse.user.entity.User;
 import com.careerpulse.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +37,8 @@ import java.util.zip.ZipInputStream;
 
 @Service
 public class DocumentService {
+
+    private static final Logger log = LoggerFactory.getLogger(DocumentService.class);
 
     private static final long MAX_FILE_SIZE = 10L * 1024L * 1024L;
     private static final Set<FileFormat> SUPPORTED_FORMATS = Set.of(
@@ -167,9 +172,16 @@ public class DocumentService {
                     document.getDocumentId()
             );
         } catch (DocumentRagException exception) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    exception.getMessage(),
+            if (document.getProcessingStatus() != ProcessingStatus.FAILED) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_GATEWAY,
+                        exception.getMessage(),
+                        exception
+                );
+            }
+            log.warn(
+                    "색인 실패 문서의 RAG 정리에 실패했지만 로컬 삭제를 계속합니다. documentId={}",
+                    document.getDocumentId(),
                     exception
             );
         }
