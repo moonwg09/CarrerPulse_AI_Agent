@@ -1,9 +1,11 @@
 package com.careerpulse.job.client;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 @Component
 public class JobCollectionClient {
@@ -21,6 +23,7 @@ public class JobCollectionClient {
         try {
             AiJobCollectionResponse response = restClient.post()
                     .uri("/api/v1/jobs/collect")
+                    .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
                     .retrieve()
                     .body(AiJobCollectionResponse.class);
@@ -36,9 +39,19 @@ public class JobCollectionClient {
             throw exception;
         } catch (RestClientException exception) {
             throw new JobCollectionClientException(
-                    "FastAPI 채용공고 수집 요청에 실패했습니다.",
+                    failureMessage(exception),
                     exception
             );
         }
+    }
+
+    private String failureMessage(RestClientException exception) {
+        if (exception instanceof RestClientResponseException responseException) {
+            String detail = responseException.getResponseBodyAsString();
+            if (!detail.isBlank()) {
+                return "FastAPI 채용공고 수집 요청에 실패했습니다. " + detail;
+            }
+        }
+        return "FastAPI 채용공고 수집 요청에 실패했습니다.";
     }
 }

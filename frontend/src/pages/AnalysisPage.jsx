@@ -4,11 +4,15 @@ import NavBar from "../components/NavBar";
 import { compareDocumentWithJob, getAnalyses } from "../api/analysisApi";
 import { collectJobs, searchJobs } from "../api/jobApi";
 import { getMyJobs } from "../api/userApi";
+import { regions } from "../constants/regions";
 
 export default function AnalysisPage() {
   const [interests, setInterests] = useState([]);
   const [selectedInterest, setSelectedInterest] = useState("");
-  const [region, setRegion] = useState(() => localStorage.getItem("careerpulse.region") || "");
+  const [region, setRegion] = useState(() => {
+    const saved = localStorage.getItem("careerpulse.region");
+    return regions.includes(saved) ? saved : "전국";
+  });
   const [jobs, setJobs] = useState([]);
   const [analyses, setAnalyses] = useState([]);
   const [message, setMessage] = useState("");
@@ -62,8 +66,10 @@ export default function AnalysisPage() {
       <label>관심 직무 <select required value={selectedInterest} onChange={event => setSelectedInterest(event.target.value)}>
         {interests.map(item => <option key={item.userJobId} value={item.userJobId}>{item.jobName}</option>)}
       </select></label>{" "}
-      <label>지역 <input required value={region} onChange={event => setRegion(event.target.value)} placeholder="서울특별시 또는 전국" /></label>{" "}
-      <button disabled={!selected || !region.trim() || !!busy}>{busy === "collect" ? "수집 중" : "공고 수집·조회"}</button>
+      <label>지역 <select required value={region} onChange={event => setRegion(event.target.value)}>
+        {regions.map(item => <option key={item} value={item}>{item}</option>)}
+      </select></label>{" "}
+      <button disabled={!selected || !!busy}>{busy === "collect" ? "수집 중" : "공고 수집·조회"}</button>
     </form>
     {message && <p role="status">{message}</p>}
 
