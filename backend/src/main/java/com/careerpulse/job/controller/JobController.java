@@ -1,5 +1,6 @@
 package com.careerpulse.job.controller;
 
+import com.careerpulse.job.client.JobCollectionClientException;
 import com.careerpulse.job.dto.JobCollectionRequest;
 import com.careerpulse.job.dto.JobCollectionResponse;
 import com.careerpulse.job.dto.JobPostingResponse;
@@ -18,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.security.core.Authentication;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -57,6 +60,25 @@ public class JobController {
                 region,
                 keyword
         );
+    }
+
+    @GetMapping("/companies")
+    public List<String> companies(@RequestParam String query) {
+        if (query == null || query.trim().length() < 2) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "기업명은 두 글자 이상 입력해 주세요."
+            );
+        }
+        try {
+            return jobCollectionService.searchCompanies(query.trim());
+        } catch (JobCollectionClientException exception) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    exception.getMessage(),
+                    exception
+            );
+        }
     }
 
     @GetMapping("/{jobId}")

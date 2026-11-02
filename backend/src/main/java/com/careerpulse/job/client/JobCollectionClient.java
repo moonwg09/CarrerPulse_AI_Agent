@@ -8,6 +8,8 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.util.List;
+
 @Component
 public class JobCollectionClient {
 
@@ -48,6 +50,34 @@ public class JobCollectionClient {
         } catch (RestClientException exception) {
             throw new JobCollectionClientException(
                     failureMessage(exception),
+                    exception
+            );
+        }
+    }
+
+    public List<String> searchCompanies(String query) {
+        try {
+            AiCompanySearchResponse response = restClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/api/v1/jobs/companies/search")
+                            .queryParam("query", query)
+                            .queryParam("limit", 10)
+                            .build())
+                    .retrieve()
+                    .body(AiCompanySearchResponse.class);
+
+            if (response == null || response.companies() == null) {
+                throw new JobCollectionClientException(
+                        "고용24 기업 검색 응답이 비어 있습니다.",
+                        null
+                );
+            }
+            return response.companies();
+        } catch (JobCollectionClientException exception) {
+            throw exception;
+        } catch (RestClientException exception) {
+            throw new JobCollectionClientException(
+                    "고용24 기업 검색 요청에 실패했습니다.",
                     exception
             );
         }

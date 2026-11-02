@@ -106,6 +106,39 @@ class Work24ParserTest(unittest.TestCase):
 
 
 class Work24CrawlerTest(unittest.TestCase):
+    def test_search_companies_uses_company_filter_and_returns_unique_names(self):
+        search_response = Mock()
+        search_response.text = SEARCH_HTML.replace(
+            "</table>",
+            SEARCH_HTML.split("<table>", 1)[1].split("</table>", 1)[0]
+            + "</table>",
+        )
+        search_response.raise_for_status = Mock()
+
+        session = Mock()
+        session.headers = {}
+        session.post.return_value = search_response
+
+        result = Work24Crawler(
+            session=session,
+            request_interval_seconds=0,
+        ).search_companies("테스트", limit=10)
+
+        self.assertEqual(["테스트 주식회사"], result.companies)
+        request_data = session.post.call_args.kwargs["data"]
+        self.assertEqual("Y", request_data["keywordBusiNm"])
+        self.assertEqual("N", request_data["keywordWantedTitle"])
+        self.assertEqual("N", request_data["keywordJobCont"])
+
+    def test_search_companies_requires_two_characters(self):
+        session = Mock()
+        session.headers = {}
+
+        with self.assertRaisesRegex(ValueError, "두 글자"):
+            Work24Crawler(session=session).search_companies("가")
+
+        session.post.assert_not_called()
+
     def test_collect_defaults_to_nationwide_scope(self):
         search_response = Mock()
         search_response.text = SEARCH_HTML

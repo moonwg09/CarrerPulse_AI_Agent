@@ -24,3 +24,8 @@ class JobCollectionResult(BaseModel):
     collectedCount: int
 
     jobs: List[RawJobPosting]
+
+
+class CompanySearchResult(BaseModel):
+    query: str
+    companies: List[str]

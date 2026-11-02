@@ -52,4 +52,8 @@ public class JobCollectionService {
                 savedJobs
         );
     }
+
+    public List<String> searchCompanies(String query) {
+        return jobCollectionClient.searchCompanies(query);
+    }
 }

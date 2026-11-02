@@ -8,7 +8,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 import requests
 from lxml import html
 
-from schemas.job_collection_schema import JobCollectionResult
+from schemas.job_collection_schema import CompanySearchResult, JobCollectionResult
 from schemas.raw_job_schema import RawJobPosting
 
 
@@ -262,6 +262,56 @@ class Work24Crawler:
         response.encoding = "utf-8"
         return parse_work24_detail_page(response.text, item)
 
+    def search_companies(
+        self,
+        query: str,
+        limit: int = 10,
+    ) -> CompanySearchResult:
+        normalized = _clean_text(query)
+        if len(normalized) < 2:
+            raise ValueError("기업명은 두 글자 이상 입력해 주세요.")
+        if not 1 <= limit <= 20:
+            raise ValueError("검색 개수는 1개 이상 20개 이하여야 합니다.")
+
+        try:
+            response = self.session.post(
+                WORK24_SEARCH_URL,
+                data={
+                    "currentPageNo": "1",
+                    "pageIndex": "1",
+                    "resultCnt": "50",
+                    "searchMode": "Y",
+                    "siteClcd": "all",
+                    "srcKeyword": normalized,
+                    "keywordBusiNm": "Y",
+                    "keywordWantedTitle": "N",
+                    "keywordJobCont": "N",
+                    "keywordStaAreaNm": "N",
+                },
+                timeout=20,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            raise Work24CollectionError(
+                "고용24 기업 검색 요청에 실패했습니다."
+            ) from exc
+
+        response.encoding = "utf-8"
+        names: list[str] = []
+        seen: set[str] = set()
+        folded_query = normalized.casefold()
+        for item in parse_work24_search_page(response.text):
+            name = _clean_text(item.company_name)
+            key = name.casefold()
+            if folded_query not in key or key in seen:
+                continue
+            seen.add(key)
+            names.append(name)
+            if len(names) >= limit:
+                break
+
+        return CompanySearchResult(query=normalized, companies=names)
+
     def collect(
         self,
         job_keyword: str,
@@ -332,3 +382,10 @@ def collect_work24_jobs(
     limit: int = 10,
 ) -> JobCollectionResult:
     return Work24Crawler().collect(job_keyword, region, limit)
+
+
+def search_work24_companies(
+    query: str,
+    limit: int = 10,
+) -> CompanySearchResult:
+    return Work24Crawler().search_companies(query, limit)

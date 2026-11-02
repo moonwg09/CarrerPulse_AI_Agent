@@ -1,12 +1,17 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from schemas.job_collection_schema import JobCollectionRequest, JobCollectionResult
+from schemas.job_collection_schema import (
+    CompanySearchResult,
+    JobCollectionRequest,
+    JobCollectionResult,
+)
 from schemas.job_schema import JobAnalysisResult
 from services.job_analyzer import analyze_job_posting
 from services.job_sources.work24_crawler import (
     Work24CollectionError,
     collect_work24_jobs,
+    search_work24_companies,
 )
 
 
@@ -38,6 +43,17 @@ def collect_jobs(request: JobCollectionRequest) -> JobCollectionResult:
             region=request.region,
             limit=request.limit,
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Work24CollectionError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.get("/companies/search", response_model=CompanySearchResult)
+def search_companies(query: str, limit: int = 10) -> CompanySearchResult:
+    """고용24 채용공고에서 기업명을 검색한다."""
+    try:
+        return search_work24_companies(query=query, limit=limit)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Work24CollectionError as exc:
