@@ -357,6 +357,29 @@ hr { margin: 32px 0; border: 0; border-top: 2px solid var(--ink); }
 .preferred-company-row .button-danger:focus-visible { background: #9b2722; color: var(--paper); }
 .button-danger:disabled { border-color: var(--line); background: var(--wash); color: #999; }
 
+.page-toast {
+  position: fixed;
+  z-index: 1000;
+  top: 74px;
+  right: 22px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 700;
+}
+.page-toast button {
+  min-height: 30px;
+  margin: 0;
+  padding: 5px 9px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
 @media (max-width: 900px) {
   #root { width: 100%; min-height: 100vh; margin: 0; border-inline: 0; }
   main, #root > div:not(.auth-page) { padding-inline: 16px; }
@@ -381,6 +404,7 @@ hr { margin: 32px 0; border: 0; border-top: 2px solid var(--ink); }
   .profile-form > button { width: 100%; margin-left: 0; }
   .company-search-row { grid-template-columns: 1fr; }
   .preferred-company-row { grid-template-columns: 34px minmax(0, 1fr) auto; }
+  .page-toast { top: 70px; right: 16px; left: 16px; max-width: none; justify-content: space-between; }
   dl { grid-template-columns: 100px 1fr; }
 }
 

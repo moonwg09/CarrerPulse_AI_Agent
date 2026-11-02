@@ -23,6 +23,7 @@ function MyPage() {
   });
 
   const [message, setMessage] = useState("");
+  const [profileNotice, setProfileNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState([]);
   const [companyName, setCompanyName] = useState("");
@@ -93,6 +94,12 @@ function MyPage() {
     };
   }, [companyName, selectedCompanyName]);
 
+  useEffect(() => {
+    if (!profileNotice) return undefined;
+    const timer = window.setTimeout(() => setProfileNotice(""), 3000);
+    return () => window.clearTimeout(timer);
+  }, [profileNotice]);
+
   const addCompany = async () => {
     try {
       await addPreferredCompany(companyName.trim());
@@ -156,7 +163,7 @@ function MyPage() {
         careerYears: result.careerYears ?? "",
       });
 
-      setMessage("회원 정보가 수정되었습니다.");
+      setProfileNotice("회원 정보가 수정되었습니다.");
     } catch (error) {
       setMessage(error.message);
     }
@@ -169,6 +176,12 @@ function MyPage() {
   return (
     <main>
         <NavBar />
+      {profileNotice && (
+        <div className="page-toast" role="status">
+          <span>{profileNotice}</span>
+          <button type="button" onClick={() => setProfileNotice("")}>닫기</button>
+        </div>
+      )}
       <h1>내 정보</h1>
 
       <form className="profile-form" onSubmit={handleSubmit}>
