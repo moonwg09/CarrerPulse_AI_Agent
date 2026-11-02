@@ -10,6 +10,7 @@ public record ApplicationResponse(
         Long jobId,
         String jobTitle,
         String companyName,
+        String region,
         ApplicationStatus status,
         LocalDate interviewDate,
         LocalDateTime createdAt,

@@ -79,6 +79,7 @@ public class ApplicationService {
                 job.getJobId(),
                 job.getTitle(),
                 job.getCompanyName(),
+                job.getRegion(),
                 application.getStatus(),
                 application.getInterviewDate(),
                 application.getCreatedAt(),

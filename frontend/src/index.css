@@ -380,6 +380,46 @@ hr { margin: 32px 0; border: 0; border-top: 2px solid var(--ink); }
   color: var(--ink);
 }
 
+.application-list { margin: 18px 0 28px; border-top: 2px solid var(--ink); }
+.application-row {
+  display: grid;
+  grid-template-columns: 42px minmax(240px, 1.4fr) minmax(170px, .8fr) minmax(210px, .9fr);
+  gap: 20px;
+  align-items: start;
+  margin: 0;
+  padding: 18px 8px;
+  border-top: 0;
+  border-bottom: 1px solid var(--line);
+}
+.application-primary,
+.application-location,
+.application-state { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.application-primary strong { font-size: 16px; }
+.application-primary a { font-size: 14px; font-weight: 700; }
+.application-label {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+.application-label--job { margin-top: 7px; }
+.application-status {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 1px solid currentColor;
+  background: var(--paper);
+  font-size: 11px;
+  font-weight: 800;
+}
+.application-status--applied { color: #245784; background: #edf4fa; }
+.application-status--document-pass { color: #8a5200; background: #fff6df; }
+.application-status--interview { color: #625174; background: #f3eff7; }
+.application-status--final-pass { color: #17653a; background: #edf6f0; }
+.application-status--rejected { color: #9b2722; background: #fbefee; }
+.application-state label { display: grid; grid-template-columns: auto minmax(120px, 1fr); gap: 8px; width: 100%; margin: 7px 0 0; font-size: 11px; }
+.application-state select { width: 100%; min-height: 36px; }
+
 @media (max-width: 900px) {
   #root { width: 100%; min-height: 100vh; margin: 0; border-inline: 0; }
   main, #root > div:not(.auth-page) { padding-inline: 16px; }
@@ -405,6 +445,10 @@ hr { margin: 32px 0; border: 0; border-top: 2px solid var(--ink); }
   .company-search-row { grid-template-columns: 1fr; }
   .preferred-company-row { grid-template-columns: 34px minmax(0, 1fr) auto; }
   .page-toast { top: 70px; right: 16px; left: 16px; max-width: none; justify-content: space-between; }
+  .application-row { grid-template-columns: 34px minmax(0, 1fr); gap: 10px; }
+  .application-primary,
+  .application-location,
+  .application-state { grid-column: 2; }
   dl { grid-template-columns: 100px 1fr; }
 }
 
