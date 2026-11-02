@@ -6,7 +6,7 @@ from pathlib import Path
 from schemas.document_schema import DocumentAnalysisResult
 from schemas.job_schema import JobAnalysisResult
 from schemas.match_schema import JobMatchResult
-from schemas.match_schema import MatchStatus
+from schemas.match_schema import MatchStatus, ObjectiveStatus
 from services.match_score import calculate_match_score
 from services.recommendation_classifier import classify_job
 from services.match_warning import build_match_warnings
@@ -120,6 +120,20 @@ def normalize_match_statuses(
         ):
             requirement.status = (
                 MatchStatus.INSUFFICIENT_EVIDENCE
+            )
+
+    for condition in result.objectiveConditionMatches:
+        if (
+            condition.status in {
+                ObjectiveStatus.SATISFIED,
+                ObjectiveStatus.NOT_SATISFIED,
+            }
+            and not condition.userEvidence
+        ):
+            condition.status = ObjectiveStatus.UNCLEAR
+            condition.reason = (
+                "객관 조건 판단에 사용한 사용자 문서 원문 근거가 없어 "
+                "충족 여부를 확정할 수 없습니다."
             )
 
     return result
@@ -295,6 +309,12 @@ def match_user_to_job(
 
 38. JOB ANALYSIS의 모든 objectiveRequirement에 대해
     빠짐없이 하나의 ObjectiveConditionMatch를 생성합니다.   
+
+38-1. objectiveConditionMatch의 userEvidence에는 학력·경력·자격증 판정에
+    실제로 사용한 USER ANALYSIS의 evidence를 그대로 포함합니다.
+    SATISFIED 또는 NOT_SATISFIED를 반환하려면 원문 evidence가 최소 1개
+    있어야 하며, evidence가 없으면 UNCLEAR로 판단합니다.
+    USER ANALYSIS에 없는 evidence를 만들거나 문구를 바꾸지 않습니다.
 
 39. 사용자 문서에서 해당 기술이나 경험이 확인되지 않는다는 이유만으로
     NO_EXPERIENCE를 사용하지 않습니다.

@@ -24,7 +24,7 @@ def main():
             "generate_and_verify",
             return_value={
                 "status": "확인된 근거 기반",
-                "lines": ["확인된 프로젝트 역할을 먼저 작성하세요."],
+                "lines": ["* 확인된 프로젝트 역할을 먼저 작성하세요. (EV-0001)"],
             },
         ),
     ):

@@ -9,6 +9,7 @@ function AnalysisDetailPage() {
   const [detail, setDetail] = useState(null);
   const [message, setMessage] = useState("");
   const [guidanceByItem, setGuidanceByItem] = useState({});
+  const [guidanceErrorByItem, setGuidanceErrorByItem] = useState({});
   const [loadingItemId, setLoadingItemId] = useState(null);
   const [responses, setResponses] = useState({});
   const [notice, setNotice] = useState("");
@@ -54,10 +55,22 @@ function AnalysisDetailPage() {
     try {
       setLoadingItemId(itemId);
       setMessage("");
+      setGuidanceErrorByItem((previous) => ({ ...previous, [itemId]: "" }));
       const guidance = await generateGuidance(analysisId, itemId);
       setGuidanceByItem((previous) => ({ ...previous, [itemId]: guidance }));
     } catch (error) {
-      setMessage(error.message);
+      setGuidanceByItem((previous) => {
+        const next = { ...previous };
+        delete next[itemId];
+        return next;
+      });
+      setGuidanceErrorByItem((previous) => ({
+        ...previous,
+        [itemId]: error.message || (
+          "확인된 원문 근거가 부족해 작성 방향을 생성할 수 없습니다. " +
+          "직접 수행한 역할·사용 기술·결과를 추가한 뒤 다시 시도해 주세요."
+        ),
+      }));
     } finally {
       setLoadingItemId(null);
     }
@@ -174,11 +187,21 @@ function AnalysisDetailPage() {
                 {guidanceByItem[item.itemId].lines.map((line, index) => (
                   <div className="guidance-row" key={`${item.itemId}-${index}`}>
                     <span className="record-index">{String(index + 1).padStart(2, "0")}</span>
-                    <p>{line.replace(/^\s*-\s*/, "")}</p>
+                    <p>{line
+                      .replace(/^\s*[-*•]+\s*/, "")
+                      .replace(/\s*[\[(]?EV-\d{4}[\])]?/gi, "")
+                      .trim()}</p>
                   </div>
                 ))}
               </div>
               <p>검증에 사용한 근거: {guidanceByItem[item.itemId].evidenceCount}개</p>
+            </div>
+          )}
+          {guidanceErrorByItem[item.itemId] && (
+            <div className="guidance-panel guidance-panel--empty" role="status">
+              <h4>서류 작성 방향</h4>
+              <p>{guidanceErrorByItem[item.itemId]}</p>
+              <p>관련 경험의 직접 수행 역할·사용 기술·결과를 서류에 보완한 뒤 다시 시도해 주세요.</p>
             </div>
           )}
           </div>

@@ -151,7 +151,7 @@ export default function AnalysisPage() {
   return <main>
     <NavBar />
     <PageToast message={notice} onClose={setNotice} />
-    <h1>채용공고 분석</h1>
+    <h1>서류·공고 비교</h1>
     <p>관심 직무와 지역으로 공고를 수집한 뒤 등록 문서를 근거로 비교합니다.</p>
     {!interests.length && <p><Link to="/jobs">관심 직무를 먼저 등록해주세요.</Link></p>}
     <form onSubmit={collectAndSearch}>

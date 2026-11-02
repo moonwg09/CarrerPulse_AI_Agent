@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import uuid
 from datetime import date
@@ -41,6 +42,16 @@ router = APIRouter(
     prefix="/api/v1/career",
     tags=["career"],
 )
+
+GUIDANCE_BULLET_RE = re.compile(r"^\s*[-*•]+\s*")
+GUIDANCE_EVIDENCE_RE = re.compile(r"\s*[\[(]?EV-\d{4}[\])]?")
+
+
+def clean_guidance_line(line: str) -> str:
+    """검증용 표식은 내부에 유지하고 사용자 표시 문구에서만 제거한다."""
+    without_bullet = GUIDANCE_BULLET_RE.sub("", line)
+    without_ids = GUIDANCE_EVIDENCE_RE.sub("", without_bullet)
+    return " ".join(without_ids.split()).strip()
 
 
 class CareerJobAnalyzeRequest(BaseModel):
@@ -641,9 +652,20 @@ def generate_document_guidance(request: GuidanceRequest):
             detail="생성 결과의 근거를 검증하지 못해 제공을 보류했습니다.",
         )
 
+    display_lines = [
+        cleaned
+        for line in verified["lines"]
+        if (cleaned := clean_guidance_line(line))
+    ]
+    if not display_lines:
+        raise HTTPException(
+            status_code=422,
+            detail="검증된 작성 방향을 화면에 표시할 수 없습니다.",
+        )
+
     return GuidanceResponse(
         status=verified["status"],
-        lines=verified["lines"],
+        lines=display_lines,
         evidenceCount=len(hits),
     )
 

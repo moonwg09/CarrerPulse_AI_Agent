@@ -55,6 +55,10 @@ class ObjectiveConditionMatch(BaseModel):
     requirementCategory: RequirementCategory
     status: ObjectiveStatus
     reason: str
+    # 객관 조건 판정에 실제로 사용한 사용자 문서 원문 근거.
+    # 백엔드에서 SATISFIED/NOT_SATISFIED를 확정하려면 색인 Evidence와
+    # 연결되는 근거가 반드시 필요하다.
+    userEvidence: List[Evidence] = Field(default_factory=list)
 
 class MatchScoreResult(BaseModel):
     overallMatchRate: float = 0.0

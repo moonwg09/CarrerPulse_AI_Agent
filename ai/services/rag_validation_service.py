@@ -16,6 +16,7 @@ from schemas.match_schema import (
     JobMatchResult,
     RequirementMatch,
     MatchStatus,
+    ObjectiveStatus,
 )
 
 from schemas.rag_schema import (
@@ -726,6 +727,29 @@ def link_match_result_evidence_metadata(
             requirement_match.reason = (
                 "색인된 사용자 원문과 연결되는 근거가 없어 "
                 "경험 여부를 확정할 수 없습니다."
+            )
+
+    for objective_match in match_result.objectiveConditionMatches:
+        linked_evidence = link_indexed_evidence_metadata(
+            store=rag_store,
+            evidences=objective_match.userEvidence,
+            user_id=user_id,
+        )
+        objective_match.userEvidence = [
+            evidence
+            for evidence in linked_evidence
+            if evidence.evidenceId is not None
+        ]
+
+        if (
+            objective_match.status
+            in {ObjectiveStatus.SATISFIED, ObjectiveStatus.NOT_SATISFIED}
+            and not objective_match.userEvidence
+        ):
+            objective_match.status = ObjectiveStatus.UNCLEAR
+            objective_match.reason = (
+                "객관 조건 판단에 사용한 사용자 정보가 색인된 원문 근거와 "
+                "연결되지 않아 충족 여부를 확정할 수 없습니다."
             )
 
     match_result.score = calculate_match_score(match_result)
