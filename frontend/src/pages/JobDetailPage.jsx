@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getJob, getBookmarkStatus, setBookmark } from "../api/jobApi";
 import { createApplication } from "../api/applicationApi";
+import NavBar from "../components/NavBar";
 
 export default function JobDetailPage() {
   const { jobId } = useParams();
@@ -32,7 +33,7 @@ export default function JobDetailPage() {
     } catch (error) { setMessage(error.message); }
   }
 
-  if (!job) return <main>{message || "불러오는 중"}</main>;
+  if (!job) return <main><NavBar />{message || "불러오는 중"}</main>;
 
   const requirements = job.requirements || [];
   const byType = (type) => requirements.filter((item) =>
@@ -50,6 +51,7 @@ export default function JobDetailPage() {
   </section>;
 
   return <main>
+    <NavBar />
     <Link to="/analysis">채용공고 목록</Link>
     <h1>{job.title}</h1>
     <p>{job.companyName}</p>

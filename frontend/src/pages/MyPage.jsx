@@ -22,26 +22,22 @@ function MyPage() {
   const [companyName, setCompanyName] = useState("");
 
   useEffect(() => {
-    loadMyInfo();
+    let active = true;
+    Promise.all([getMyInfo(), getPreferredCompanies()])
+      .then(([user, preferredCompanies]) => {
+        if (!active) return;
+        setCompanies(preferredCompanies);
+        setForm({
+          name: user.name ?? "",
+          phone: user.phone ?? "",
+          careerType: user.careerType ?? "NEW",
+          careerYears: user.careerYears ?? "",
+        });
+      })
+      .catch((error) => { if (active) setMessage(error.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []);
-
-  const loadMyInfo = async () => {
-    try {
-      const user = await getMyInfo();
-      setCompanies(await getPreferredCompanies());
-
-      setForm({
-        name: user.name ?? "",
-        phone: user.phone ?? "",
-        careerType: user.careerType ?? "NEW",
-        careerYears: user.careerYears ?? "",
-      });
-    } catch (error) {
-      setMessage(error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const addCompany = async () => {
     try {
@@ -99,11 +95,11 @@ function MyPage() {
   };
 
   if (loading) {
-    return <p>불러오는 중...</p>;
+    return <main><NavBar /><p>불러오는 중...</p></main>;
   }
 
   return (
-    <div>
+    <main>
         <NavBar />
       <h1>내 정보</h1>
 
@@ -179,7 +175,7 @@ function MyPage() {
       </ul>
 
       {message && <p>{message}</p>}
-    </div>
+    </main>
   );
 }
 

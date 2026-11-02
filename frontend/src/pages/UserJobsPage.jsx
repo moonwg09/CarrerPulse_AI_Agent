@@ -17,22 +17,27 @@ function UserJobsPage() {
 
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    loadJobs();
-    getDevelopmentJobCatalog().then((items) => {
-      setCatalog(items);
-      if (items.length) setForm({ jobCode: items[0].jobCode });
-    }).catch((error) => setMessage(error.message));
-  }, []);
-
-  const loadJobs = async () => {
+  async function loadJobs() {
     try {
       const data = await getMyJobs();
       setJobs(data);
     } catch (error) {
       setMessage(error.message);
     }
-  };
+  }
+
+  useEffect(() => {
+    let active = true;
+    getMyJobs()
+      .then((items) => { if (active) setJobs(items); })
+      .catch((error) => { if (active) setMessage(error.message); });
+    getDevelopmentJobCatalog().then((items) => {
+      if (!active) return;
+      setCatalog(items);
+      if (items.length) setForm({ jobCode: items[0].jobCode });
+    }).catch((error) => { if (active) setMessage(error.message); });
+    return () => { active = false; };
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -78,7 +83,7 @@ function UserJobsPage() {
   };
 
   return (
-    <div>
+    <main>
         <NavBar />
       <h1>관심 직무 관리</h1>
 
@@ -125,7 +130,7 @@ function UserJobsPage() {
         </ul>
       )}
       {jobs.length === 1 && <p>관심 직무는 최소 1개를 유지해야 합니다.</p>}
-    </div>
+    </main>
   );
 }
 

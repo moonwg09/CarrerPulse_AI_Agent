@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { confirmNoExperience, generateGuidance, getAnalysisDetail, rejudgeExperience } from "../api/analysisApi";
+import NavBar from "../components/NavBar";
 
 function AnalysisDetailPage() {
   const { analysisId } = useParams();
@@ -58,7 +59,7 @@ function AnalysisDetailPage() {
   };
 
   if (!detail) {
-    return <main>{message || "불러오는 중"}</main>;
+    return <main><NavBar />{message || "불러오는 중"}</main>;
   }
 
   const { summary, items } = detail;
@@ -69,19 +70,20 @@ function AnalysisDetailPage() {
   };
   return (
     <main>
+      <NavBar />
       <Link to="/analysis">분석 목록</Link>
       <h1>{summary.jobTitle || `공고 ${summary.jobId}`}</h1>
       <p>{summary.companyName || "회사 미기재"}</p>
       <p>분석 상태: {summary.analysisStatus}</p>
 
       <h2>일치율</h2>
-      <ul>
-        <li>전체: {rate(summary.overallMatchRate)}</li>
-        <li>일치 자격요건: {summary.matchedCount ?? 0} / {summary.comparableCount ?? 0}</li>
-        <li>필수: {rate(summary.requiredMatchRate)}</li>
-        <li>우대: {rate(summary.preferredMatchRate)}</li>
-        <li>객관 조건: {rate(summary.objectiveMatchRate)}</li>
-        <li>평가 가능 비율: {rate(summary.evaluationCoverage)}</li>
+      <ul className="metric-grid">
+        <li>전체 일치율<strong>{rate(summary.overallMatchRate)}</strong></li>
+        <li>일치 자격요건<strong>{summary.matchedCount ?? 0} / {summary.comparableCount ?? 0}</strong></li>
+        <li>필수 충족률<strong>{rate(summary.requiredMatchRate)}</strong></li>
+        <li>우대 충족률<strong>{rate(summary.preferredMatchRate)}</strong></li>
+        <li>객관 조건<strong>{rate(summary.objectiveMatchRate)}</strong></li>
+        <li>평가 가능 비율<strong>{rate(summary.evaluationCoverage)}</strong></li>
       </ul>
       {completed && summary.overallMatchRate == null && (
         <p>비교 가능한 필수·우대·객관 자격요건이 없어 일치율을 계산할 수 없습니다.</p>
@@ -89,16 +91,19 @@ function AnalysisDetailPage() {
 
       <h2>요구조건별 결과</h2>
       {items.map((item) => (
-        <section key={item.itemId}>
-          <h3>{item.requirement}</h3>
-          <p>{item.requirementCategory} / {item.comparisonKind}</p>
-          <p>{item.statusLabel}</p>
-          <p>{item.reason || "판정 사유 없음"}</p>
-          <p>
-            {item.evidenceText
-              ? `${item.evidenceDocumentType} · ${item.evidenceSourceLocation || "위치 미확인"}: ${item.evidenceText}`
-              : "확인 가능한 대표 근거 없음"}
-          </p>
+        <section className="analysis-item" key={item.itemId}>
+          <div>
+            <h3>{item.requirement}</h3>
+            <p>{item.requirementCategory} / {item.comparisonKind}</p>
+            <span className="analysis-status">{item.statusLabel}</span>
+          </div>
+          <div>
+            <p>{item.reason || "판정 사유 없음"}</p>
+            <p>
+              {item.evidenceText
+                ? `${item.evidenceDocumentType} · ${item.evidenceSourceLocation || "위치 미확인"}: ${item.evidenceText}`
+                : "확인 가능한 대표 근거 없음"}
+            </p>
           {["EXPERIENCE", "RESPONSIBILITY"].includes(item.comparisonKind) &&
             item.status !== "NO_EXPERIENCE" && (
               <div>
@@ -153,6 +158,7 @@ function AnalysisDetailPage() {
               <p>검증에 사용한 근거: {guidanceByItem[item.itemId].evidenceCount}개</p>
             </div>
           )}
+          </div>
         </section>
       ))}
       {message && <p>{message}</p>}

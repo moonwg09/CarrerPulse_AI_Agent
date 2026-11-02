@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { signup } from "../api/authApi";
 import { useNavigate } from "react-router-dom";
+import NavBar from "../components/NavBar";
 
 function SignupPage() {
   const [form, setForm] = useState({
@@ -58,7 +59,9 @@ function SignupPage() {
   };
 
   return (
-    <div>
+    <div className="auth-page">
+      <NavBar publicPage />
+      <main className="auth-panel">
       <h1>회원가입</h1>
 
       <form onSubmit={handleSubmit}>
@@ -148,6 +151,7 @@ function SignupPage() {
       </form>
 
       {message && <p>{message}</p>}
+      </main>
     </div>
   );
 }

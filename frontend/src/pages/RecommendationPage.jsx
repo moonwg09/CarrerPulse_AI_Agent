@@ -38,15 +38,18 @@ function RecommendationPage() {
     };
 
     if (region.trim()) load();
-    else setMessage("추천 공고를 조회할 지역을 입력해 주세요.");
   }, [status, limit, region, reloadKey]);
 
   const handleReload = () => {
     setReloadKey((key) => key + 1);
   };
 
+  const displayMessage = region.trim()
+    ? message
+    : "추천 공고를 조회할 지역을 입력해 주세요.";
+
   return (
-    <div>
+    <main>
       <NavBar />
 
       <h1>추천 공고 조회</h1>
@@ -98,11 +101,11 @@ function RecommendationPage() {
         </button>
       </div>
 
-      {message && <p>{message}</p>}
+      {displayMessage && <p>{displayMessage}</p>}
 
-      {!result && !message && <p>불러오는 중...</p>}
+      {!result && !displayMessage && <p>불러오는 중...</p>}
 
-      {result && (
+      {region.trim() && result && (
         <div>
           <p>
             기준일 {result.baseDate} · {result.totalCount}건
@@ -114,7 +117,7 @@ function RecommendationPage() {
               비교해 주세요.
             </p>
           ) : (
-            <table border="1" cellPadding="6">
+            <table>
               <thead>
                 <tr>
                   <th>순위</th>
@@ -152,7 +155,7 @@ function RecommendationPage() {
           )}
         </div>
       )}
-    </div>
+    </main>
   );
 }
 
