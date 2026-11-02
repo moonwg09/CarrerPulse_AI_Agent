@@ -3,19 +3,24 @@
 .learning-page textarea { display: block; width: min(720px, 100%); }
 .learning-input, .learning-page article { margin-top: 18px; padding: 16px 0; border-top: 1px solid var(--ink); }
 .learning-table { width: 100%; overflow-x: auto; }
-.learning-table--plan table { min-width: 920px; table-layout: fixed; }
+.learning-table--plan table { min-width: 1080px; table-layout: fixed; }
 .learning-table--plan th { white-space: nowrap; word-break: keep-all; }
 .learning-table--plan th:nth-child(1),
-.learning-table--plan td:nth-child(1) { width: 30%; }
+.learning-table--plan td:nth-child(1) { width: 160px; }
 .learning-table--plan th:nth-child(2),
-.learning-table--plan td:nth-child(2) { width: 90px; text-align: center; }
+.learning-table--plan td:nth-child(2) { width: 32%; }
 .learning-table--plan th:nth-child(3),
-.learning-table--plan td:nth-child(3) { width: 120px; }
+.learning-table--plan td:nth-child(3) { width: 90px; text-align: center; }
 .learning-table--plan th:nth-child(4),
-.learning-table--plan td:nth-child(4) { width: 34%; }
+.learning-table--plan td:nth-child(4) { width: 120px; }
 .learning-table--plan th:nth-child(5),
-.learning-table--plan td:nth-child(5) { width: 125px; white-space: nowrap; }
-.learning-plan-continued { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.learning-table--plan td:nth-child(5) { width: 28%; }
+.learning-table--plan th:nth-child(6),
+.learning-table--plan td:nth-child(6) { width: 125px; white-space: nowrap; }
+.learning-table--plan td[rowspan] { vertical-align: top; background: var(--wash); }
+.learning-plan-week strong,
+.learning-plan-week span { display: block; }
+.learning-plan-week span { margin-top: 6px; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .learning-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 28px 0 24px; border: 1px solid var(--ink); }
 .learning-tab { margin: 0; border: 0; border-right: 1px solid var(--ink); background: var(--paper); color: var(--ink); }
 .learning-tab:last-child { border-right: 0; }

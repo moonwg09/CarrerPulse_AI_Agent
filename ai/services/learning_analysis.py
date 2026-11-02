@@ -4,6 +4,8 @@
 구조화된 requirements를 입력받으므로 자체 데이터와 향후 크롤링 데이터에
 똑같은 집계 및 비교 규칙을 적용할 수 있다. 이 모듈 자체는 외부 API를 쓰지 않는다.
 """
+import re
+import unicodedata
 from datetime import date
 from typing import Literal
 
@@ -75,6 +77,34 @@ class AnalysisRequest(StrictModel):
         return self
 
 
+CONFIRMATION_SUFFIX_RE = re.compile(
+    r"(?:개발경험|사용경험|활용경험|보유경험|실무경험|관련경험|경험|"
+    r"개발역량|활용역량|역량|기술|자격증보유|보유|자격증|능숙자우대|능숙자|우대)$"
+)
+
+
+def confirmation_name_key(value: str) -> str:
+    """설명 접미사만 다른 확인 필요 역량을 같은 항목으로 묶는다."""
+    key = unicodedata.normalize("NFKC", value).casefold()
+    key = re.sub(r"\s+", "", key)
+    previous = None
+    while key != previous:
+        previous = key
+        stripped = CONFIRMATION_SUFFIX_RE.sub("", key)
+        # C처럼 한 글자인 일반 기술까지 과도하게 합치지 않는다.
+        if len(stripped) >= 2:
+            key = stripped
+    return key
+
+
+def includes_existing_confirmation(candidate: str, existing: str) -> bool:
+    """SQL/SQLD처럼 단어 일부만 겹치는 경우를 제외하고 포함 관계를 찾는다."""
+    if len(existing) < 2:
+        return False
+    pattern = rf"(?<![0-9a-z가-힣]){re.escape(existing)}(?![0-9a-z가-힣])"
+    return re.search(pattern, candidate) is not None
+
+
 def analyze(request: AnalysisRequest) -> dict:
     # PLN-01: 기간 하한은 두지 않는다. 모집 중이며 마감되지 않은 관심 직무 공고만
     # 최신순으로 최대 10개 선택한다. 부족한 공고 수를 가상의 공고로 채우지 않는다.
@@ -126,4 +156,17 @@ def analyze(request: AnalysisRequest) -> dict:
     # 제외·확인 항목을 제거한 실제 준비 대상 사이에서 경쟁 순위를 계산한다.
     for entry in result["preparation"]:
         entry["rank"] = 1 + sum(x["totalJobCount"] > entry["totalJobCount"] for x in result["preparation"])
+
+    unique_confirmation = []
+    seen_confirmation_keys = set()
+    for entry in result["needsConfirmation"]:
+        key = confirmation_name_key(entry["name"])
+        if key in seen_confirmation_keys or any(
+            includes_existing_confirmation(key, existing)
+            for existing in seen_confirmation_keys
+        ):
+            continue
+        seen_confirmation_keys.add(key)
+        unique_confirmation.append(entry)
+    result["needsConfirmation"] = unique_confirmation
     return result

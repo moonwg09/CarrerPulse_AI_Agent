@@ -12,12 +12,11 @@ function displayPlanText(value) {
   );
 }
 
-function markContinuedActivities(weeks = []) {
+function buildPlanRows(weeks = []) {
   const seenActivities = new Set();
-  const seenTargets = new Set();
-  return weeks.map(week => ({
-    ...week,
-    items: (week.items || []).map(item => {
+  const rows = [];
+  weeks.forEach(week => {
+    (week.items || []).forEach((item, itemIndex) => {
       const activityKey = [item.name, item.taskName, item.description, item.activityType]
         .map(value => String(value || "").trim())
         .join("|");
@@ -28,12 +27,37 @@ function markContinuedActivities(weeks = []) {
       );
       const targetKey = targetName.trim().toLocaleLowerCase("ko-KR");
       const continuedActivity = seenActivities.has(activityKey);
-      const continuedTarget = seenTargets.has(targetKey);
       seenActivities.add(activityKey);
-      seenTargets.add(targetKey);
-      return { ...item, targetName, continuedActivity, continuedTarget };
-    }),
-  }));
+      rows.push({
+        ...item,
+        weekNumber: week.weekNumber,
+        weekStartDate: week.startDate,
+        weekEndDate: week.endDate,
+        weekTotalHours: week.totalEstimatedHours,
+        weekAvailableHours: week.availableHours,
+        sequenceNo: item.sequenceNo || itemIndex + 1,
+        targetName,
+        targetKey,
+        continuedActivity,
+        weekRowSpan: 0,
+        targetRowSpan: 0,
+      });
+    });
+  });
+
+  rows.forEach((row, index) => {
+    if (index === 0 || rows[index - 1].weekNumber !== row.weekNumber) {
+      let span = 1;
+      while (rows[index + span]?.weekNumber === row.weekNumber) span += 1;
+      row.weekRowSpan = span;
+    }
+    if (index === 0 || rows[index - 1].targetKey !== row.targetKey) {
+      let span = 1;
+      while (rows[index + span]?.targetKey === row.targetKey) span += 1;
+      row.targetRowSpan = span;
+    }
+  });
+  return rows;
 }
 
 // 생성 입력과 저장된 계획의 입력은 별도이다. 조회 결과에는 생성 당시 날짜·시간을
@@ -80,7 +104,7 @@ export default function LearningPlanPanel({ regions, canGenerate }) {
     finally { setBusy(false); }
   }
 
-  const displayedWeeks = markContinuedActivities(plan?.weeks);
+  const planRows = buildPlanRows(plan?.weeks);
 
   return <section aria-label="학습계획">
     <PageToast message={notice} onClose={setNotice} />
@@ -94,8 +118,6 @@ export default function LearningPlanPanel({ regions, canGenerate }) {
         <label><input type="checkbox" checked={saveAsTarget} onChange={e => setSaveAsTarget(e.target.checked)} /> 이 종료일을 내 준비 목표일로 저장</label>
         <label>주당 학습 가능 시간 <input required type="number" name="weeklyAvailableHours" min="0.5" max="168" step="0.5" value={input.weeklyAvailableHours} onChange={change}
           onBlur={e => e.target.value && setInput(old => ({ ...old, weeklyAvailableHours: (Math.round(Number(e.target.value) * 2) / 2).toFixed(1) }))} /> 시간</label>
-        <p>주당 시간은 상한이며 남는 시간을 억지로 채우지 않습니다. 마지막 부분 주차는 일수 비례 상한을 적용합니다.</p>
-        <p>검증된 준비 대상·부족 세부 항목·기간·주당 시간을 Gemini에 전달합니다.</p>
         <button type="submit" disabled={!canGenerate}>{busy ? "처리 중…" : "계획 생성·저장"}</button>
         {!canGenerate && <p>준비 역량 분석 후 학습 대상 또는 확인·서류 보완 항목이 있어야 생성할 수 있습니다.</p>}
       </fieldset>
@@ -111,20 +133,24 @@ export default function LearningPlanPanel({ regions, canGenerate }) {
       <p>{plan.estimateNotice || "예상 소요 시간은 추정치입니다."}</p>
       {plan.adjustmentMessage && <p>{plan.adjustmentMessage}</p>}
       {!plan.weeks.length && <p>입력한 기간과 시간 안에 배치할 수 있는 활동이 없습니다. 시간을 늘려 다시 생성하세요.</p>}
-      {displayedWeeks.map(week => <article key={week.weekNumber}>
-        <h4>{week.weekNumber}주차 · {week.startDate} ~ {week.endDate}</h4>
-        <p>예상 {week.totalEstimatedHours}시간 / 가능 {week.availableHours}시간</p>
-        <div className="learning-table learning-table--plan"><table><thead><tr><th>준비 항목</th><th>수행 순서</th><th>활동 유형</th><th>활동 내용</th><th>예상 소요시간</th></tr></thead><tbody>
-          {week.items.map((item, i) => <tr key={i}>
-            <td>{item.continuedTarget ? <span className="learning-plan-continued">계속</span> : item.targetName}
-              {!item.continuedTarget && item.targets?.length > 0 && <><br />{item.targets.join(", ")}</>}</td>
-            <td>{item.sequenceNo || i + 1}</td>
-            <td>{activityNames[item.activityType]}</td>
-            <td>{item.continuedActivity ? "이전 주차의 활동을 이어서 진행합니다." : <>{displayPlanText(item.taskName)}<p>{displayPlanText(item.description)}</p></>}</td>
-            <td>{item.estimatedHours}시간</td>
-          </tr>)}
-        </tbody></table></div>
-      </article>)}
+      {!!planRows.length && <div className="learning-table learning-table--plan"><table>
+        <thead><tr><th>주차</th><th>준비 항목</th><th>수행 순서</th><th>활동 유형</th><th>활동 내용</th><th>예상 소요시간</th></tr></thead>
+        <tbody>{planRows.map((item, index) => <tr key={`${item.weekNumber}-${index}`}>
+          {item.weekRowSpan > 0 && <td rowSpan={item.weekRowSpan} className="learning-plan-week">
+            <strong>{item.weekNumber}주차</strong>
+            <span>{item.weekStartDate} ~ {item.weekEndDate}</span>
+            <span>예상 {item.weekTotalHours}시간 / 가능 {item.weekAvailableHours}시간</span>
+          </td>}
+          {item.targetRowSpan > 0 && <td rowSpan={item.targetRowSpan}>
+            {item.targetName}
+            {item.targets?.length > 0 && <><br />{item.targets.join(", ")}</>}
+          </td>}
+          <td>{item.sequenceNo}</td>
+          <td>{activityNames[item.activityType]}</td>
+          <td>{item.continuedActivity ? "이전 주차의 활동을 이어서 진행합니다." : <>{displayPlanText(item.taskName)}<p>{displayPlanText(item.description)}</p></>}</td>
+          <td>{item.estimatedHours}시간</td>
+        </tr>)}</tbody>
+      </table></div>}
       {!!plan.unscheduled?.length && <><h4>기간 내 배치하지 못한 활동</h4>{plan.unscheduled.map((x, i) => <p key={i}>{x.name}: {x.taskName} · 남은 예상 {x.remainingHours}시간</p>)}</>}
     </section>}
   </section>;
