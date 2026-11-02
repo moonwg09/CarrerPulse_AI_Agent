@@ -89,6 +89,9 @@ class LearningAnalysisControllerTest {
         assertEquals("DATABASE", result.path("source").asText());
         assertEquals("서울특별시, 경기도", result.path("region").asText());
         assertEquals(2, result.path("regions").size());
+        assertEquals(42L, result.path("targetJobs").get(0).path("jobId").asLong());
+        assertEquals("백엔드", result.path("targetJobs").get(0).path("title").asText());
+        assertEquals("테스트", result.path("targetJobs").get(0).path("companyName").asText());
         server.verify();
     }
 

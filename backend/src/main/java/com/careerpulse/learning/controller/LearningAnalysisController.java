@@ -105,6 +105,8 @@ public class LearningAnalysisController {
         }
     }
 
+    public record TargetJob(Long jobId, String title, String companyName) {}
+
     @PostMapping("/analysis/me")
     public JsonNode analyze(Authentication authentication, @Valid @RequestBody AnalyzeInput input) {
         String email = email(authentication);
@@ -151,6 +153,12 @@ public class LearningAnalysisController {
             result.set("regions", mapper.valueToTree(selectedRegions));
             result.put("skippedJobCount", context.skippedJobCount());
             result.put("analysisFailureCount", analysisFailureCount);
+            var targetJobIds = new LinkedHashSet<Long>();
+            context.jobs().forEach(job -> targetJobIds.add(job.path("jobId").asLong()));
+            result.set("targetJobs", mapper.valueToTree(selectedJobs.stream()
+                    .filter(job -> targetJobIds.contains(job.jobId()))
+                    .map(job -> new TargetJob(job.jobId(), job.title(), job.companyName()))
+                    .toList()));
             return result;
         } catch (RestClientResponseException ex) {
             throw new ResponseStatusException(

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import NavBar from "../components/NavBar";
 import LearningPlanPanel from "../components/LearningPlanPanel";
 import { analyzeLearning } from "../api/learningApi";
@@ -67,7 +68,14 @@ export default function LearningPage() {
       <p>{result.message} · 지역 {result.region} · 기준일 {result.referenceDate} · 대상 {result.targetJobCount}건</p>
       {!!result.analysisFailureCount && <p>자동 분석에 실패해 제외된 공고: {result.analysisFailureCount}건</p>}
       {!!result.skippedJobCount && <p>요구사항 분석이 없어 제외된 공고: {result.skippedJobCount}건</p>}
-      <p>대상 공고 ID: {result.targetJobIds.join(", ") || "없음"}</p>
+      <h3>분석 대상 공고</h3>
+      {!result.targetJobs?.length && <p>분석에 포함된 공고가 없습니다.</p>}
+      {!!result.targetJobs?.length && <div className="detail-list">
+        {result.targetJobs.map((job, index) => <div className="detail-list-row" key={job.jobId}>
+          <span className="record-index">{String(index + 1).padStart(2, "0")}</span>
+          <Link to={`/jobs/${job.jobId}`}>{job.companyName || "회사 미기재"} · {job.title || "공고명 미기재"}</Link>
+        </div>)}
+      </div>}
       <h3>요구 역량 빈도</h3>
       <div className="learning-table"><table><thead><tr><th>역량</th><th>종류</th><th>등장 공고</th><th>필수</th><th>우대</th></tr></thead><tbody>
         {result.frequency.map(x => <tr key={`${x.type}:${x.name}`}><td>{x.name}</td><td>{kinds[x.type]}</td><td>{x.totalJobCount}</td><td>{x.requiredCount}</td><td>{x.preferredCount}</td></tr>)}
