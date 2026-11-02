@@ -4,6 +4,8 @@
   --muted: #666;
   --line: #b8b8b8;
   --wash: #f2f2f2;
+  --panel: #f7f7f5;
+  --content-width: 1180px;
   --sans: Arial, "Noto Sans KR", "Malgun Gothic", sans-serif;
   --mono: Consolas, "Courier New", monospace;
   font-family: var(--sans);
@@ -19,6 +21,7 @@ body { margin: 0; min-width: 320px; min-height: 100vh; background: #e8e8e8; }
 button, input, select, textarea { font: inherit; }
 
 #root {
+  --page-gutter: 24px;
   width: min(1440px, calc(100% - 24px));
   min-height: calc(100vh - 24px);
   margin: 12px auto;
@@ -29,7 +32,8 @@ button, input, select, textarea { font: inherit; }
 #root::after {
   content: "CAREERPULSE / AI CAREER ANALYSIS SYSTEM";
   display: block;
-  margin: 18px 24px 20px;
+  width: min(var(--content-width), calc(100% - 48px));
+  margin: 18px auto 20px;
   padding-top: 12px;
   border-top: 1px solid var(--ink);
   color: var(--muted);
@@ -39,8 +43,25 @@ button, input, select, textarea { font: inherit; }
   text-align: right;
 }
 
-main, #root > div:not(.auth-page) { padding: 0 24px 36px; text-align: left; }
-.site-header { margin: 0 -24px 28px; border-bottom: 1px solid var(--ink); }
+main {
+  --page-gutter: max(24px, calc((100% - var(--content-width)) / 2));
+  padding: 0 var(--page-gutter) 36px;
+  text-align: left;
+}
+#root > div:not(.auth-page) { padding: 0 24px 36px; text-align: left; }
+.site-header { margin: 0 calc(var(--page-gutter) * -1) 28px; border-bottom: 1px solid var(--ink); }
+
+main:not(.auth-panel) > section {
+  margin-top: 28px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+main:not(.auth-panel) > section > h2:first-child,
+main:not(.auth-panel) > section > h3:first-child { margin-top: 0; }
+main:not(.auth-panel) > section table,
+main:not(.auth-panel) > section fieldset { background: var(--paper); }
 
 .brand-bar {
   min-height: 60px;
