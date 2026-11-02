@@ -62,21 +62,30 @@ function AnalysisDetailPage() {
   }
 
   const { summary, items } = detail;
+  const completed = summary.analysisStatus === "COMPLETED";
+  const rate = (value) => {
+    if (!completed) return "재분석 필요";
+    return value == null ? "평가 불가" : `${value}%`;
+  };
   return (
     <main>
       <Link to="/analysis">분석 목록</Link>
       <h1>{summary.jobTitle || `공고 ${summary.jobId}`}</h1>
       <p>{summary.companyName || "회사 미기재"}</p>
+      <p>분석 상태: {summary.analysisStatus}</p>
 
       <h2>일치율</h2>
       <ul>
-        <li>전체: {summary.overallMatchRate ?? "평가 중"}%</li>
+        <li>전체: {rate(summary.overallMatchRate)}</li>
         <li>일치 자격요건: {summary.matchedCount ?? 0} / {summary.comparableCount ?? 0}</li>
-        <li>필수: {summary.requiredMatchRate ?? "평가 불가"}%</li>
-        <li>우대: {summary.preferredMatchRate ?? "평가 불가"}%</li>
-        <li>객관 조건: {summary.objectiveMatchRate ?? "평가 불가"}%</li>
-        <li>평가 가능 비율: {summary.evaluationCoverage ?? "-"}%</li>
+        <li>필수: {rate(summary.requiredMatchRate)}</li>
+        <li>우대: {rate(summary.preferredMatchRate)}</li>
+        <li>객관 조건: {rate(summary.objectiveMatchRate)}</li>
+        <li>평가 가능 비율: {rate(summary.evaluationCoverage)}</li>
       </ul>
+      {completed && summary.overallMatchRate == null && (
+        <p>비교 가능한 필수·우대·객관 자격요건이 없어 일치율을 계산할 수 없습니다.</p>
+      )}
 
       <h2>요구조건별 결과</h2>
       {items.map((item) => (

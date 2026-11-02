@@ -6,6 +6,7 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -25,6 +26,13 @@ public final class JobPostingSpecifications {
             conditions.add(criteriaBuilder.equal(
                     root.get("status"),
                     JobPostingStatus.OPEN
+            ));
+            conditions.add(criteriaBuilder.or(
+                    criteriaBuilder.isNull(root.get("deadline")),
+                    criteriaBuilder.greaterThanOrEqualTo(
+                            root.<LocalDate>get("deadline"),
+                            LocalDate.now()
+                    )
             ));
 
             Expression<String> title = criteriaBuilder.lower(root.get("title"));

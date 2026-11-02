@@ -21,11 +21,31 @@ function initialRegions() {
   return regions.includes(savedRegion) ? [savedRegion] : ["전국"];
 }
 
+function initialJobs() {
+  try {
+    const saved = JSON.parse(sessionStorage.getItem("careerpulse.analysis.jobs") || "[]");
+    const now = new Date();
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0"),
+    ].join("-");
+    return saved.filter(job => !job.deadline || job.deadline >= today);
+  } catch {
+    return [];
+  }
+}
+
+function scoreText(value, status) {
+  if (status !== "COMPLETED") return "재분석 필요";
+  return value == null ? "평가 불가" : `${value}%`;
+}
+
 export default function AnalysisPage() {
   const [interests, setInterests] = useState([]);
   const [selectedInterest, setSelectedInterest] = useState("");
   const [selectedRegions, setSelectedRegions] = useState(initialRegions);
-  const [jobs, setJobs] = useState([]);
+  const [jobs, setJobs] = useState(initialJobs);
   const [analyses, setAnalyses] = useState([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
@@ -34,10 +54,18 @@ export default function AnalysisPage() {
   useEffect(() => {
     getMyJobs().then(items => {
       setInterests(items);
-      if (items.length) setSelectedInterest(String(items[0].userJobId));
+      if (items.length) {
+        const saved = sessionStorage.getItem("careerpulse.analysis.userJobId");
+        const restored = items.some(item => String(item.userJobId) === saved);
+        setSelectedInterest(restored ? saved : String(items[0].userJobId));
+      }
     }).catch(error => setMessage(error.message));
     loadAnalyses();
   }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem("careerpulse.analysis.jobs", JSON.stringify(jobs));
+  }, [jobs]);
 
   const selected = interests.find(item => String(item.userJobId) === selectedInterest);
 
@@ -54,25 +82,24 @@ export default function AnalysisPage() {
     if (!selected || selectedRegions.length === 0) return;
     setBusy("collect"); setMessage("");
     try {
-      let collectedCount = 0;
       const foundJobs = new Map();
       for (let index = 0; index < selectedRegions.length; index += 1) {
         const region = selectedRegions[index];
         setMessage(`${region} 공고 수집 중 (${index + 1}/${selectedRegions.length})`);
-        const collected = await collectJobs({
+        await collectJobs({
           jobKeyword: selected.searchKeyword || selected.jobName,
           region,
           limit: 10,
         });
-        collectedCount += collected.collectedCount;
         const result = await searchJobs(selected.userJobId, region);
         result.forEach(job => foundJobs.set(job.jobId, job));
       }
       localStorage.setItem("careerpulse.regions", JSON.stringify(selectedRegions));
       localStorage.setItem("careerpulse.region", selectedRegions[0]);
+      sessionStorage.setItem("careerpulse.analysis.userJobId", selectedInterest);
       const result = [...foundJobs.values()];
       setJobs(result);
-      setMessage(`${selectedRegions.length}개 지역에서 ${collectedCount}개를 수집했고, 조건에 맞는 공고 ${result.length}개를 찾았습니다.`);
+      setMessage(`${selectedRegions.length}개 지역에서 조건에 맞는 공고 ${result.length}개를 수집·조회했습니다.`);
     } catch (error) { setMessage(error.message); }
     finally { setBusy(""); }
   }
@@ -121,7 +148,9 @@ export default function AnalysisPage() {
     <table><thead><tr><th>공고</th><th>회사</th><th>상태</th><th>전체 일치율</th><th>평가 가능 비율</th></tr></thead>
       <tbody>{analyses.map(item => <tr key={item.analysisId}>
         <td><Link to={`/analysis/${item.analysisId}`}>{item.jobTitle || `공고 ${item.jobId}`}</Link></td>
-        <td>{item.companyName || "-"}</td><td>{item.analysisStatus}</td><td>{item.overallMatchRate ?? "-"}</td><td>{item.evaluationCoverage ?? "-"}</td>
+        <td>{item.companyName || "-"}</td><td>{item.analysisStatus}</td>
+        <td>{scoreText(item.overallMatchRate, item.analysisStatus)}</td>
+        <td>{scoreText(item.evaluationCoverage, item.analysisStatus)}</td>
       </tr>)}</tbody>
     </table>
   </main>;

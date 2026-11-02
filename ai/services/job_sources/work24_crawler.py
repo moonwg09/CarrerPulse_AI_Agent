@@ -292,6 +292,9 @@ class Work24Crawler:
                     continue
                 seen_ids.add(item.external_job_id)
 
+                if item.close_date and item.close_date < date.today():
+                    continue
+
                 if (
                     region_filter != "전국"
                     and (not item.region or region_filter not in item.region)

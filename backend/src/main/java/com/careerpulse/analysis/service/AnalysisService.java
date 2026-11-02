@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -47,6 +48,13 @@ public class AnalysisService {
     public AnalysisDetailResponse compare(String email, AnalysisCompareRequest request) {
         User user = findUser(email);
         JobPostingSnapshot job = findJob(request.jobId());
+
+        if (job.isClosed(LocalDate.now())) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "마감된 채용공고는 분석할 수 없습니다."
+            );
+        }
 
         if (!contextRepository.hasAnalysisConsent(user.getUserId())) {
             throw new ResponseStatusException(
@@ -106,6 +114,7 @@ public class AnalysisService {
         return resultRepository
                 .findAllByUser_UserIdOrderByAnalyzedAtDescCreatedAtDesc(user.getUserId())
                 .stream()
+                .filter(result -> !findJob(result.getJobId()).isClosed(LocalDate.now()))
                 .map(this::toSummary)
                 .toList();
     }

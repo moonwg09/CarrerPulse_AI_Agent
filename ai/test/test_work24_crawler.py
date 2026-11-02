@@ -176,6 +176,24 @@ class Work24CrawlerTest(unittest.TestCase):
         self.assertEqual(0, result.collectedCount)
         session.get.assert_not_called()
 
+    def test_collect_excludes_posting_with_past_deadline(self):
+        search_response = Mock()
+        search_response.text = SEARCH_HTML.replace("2026-11-30", "2020-01-01")
+        search_response.raise_for_status = Mock()
+
+        session = Mock()
+        session.headers = {}
+        session.post.return_value = search_response
+
+        result = Work24Crawler(
+            session=session,
+            request_interval_seconds=0,
+            max_pages=1,
+        ).collect("개발자", limit=10)
+
+        self.assertEqual(0, result.collectedCount)
+        session.get.assert_not_called()
+
     def test_collect_uses_software_job_code_and_normalized_keyword(self):
         search_response = Mock()
         search_response.text = "<html><body><table></table></body></html>"
