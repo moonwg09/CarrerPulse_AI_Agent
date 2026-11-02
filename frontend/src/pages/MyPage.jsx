@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import NavBar from "../components/NavBar";
+import PageToast from "../components/PageToast";
 import {
   getMyInfo,
   updateMyInfo,
@@ -96,12 +97,6 @@ function MyPage() {
     };
   }, [companyName, selectedCompanyName]);
 
-  useEffect(() => {
-    if (!profileNotice) return undefined;
-    const timer = window.setTimeout(() => setProfileNotice(""), 3000);
-    return () => window.clearTimeout(timer);
-  }, [profileNotice]);
-
   const addCompany = async () => {
     try {
       await addPreferredCompany(companyName.trim());
@@ -112,6 +107,7 @@ function MyPage() {
       setCompanySearchLoading(false);
       setCompanySearchComplete(false);
       setMessage("");
+      setProfileNotice("관심 기업을 등록했습니다.");
     } catch (error) { setMessage(error.message); }
   };
 
@@ -128,6 +124,7 @@ function MyPage() {
     try {
       await deletePreferredCompany(id);
       setCompanies(await getPreferredCompanies());
+      setProfileNotice("관심 기업을 삭제했습니다.");
     } catch (error) { setMessage(error.message); }
   };
 
@@ -183,12 +180,7 @@ function MyPage() {
   return (
     <main>
         <NavBar />
-      {profileNotice && (
-        <div className="page-toast" role="status">
-          <span>{profileNotice}</span>
-          <button type="button" onClick={() => setProfileNotice("")}>닫기</button>
-        </div>
-      )}
+      <PageToast message={profileNotice} onClose={setProfileNotice} />
       <h1>내 정보</h1>
 
       <form className="profile-form" onSubmit={handleSubmit}>

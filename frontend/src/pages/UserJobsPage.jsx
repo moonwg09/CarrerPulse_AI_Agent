@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import NavBar from "../components/NavBar";
+import PageToast from "../components/PageToast";
 import {
   getMyJobs,
   getDevelopmentJobCatalog,
@@ -16,6 +17,7 @@ function UserJobsPage() {
   });
 
   const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState("");
 
   async function loadJobs() {
     try {
@@ -60,7 +62,7 @@ function UserJobsPage() {
         jobCode: catalog[0]?.jobCode || "",
       });
 
-      setMessage("관심 직무가 등록되었습니다.");
+      setNotice("관심 직무가 등록되었습니다.");
 
       await loadJobs();
     } catch (error) {
@@ -74,7 +76,7 @@ function UserJobsPage() {
     try {
       await deleteMyJob(userJobId);
 
-      setMessage("관심 직무가 삭제되었습니다.");
+      setNotice("관심 직무가 삭제되었습니다.");
 
       await loadJobs();
     } catch (error) {
@@ -85,6 +87,7 @@ function UserJobsPage() {
   return (
     <main>
         <NavBar />
+      <PageToast message={notice} onClose={setNotice} />
       <h1>관심 직무 관리</h1>
 
       <form onSubmit={handleAdd}>

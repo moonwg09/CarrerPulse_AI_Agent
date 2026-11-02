@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { confirmNoExperience, generateGuidance, getAnalysisDetail, rejudgeExperience } from "../api/analysisApi";
 import NavBar from "../components/NavBar";
+import PageToast from "../components/PageToast";
 
 function AnalysisDetailPage() {
   const { analysisId } = useParams();
@@ -10,6 +11,7 @@ function AnalysisDetailPage() {
   const [guidanceByItem, setGuidanceByItem] = useState({});
   const [loadingItemId, setLoadingItemId] = useState(null);
   const [responses, setResponses] = useState({});
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     getAnalysisDetail(analysisId)
@@ -22,7 +24,9 @@ function AnalysisDetailPage() {
       return;
     }
     try {
+      setMessage("");
       setDetail(await confirmNoExperience(analysisId, itemId));
+      setNotice("경험 없음으로 확정했습니다.");
     } catch (error) {
       setMessage(error.message);
     }
@@ -35,9 +39,10 @@ function AnalysisDetailPage() {
       return;
     }
     try {
+      setMessage("");
       setLoadingItemId(itemId);
       setDetail(await rejudgeExperience(analysisId, itemId, response));
-      setMessage("추가 경험을 반영해 다시 판정했습니다.");
+      setNotice("추가 경험을 반영해 다시 판정했습니다.");
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -74,6 +79,7 @@ function AnalysisDetailPage() {
   return (
     <main>
       <NavBar />
+      <PageToast message={notice} onClose={setNotice} />
       <Link to="/analysis">분석 목록</Link>
       <h1>{summary.jobTitle || `공고 ${summary.jobId}`}</h1>
       <p>{summary.companyName || "회사 미기재"}</p>

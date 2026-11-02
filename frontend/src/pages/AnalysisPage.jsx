@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import NavBar from "../components/NavBar";
+import PageToast from "../components/PageToast";
 import { compareDocumentWithJob, getAnalyses, resetAnalyses } from "../api/analysisApi";
 import { collectJobs, searchJobs } from "../api/jobApi";
 import { getMyJobs } from "../api/userApi";
@@ -61,6 +62,7 @@ export default function AnalysisPage() {
   const [analyses, setAnalyses] = useState([]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState("");
+  const [notice, setNotice] = useState("");
 
   const loadAnalyses = () => getAnalyses().then(setAnalyses).catch(error => setMessage(error.message));
   useEffect(() => {
@@ -112,9 +114,12 @@ export default function AnalysisPage() {
       sessionStorage.setItem("careerpulse.analysis.userJobId", selectedInterest);
       const result = [...foundJobs.values()];
       setJobs(result);
-      setMessage(result.length > 0
-        ? `${selectedRegions.length}개 지역에서 조건에 맞는 공고 ${result.length}개를 수집·조회했습니다.`
-        : "선택한 직무와 지역에 현재 공개된 공고가 없습니다. 지역을 추가하거나 전국을 선택해 다시 조회해주세요.");
+      if (result.length > 0) {
+        setMessage("");
+        setNotice(`${selectedRegions.length}개 지역에서 조건에 맞는 공고 ${result.length}개를 수집·조회했습니다.`);
+      } else {
+        setMessage("선택한 직무와 지역에 현재 공개된 공고가 없습니다. 지역을 추가하거나 전국을 선택해 다시 조회해주세요.");
+      }
     } catch (error) { setMessage(error.message); }
     finally { setBusy(""); }
   }
@@ -123,7 +128,7 @@ export default function AnalysisPage() {
     setBusy(String(jobId)); setMessage("");
     try {
       await compareDocumentWithJob({ jobId });
-      setMessage("문서 근거 비교가 완료되었습니다.");
+      setNotice("문서 근거 비교가 완료되었습니다.");
       await loadAnalyses();
     } catch (error) { setMessage(error.message); }
     finally { setBusy(""); }
@@ -138,13 +143,14 @@ export default function AnalysisPage() {
     try {
       const result = await resetAnalyses();
       setAnalyses([]);
-      setMessage(`분석 결과 ${result.deletedCount}개를 초기화했습니다.`);
+      setNotice(`분석 결과 ${result.deletedCount}개를 초기화했습니다.`);
     } catch (error) { setMessage(error.message); }
     finally { setBusy(""); }
   }
 
   return <main>
     <NavBar />
+    <PageToast message={notice} onClose={setNotice} />
     <h1>채용공고 분석</h1>
     <p>관심 직무와 지역으로 공고를 수집한 뒤 등록 문서를 근거로 비교합니다.</p>
     {!interests.length && <p><Link to="/jobs">관심 직무를 먼저 등록해주세요.</Link></p>}

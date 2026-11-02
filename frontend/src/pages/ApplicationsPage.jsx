@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import NavBar from "../components/NavBar";
+import PageToast from "../components/PageToast";
 import { getApplications, updateApplication } from "../api/applicationApi";
 
 const statusLabels = {
@@ -15,6 +16,7 @@ export default function ApplicationsPage() {
   const [items, setItems] = useState([]);
   const [message, setMessage] = useState("");
   const [statusDrafts, setStatusDrafts] = useState({});
+  const [notice, setNotice] = useState("");
 
   const load = () => getApplications().then(setItems).catch((error) => setMessage(error.message));
   useEffect(() => {
@@ -27,6 +29,7 @@ export default function ApplicationsPage() {
 
   async function change(item, status, interviewDate) {
     try {
+      setMessage("");
       await updateApplication(item.applicationId, status, interviewDate);
       setStatusDrafts(current => {
         const next = { ...current };
@@ -34,6 +37,7 @@ export default function ApplicationsPage() {
         return next;
       });
       await load();
+      setNotice("지원 상태를 변경했습니다.");
     } catch (error) { setMessage(error.message); }
   }
 
@@ -41,6 +45,7 @@ export default function ApplicationsPage() {
 
   return <main>
     <NavBar />
+    <PageToast message={notice} onClose={setNotice} />
     <h1>지원 현황</h1>
     {items.length > 0 && <div className="application-list">
       {items.map((item, index) => {

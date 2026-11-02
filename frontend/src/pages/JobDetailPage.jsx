@@ -3,17 +3,20 @@ import { Link, useParams } from "react-router-dom";
 import { getJob, getBookmarkStatus, setBookmark } from "../api/jobApi";
 import { createApplication } from "../api/applicationApi";
 import NavBar from "../components/NavBar";
+import PageToast from "../components/PageToast";
 
 export default function JobDetailPage() {
   const { jobId } = useParams();
   const [job, setJob] = useState(null);
   const [message, setMessage] = useState("");
   const [bookmarked, setBookmarkedState] = useState(false);
+  const [notice, setNotice] = useState("");
 
   async function apply() {
     try {
+      setMessage("");
       await createApplication(job.jobId);
-      setMessage("지원 현황에 등록했습니다.");
+      setNotice("지원 현황에 등록했습니다.");
     } catch (error) { setMessage(error.message); }
   }
 
@@ -26,10 +29,11 @@ export default function JobDetailPage() {
 
   async function toggleBookmark() {
     try {
+      setMessage("");
       const next = !bookmarked;
       await setBookmark(jobId, next);
       setBookmarkedState(next);
-      setMessage(next ? "관심 공고로 저장했습니다." : "관심 공고에서 삭제했습니다.");
+      setNotice(next ? "관심 공고로 저장했습니다." : "관심 공고에서 삭제했습니다.");
     } catch (error) { setMessage(error.message); }
   }
 
@@ -55,6 +59,7 @@ export default function JobDetailPage() {
 
   return <main>
     <NavBar />
+    <PageToast message={notice} onClose={setNotice} />
     <Link to="/analysis">채용공고 목록</Link>
     <h1>{job.title}</h1>
     <p>{job.companyName}</p>

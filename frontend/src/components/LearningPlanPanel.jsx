@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { generateLearningPlan, getLatestLearningPlan } from "../api/learningApi";
 import { getMyInfo, updatePreparationTargetDate } from "../api/userApi";
+import PageToast from "./PageToast";
 
 const activityNames = { TECH_STUDY: "기술 학습", PROJECT: "프로젝트", CERTIFICATE: "자격증", DOCUMENT_IMPROVEMENT: "서류 보완" };
 
@@ -13,6 +14,7 @@ export default function LearningPlanPanel({ regions, canGenerate }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [saveAsTarget, setSaveAsTarget] = useState(false);
+  const [notice, setNotice] = useState("");
   const change = e => setInput(old => ({ ...old, [e.target.name]: e.target.value }));
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export default function LearningPlanPanel({ regions, canGenerate }) {
         await updatePreparationTargetDate(input.endDate);
       }
       setPlan(saved);
-      setMessage("계획을 생성하고 저장했습니다.");
+      setNotice("학습계획을 생성하고 저장했습니다.");
     } catch (e) { setError(e.message); }
     finally { setBusy(false); }
   }
@@ -48,6 +50,7 @@ export default function LearningPlanPanel({ regions, canGenerate }) {
   }
 
   return <section aria-label="학습계획">
+    <PageToast message={notice} onClose={setNotice} />
     <h2>학습계획 생성</h2>
     <p>준비 역량 분석 결과의 학습 대상과 확인이 필요한 서류 보완 항목으로 계획을 생성합니다.</p>
     <form onSubmit={generate}>

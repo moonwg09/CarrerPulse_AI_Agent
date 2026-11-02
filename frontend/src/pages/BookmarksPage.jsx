@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import NavBar from "../components/NavBar";
+import PageToast from "../components/PageToast";
 import { getBookmarks, setBookmark } from "../api/jobApi";
 
 export default function BookmarksPage() {
   const [jobs, setJobs] = useState([]);
   const [message, setMessage] = useState("");
   const [deletingId, setDeletingId] = useState(null);
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     getBookmarks()
@@ -21,7 +23,7 @@ export default function BookmarksPage() {
     try {
       await setBookmark(job.jobId, false);
       setJobs(current => current.filter(item => item.jobId !== job.jobId));
-      setMessage("관심 공고에서 삭제했습니다.");
+      setNotice("관심 공고에서 삭제했습니다.");
     } catch (error) {
       setMessage(error.message);
     } finally {
@@ -31,6 +33,7 @@ export default function BookmarksPage() {
 
   return <main>
     <NavBar />
+    <PageToast message={notice} onClose={setNotice} />
     <h1>관심 공고</h1>
     <p>저장한 공고를 최근 저장 순서로 보여줍니다.</p>
     {message && <p role="status">{message}</p>}

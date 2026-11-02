@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import NavBar from "../components/NavBar";
+import PageToast from "../components/PageToast";
 import { deleteDocument, getDocuments, uploadDocument } from "../api/documentApi";
 
 const types = [
@@ -29,6 +30,7 @@ export default function DocumentsPage() {
   const [busy, setBusy] = useState("");
   const [saveProgress, setSaveProgress] = useState("");
   const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState("");
   const fileInputs = useRef({});
 
   const load = async () => {
@@ -70,20 +72,21 @@ export default function DocumentsPage() {
     if (failed.length > 0) {
       setMessage(`일부 문서를 저장하지 못했습니다. ${failed.join(" / ")}`);
     } else {
-      setMessage(`${succeeded.length}개 문서를 저장했습니다.`);
+      setNotice(`${succeeded.length}개 문서를 저장했습니다.`);
     }
     setSaveProgress(""); setBusy("");
   }
 
   async function remove(path, label) {
     setBusy(path); setMessage("");
-    try { await deleteDocument(path); setMessage(`${label}를 삭제했습니다.`); await load(); }
+    try { await deleteDocument(path); setNotice(`${label}를 삭제했습니다.`); await load(); }
     catch (error) { setMessage(error.message); }
     finally { setBusy(""); }
   }
 
   return <main>
     <NavBar />
+    <PageToast message={notice} onClose={setNotice} />
     <h1>사용자 문서</h1>
     <p>PDF 또는 DOCX 파일을 등록합니다. 같은 유형을 다시 올리면 기존 문서를 교체합니다.</p>
     {message && <p role="status">{message}</p>}
