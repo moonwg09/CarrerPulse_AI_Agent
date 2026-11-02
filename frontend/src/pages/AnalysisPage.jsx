@@ -41,6 +41,18 @@ function scoreText(value, status) {
   return value == null ? "평가 불가" : `${value}%`;
 }
 
+function collectionKeywords(interest) {
+  const seen = new Set();
+  return [interest.searchKeyword || interest.jobName, ...(interest.searchExpressions || [])]
+    .filter(keyword => {
+      const normalized = keyword.toLowerCase().replace(/\s+/g, "").replace(/개발자$/, "");
+      if (!normalized || seen.has(normalized)) return false;
+      seen.add(normalized);
+      return true;
+    })
+    .slice(0, 3);
+}
+
 export default function AnalysisPage() {
   const [interests, setInterests] = useState([]);
   const [selectedInterest, setSelectedInterest] = useState("");
@@ -83,14 +95,15 @@ export default function AnalysisPage() {
     setBusy("collect"); setMessage("");
     try {
       const foundJobs = new Map();
+      const keywords = collectionKeywords(selected);
       for (let index = 0; index < selectedRegions.length; index += 1) {
         const region = selectedRegions[index];
-        setMessage(`${region} 공고 수집 중 (${index + 1}/${selectedRegions.length})`);
-        await collectJobs({
-          jobKeyword: selected.searchKeyword || selected.jobName,
-          region,
-          limit: 10,
-        });
+        for (let keywordIndex = 0; keywordIndex < keywords.length; keywordIndex += 1) {
+          const keyword = keywords[keywordIndex];
+          setMessage(`${region} ${keyword} 공고 수집 중 (${index + 1}/${selectedRegions.length})`);
+          const collected = await collectJobs({ jobKeyword: keyword, region, limit: 10 });
+          if (collected.collectedCount > 0) break;
+        }
         const result = await searchJobs(selected.userJobId, region);
         result.forEach(job => foundJobs.set(job.jobId, job));
       }
@@ -99,7 +112,9 @@ export default function AnalysisPage() {
       sessionStorage.setItem("careerpulse.analysis.userJobId", selectedInterest);
       const result = [...foundJobs.values()];
       setJobs(result);
-      setMessage(`${selectedRegions.length}개 지역에서 조건에 맞는 공고 ${result.length}개를 수집·조회했습니다.`);
+      setMessage(result.length > 0
+        ? `${selectedRegions.length}개 지역에서 조건에 맞는 공고 ${result.length}개를 수집·조회했습니다.`
+        : "선택한 직무와 지역에 현재 공개된 공고가 없습니다. 지역을 추가하거나 전국을 선택해 다시 조회해주세요.");
     } catch (error) { setMessage(error.message); }
     finally { setBusy(""); }
   }

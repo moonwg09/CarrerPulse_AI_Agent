@@ -194,6 +194,25 @@ class Work24CrawlerTest(unittest.TestCase):
         self.assertEqual(0, result.collectedCount)
         session.get.assert_not_called()
 
+    def test_collect_stops_when_next_page_repeats_same_jobs(self):
+        search_response = Mock()
+        search_response.text = SEARCH_HTML
+        search_response.raise_for_status = Mock()
+
+        session = Mock()
+        session.headers = {}
+        session.post.return_value = search_response
+
+        result = Work24Crawler(
+            session=session,
+            request_interval_seconds=0,
+            max_pages=5,
+        ).collect("개발자", "부산", limit=10)
+
+        self.assertEqual(0, result.collectedCount)
+        self.assertEqual(2, session.post.call_count)
+        session.get.assert_not_called()
+
     def test_collect_uses_software_job_code_and_normalized_keyword(self):
         search_response = Mock()
         search_response.text = "<html><body><table></table></body></html>"

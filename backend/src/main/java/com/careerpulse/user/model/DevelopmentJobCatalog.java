@@ -6,7 +6,11 @@ import java.util.List;
 
 public enum DevelopmentJobCatalog {
     BACKEND("백엔드 개발자", "백엔드 개발자", List.of("백엔드", "서버", "Backend")),
-    FRONTEND("프론트엔드 개발자", "프론트엔드 개발자", List.of("프론트엔드", "Frontend")),
+    FRONTEND(
+            "프론트엔드 개발자",
+            "프론트엔드 개발자",
+            List.of("React", "JavaScript", "Frontend", "웹 개발")
+    ),
     FULLSTACK("풀스택 개발자", "풀스택 개발자", List.of("풀스택", "웹개발", "Full Stack")),
     MOBILE("모바일 앱 개발자", "앱 개발자", List.of("앱개발", "Android", "iOS", "모바일")),
     SOFTWARE("소프트웨어·시스템 개발자", "소프트웨어 개발자", List.of("소프트웨어", "시스템 SW")),

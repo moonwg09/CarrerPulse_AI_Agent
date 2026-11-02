@@ -287,6 +287,12 @@ class Work24Crawler:
             if not search_items:
                 break
 
+            page_has_new_item = any(
+                item.external_job_id not in seen_ids for item in search_items
+            )
+            if not page_has_new_item:
+                break
+
             for item in search_items:
                 if item.external_job_id in seen_ids:
                     continue
