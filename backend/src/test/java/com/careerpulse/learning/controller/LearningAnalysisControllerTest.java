@@ -61,7 +61,10 @@ class LearningAnalysisControllerTest {
         var selected = List.of(new LearningJobResponse(
                 42L, "테스트", "백엔드", "소프트웨어", "원문",
                 LocalDate.of(2026, 10, 20), null, null));
-        when(learning.getMyAvailableJobs(auth.getName(), "서울")).thenReturn(selected);
+        when(learning.getMyAvailableJobs(
+                auth.getName(),
+                List.of("서울특별시", "경기도")
+        )).thenReturn(selected);
         var jobs = mapper.createArrayNode();
         jobs.addObject().put("jobId", "42").put("jobCategory", "SELECTED")
                 .put("postedDate", "2026-10-20").putArray("requirements")
@@ -79,9 +82,13 @@ class LearningAnalysisControllerTest {
                 .andExpect(jsonPath("$.assessments[0].status").value("PARTIAL"))
                 .andRespond(withSuccess("{\"targetJobCount\":1}", MediaType.APPLICATION_JSON));
 
-        var result = controller.analyze(auth, new LearningAnalysisController.AnalyzeInput("서울"));
+        var result = controller.analyze(auth, new LearningAnalysisController.AnalyzeInput(
+                null,
+                List.of("서울특별시", "경기도")
+        ));
         assertEquals("DATABASE", result.path("source").asText());
-        assertEquals("서울", result.path("region").asText());
+        assertEquals("서울특별시, 경기도", result.path("region").asText());
+        assertEquals(2, result.path("regions").size());
         server.verify();
     }
 
@@ -90,7 +97,7 @@ class LearningAnalysisControllerTest {
         var selected = List.of(new LearningJobResponse(
                 42L, "테스트", "백엔드", "소프트웨어", "원문",
                 LocalDate.now(), null, null));
-        when(learning.getMyAvailableJobs(auth.getName(), "전국")).thenReturn(selected);
+        when(learning.getMyAvailableJobs(auth.getName(), List.of("전국"))).thenReturn(selected);
         when(contexts.build(7L, selected)).thenReturn(new LearningContextService.Context(
                 mapper.createArrayNode(), mapper.createArrayNode(), 1, List.of(42L)));
         doThrow(new RuntimeException("분석 실패"))
@@ -115,7 +122,7 @@ class LearningAnalysisControllerTest {
 
     @Test
     void upstreamValidationErrorRemains422() {
-        when(learning.getMyAvailableJobs(auth.getName(), "서울")).thenReturn(List.of());
+        when(learning.getMyAvailableJobs(auth.getName(), List.of("서울"))).thenReturn(List.of());
         when(contexts.build(7L, List.of())).thenReturn(new LearningContextService.Context(
                 mapper.createArrayNode(), mapper.createArrayNode(), 0, List.of()));
         server.expect(requestTo("http://learning.test/api/v1/learning/analyze"))

@@ -131,6 +131,18 @@ public class LearningJobRepository {
             String region,
             LocalDate referenceDate
     ) {
+        return findLatestOpenJobsForInterests(
+                interests,
+                List.of(region),
+                referenceDate
+        );
+    }
+
+    public List<LearningJobResponse> findLatestOpenJobsForInterests(
+            List<UserJobResponse> interests,
+            List<String> regions,
+            LocalDate referenceDate
+    ) {
         LinkedHashSet<String> terms = new LinkedHashSet<>();
         for (UserJobResponse interest : interests) {
             for (String value : DevelopmentJobCatalog
@@ -153,8 +165,16 @@ public class LearningJobRepository {
                 terms.size(),
                 "(title LIKE ? OR description LIKE ? OR job_category LIKE ?)"
         ));
-        boolean nationwide = "전국".equals(region.trim());
-        String regionCondition = nationwide ? "" : " AND region LIKE ? ";
+        LinkedHashSet<String> normalizedRegions = new LinkedHashSet<>();
+        for (String region : regions) {
+            if (region != null && !region.isBlank()) normalizedRegions.add(region.trim());
+        }
+        if (normalizedRegions.isEmpty()) return List.of();
+        boolean nationwide = normalizedRegions.contains("전국");
+        String regionCondition = nationwide ? "" : " AND (" + String.join(
+                " OR ",
+                Collections.nCopies(normalizedRegions.size(), "region LIKE ?")
+        ) + ") ";
         String sql = """
             SELECT job_id,company_name,title,job_category,description,
                    posted_date,deadline,collected_at
@@ -169,7 +189,11 @@ public class LearningJobRepository {
 
         List<Object> parameters = new ArrayList<>();
         parameters.add(java.sql.Date.valueOf(referenceDate));
-        if (!nationwide) parameters.add("%" + region.trim() + "%");
+        if (!nationwide) {
+            for (String region : normalizedRegions) {
+                parameters.add("%" + region + "%");
+            }
+        }
         for (String term : terms) {
             String pattern = "%" + term + "%";
             parameters.add(pattern);

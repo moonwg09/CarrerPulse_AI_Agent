@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.LinkedHashSet;
 
 @Service
 public class LearningService {
@@ -58,7 +59,21 @@ public class LearningService {
             String email,
             String region
     ) {
-        if (region == null || region.isBlank()) {
+        return getMyAvailableJobs(email, List.of(region));
+    }
+
+    public List<LearningJobResponse> getMyAvailableJobs(
+            String email,
+            List<String> regions
+    ) {
+        if (regions == null || regions.isEmpty()) {
+            throw new IllegalArgumentException("조회할 지역이 필요합니다.");
+        }
+        LinkedHashSet<String> normalizedRegions = new LinkedHashSet<>();
+        for (String region : regions) {
+            if (region != null && !region.isBlank()) normalizedRegions.add(region.trim());
+        }
+        if (normalizedRegions.isEmpty()) {
             throw new IllegalArgumentException("조회할 지역이 필요합니다.");
         }
         // 기존 서비스를 이용해 해당 사용자의 관심 직무만 가져온다.
@@ -79,7 +94,7 @@ public class LearningService {
         // 여러 관심 직무의 공고를 합쳐 최신순 최대 10개 조회한다.
         return learningJobRepository.findLatestOpenJobsForInterests(
                 myJobs,
-                region.trim(),
+                List.copyOf(normalizedRegions),
                 referenceDate
         );
     }

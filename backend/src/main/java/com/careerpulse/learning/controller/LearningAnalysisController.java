@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -32,6 +31,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 
 /** 로그인 사용자의 관심 직무·지역·최신 비교 결과만 학습 분석에 사용한다. */
 @RestController
@@ -79,13 +79,38 @@ public class LearningAnalysisController {
         return RestClient.builder().baseUrl(aiUrl).requestFactory(factory).build();
     }
 
-    public record AnalyzeInput(@NotBlank String region) {}
+    public record AnalyzeInput(String region, List<String> regions) {
+        public AnalyzeInput(String region) {
+            this(region, null);
+        }
+
+        List<String> selectedRegions() {
+            LinkedHashSet<String> selected = new LinkedHashSet<>();
+            if (regions != null) {
+                for (String value : regions) {
+                    if (value != null && !value.isBlank()) selected.add(value.trim());
+                }
+            }
+            if (selected.isEmpty() && region != null && !region.isBlank()) {
+                selected.add(region.trim());
+            }
+            if (selected.isEmpty() || selected.size() > 17) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "분석 지역을 1개 이상 선택해주세요."
+                );
+            }
+            if (selected.contains("전국")) return List.of("전국");
+            return List.copyOf(selected);
+        }
+    }
 
     @PostMapping("/analysis/me")
     public JsonNode analyze(Authentication authentication, @Valid @RequestBody AnalyzeInput input) {
         String email = email(authentication);
         LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
-        var selectedJobs = learning.getMyAvailableJobs(email, input.region());
+        List<String> selectedRegions = input.selectedRegions();
+        var selectedJobs = learning.getMyAvailableJobs(email, selectedRegions);
         long userId = users.findByEmail(email).getUserId();
         var context = contexts.build(userId, selectedJobs);
         int analysisFailureCount = 0;
@@ -122,7 +147,8 @@ public class LearningAnalysisController {
             }
             ObjectNode result = (ObjectNode) response;
             result.put("source", "DATABASE");
-            result.put("region", input.region().trim());
+            result.put("region", String.join(", ", selectedRegions));
+            result.set("regions", mapper.valueToTree(selectedRegions));
             result.put("skippedJobCount", context.skippedJobCount());
             result.put("analysisFailureCount", analysisFailureCount);
             return result;

@@ -75,6 +75,25 @@ class LearningPlanControllerTest {
     }
 
     @Test
+    void confirmationItemsCreateOneDocumentImprovementTarget() throws Exception {
+        when(analysis.analyze(eq(login), any())).thenReturn(mapper.readTree("""
+            {"referenceDate":"2026-10-20","targetJobCount":2,"preparation":[],
+             "needsConfirmation":[{"name":"React"},{"name":"TypeScript"}]}
+            """));
+        server.expect(requestTo("http://plan.test/api/v1/learning/plans/generate"))
+                .andExpect(jsonPath("$.priorities[0].preparationType").value("DOCUMENT"))
+                .andExpect(jsonPath("$.priorities[0].targets[0]").value("React"))
+                .andExpect(jsonPath("$.priorities[0].targets[1]").value("TypeScript"))
+                .andRespond(withSuccess("{\"weeks\":[]}", MediaType.APPLICATION_JSON));
+        when(plans.save(eq(7L), any())).thenAnswer(call -> call.getArgument(1));
+
+        controller.generate(login, input());
+
+        verify(plans).save(eq(7L), any());
+        server.verify();
+    }
+
+    @Test
     void latestReadsOwnStoredPlanWithoutAi() throws Exception {
         when(plans.latest(7L)).thenReturn(mapper.readTree("{\"planId\":15}"));
         assertEquals(15, controller.latest(login).path("planId").asInt());

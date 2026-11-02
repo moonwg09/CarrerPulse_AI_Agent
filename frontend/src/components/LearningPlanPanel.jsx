@@ -6,7 +6,7 @@ const activityNames = { TECH_STUDY: "기술 학습", PROJECT: "프로젝트", CE
 
 // 생성 입력과 저장된 계획의 입력은 별도이다. 조회 결과에는 생성 당시 날짜·시간을
 // 함께 표시하므로 현재 입력창의 값으로 과거 계획을 잘못 해석하지 않는다.
-export default function LearningPlanPanel({ region, canGenerate }) {
+export default function LearningPlanPanel({ regions, canGenerate }) {
   const [input, setInput] = useState({ startDate: "", endDate: "", weeklyAvailableHours: "" });
   const [plan, setPlan] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -27,7 +27,7 @@ export default function LearningPlanPanel({ region, canGenerate }) {
     event.preventDefault();
     setBusy(true); setError(""); setMessage("");
     try {
-      const saved = await generateLearningPlan({ ...input, region,
+      const saved = await generateLearningPlan({ ...input, regions,
         weeklyAvailableHours: Number(input.weeklyAvailableHours) });
       if (saveAsTarget) {
         await updatePreparationTargetDate(input.endDate);
@@ -47,23 +47,24 @@ export default function LearningPlanPanel({ region, canGenerate }) {
     finally { setBusy(false); }
   }
 
-  return <section aria-label="기간 기반 학습계획">
-    <h2>PLN-04 기간 기반 학습계획 생성</h2>
-    <p>먼저 준비 역량 분석을 완료하세요. 충분한 경험 및 확인이 필요한 항목은 학습 대상에서 제외됩니다.</p>
+  return <section aria-label="학습계획">
+    <h2>학습계획 생성</h2>
+    <p>준비 역량 분석 결과의 학습 대상과 확인이 필요한 서류 보완 항목으로 계획을 생성합니다.</p>
     <form onSubmit={generate}>
       <fieldset disabled={busy}>
         <legend>학습 기간과 시간</legend>
         <label>시작일 <input required type="date" name="startDate" value={input.startDate} onChange={change} /></label>
         <label>종료일 <input required type="date" name="endDate" min={input.startDate || undefined} value={input.endDate} onChange={change} /></label>
         <label><input type="checkbox" checked={saveAsTarget} onChange={e => setSaveAsTarget(e.target.checked)} /> 이 종료일을 내 준비 목표일로 저장</label>
-        <label>주당 학습 가능 시간 <input required type="number" name="weeklyAvailableHours" min="0.01" max="168" step="0.01" value={input.weeklyAvailableHours} onChange={change} /> 시간</label>
+        <label>주당 학습 가능 시간 <input required type="number" name="weeklyAvailableHours" min="0.1" max="168" step="0.1" value={input.weeklyAvailableHours} onChange={change}
+          onBlur={e => e.target.value && setInput(old => ({ ...old, weeklyAvailableHours: Number(e.target.value).toFixed(1) }))} /> 시간</label>
         <p>주당 시간은 상한이며 남는 시간을 억지로 채우지 않습니다. 마지막 부분 주차는 일수 비례 상한을 적용합니다.</p>
         <p>검증된 준비 대상·부족 세부 항목·기간·주당 시간을 Gemini에 전달합니다.</p>
         <button type="submit" disabled={!canGenerate}>{busy ? "처리 중…" : "계획 생성·저장"}</button>
-        {!canGenerate && <p>PLN-01~03 분석 후 확정된 준비 대상이 있어야 생성할 수 있습니다.</p>}
+        {!canGenerate && <p>준비 역량 분석 후 학습 대상 또는 확인·서류 보완 항목이 있어야 생성할 수 있습니다.</p>}
       </fieldset>
     </form>
-    <h2>PLN-05 저장된 학습계획 조회</h2>
+    <h2>학습계획 조회</h2>
     <button type="button" disabled={busy} onClick={load}>내 최신 계획 불러오기</button>
     {message && <p role="status">{message}</p>}
     {error && <p role="alert">{error}</p>}

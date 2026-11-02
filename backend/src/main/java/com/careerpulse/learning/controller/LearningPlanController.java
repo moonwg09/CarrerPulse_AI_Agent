@@ -19,6 +19,8 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashSet;
+import java.util.List;
 
 /** PLN-04 생성/저장과 PLN-05 본인 최신 계획 조회를 제공한다. 기존 로그인/CSRF가 적용된다. */
 @RestController
@@ -52,8 +54,33 @@ public class LearningPlanController {
     }
 
     public record PlanInput(@NotNull LocalDate startDate, @NotNull LocalDate endDate,
-            @NotNull @DecimalMin("0.01") @DecimalMax("168") @Digits(integer=3, fraction=2) BigDecimal weeklyAvailableHours,
-            @NotBlank String region) {}
+            @NotNull @DecimalMin("0.1") @DecimalMax("168") @Digits(integer=3, fraction=1) BigDecimal weeklyAvailableHours,
+            String region, List<String> regions) {
+        public PlanInput(LocalDate startDate, LocalDate endDate,
+                BigDecimal weeklyAvailableHours, String region) {
+            this(startDate, endDate, weeklyAvailableHours, region, null);
+        }
+
+        List<String> selectedRegions() {
+            LinkedHashSet<String> selected = new LinkedHashSet<>();
+            if (regions != null) {
+                for (String value : regions) {
+                    if (value != null && !value.isBlank()) selected.add(value.trim());
+                }
+            }
+            if (selected.isEmpty() && region != null && !region.isBlank()) {
+                selected.add(region.trim());
+            }
+            if (selected.isEmpty() || selected.size() > 17) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "학습계획에 사용할 지역을 1개 이상 선택해주세요."
+                );
+            }
+            if (selected.contains("전국")) return List.of("전국");
+            return List.copyOf(selected);
+        }
+    }
 
     private String email(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated() || authentication instanceof AnonymousAuthenticationToken)
@@ -69,6 +96,7 @@ public class LearningPlanController {
     @PostMapping
     public JsonNode generate(Authentication authentication, @Valid @RequestBody PlanInput input) {
         String email = email(authentication);
+        List<String> selectedRegions = input.selectedRegions();
         if (input.endDate().isBefore(LocalDate.now()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "종료일은 오늘 이후의 준비 목표일이어야 합니다.");
         if (input.endDate().isBefore(input.startDate()) || ChronoUnit.DAYS.between(input.startDate(), input.endDate()) >= 730)
@@ -76,14 +104,35 @@ public class LearningPlanController {
         // 브라우저가 보낸 우선순위를 신뢰하지 않고 기존 PLN-01~03 진입점에서 본인 분석을 다시 계산한다.
         // 같은 JVM 내부 호출이며 별도 HTTP 요청이나 사용자 ID 파라미터를 만들지 않는다.
         JsonNode analyzed = analysis.analyze(authentication,
-                new LearningAnalysisController.AnalyzeInput(input.region()));
+                new LearningAnalysisController.AnalyzeInput(null, selectedRegions));
         var priorities = mapper.createArrayNode();
+        int nextRank = 1;
         for (var item : analyzed.path("preparation")) {
             ObjectNode target = mapper.createObjectNode();
             target.put("name", item.path("name").asText());
             target.put("preparationType", item.path("preparationType").asText());
             target.put("rank", item.path("rank").asInt());
             target.set("targets", item.path("targets"));
+            priorities.add(target);
+            nextRank = Math.max(nextRank, item.path("rank").asInt() + 1);
+        }
+        var confirmationNames = mapper.createArrayNode();
+        for (var item : analyzed.path("needsConfirmation")) {
+            String name = item.path("name").asText().trim();
+            if (!name.isEmpty()) confirmationNames.add(name);
+        }
+        for (int offset = 0, group = 1; offset < confirmationNames.size(); offset += 50, group++) {
+            ObjectNode target = mapper.createObjectNode();
+            target.put("name", confirmationNames.size() > 50
+                    ? "확인 필요 역량 서류 보완 " + group
+                    : "확인 필요 역량 서류 보완");
+            target.put("preparationType", "DOCUMENT");
+            target.put("rank", nextRank);
+            var targets = mapper.createArrayNode();
+            for (int index = offset; index < Math.min(offset + 50, confirmationNames.size()); index++) {
+                targets.add(confirmationNames.get(index).asText());
+            }
+            target.set("targets", targets);
             priorities.add(target);
         }
         if (priorities.isEmpty()) throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
@@ -100,7 +149,8 @@ public class LearningPlanController {
             if (result == null || !result.isObject() || !result.path("weeks").isArray())
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "계획 생성 응답이 올바르지 않습니다.");
             ((ObjectNode) result).put("source", "DATABASE");
-            ((ObjectNode) result).put("region", input.region().trim());
+            ((ObjectNode) result).put("region", String.join(", ", selectedRegions));
+            ((ObjectNode) result).set("regions", mapper.valueToTree(selectedRegions));
             ((ObjectNode) result).put("referenceDate", analyzed.path("referenceDate").asText());
             ((ObjectNode) result).put("targetJobCount", analyzed.path("targetJobCount").asInt());
             return plans.save(auth.findByEmail(email).getUserId(), result);

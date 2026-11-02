@@ -58,15 +58,16 @@ class PeriodTests(unittest.TestCase):
         self.assertEqual(result["weeks"][0]["totalEstimatedHours"], 1)
         self.assertEqual(sum(x["remainingHours"] for x in result["unscheduled"]), 7)
 
-    def test_tiny_budget_is_not_rounded_up(self):
-        result = self.generate(endDate="2026-10-20", weeklyAvailableHours="0.01")
-        self.assertEqual(result["weeks"], [])
+    def test_one_decimal_hour_budget_is_supported(self):
+        result = self.generate(endDate="2026-10-20", weeklyAvailableHours="0.1")
+        self.assertEqual(result["weeklyAvailableHours"], 0.1)
         self.assertFalse(result["allItemsScheduled"])
 
     def test_invalid_dates_hours_empty_priorities(self):
         for changes in [dict(endDate="2026-10-19"), dict(weeklyAvailableHours=0),
                         dict(weeklyAvailableHours=-1), dict(weeklyAvailableHours=169),
-                        dict(weeklyAvailableHours="NaN"), dict(priorities=[])]:
+                        dict(weeklyAvailableHours="0.01"), dict(weeklyAvailableHours="NaN"),
+                        dict(priorities=[])]:
             with self.subTest(changes=changes), self.assertRaises(ValidationError):
                 PeriodRequest.model_validate(payload(**changes))
 

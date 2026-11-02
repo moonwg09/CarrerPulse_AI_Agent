@@ -9,3 +9,6 @@
 .learning-page table { width: 100%; border-collapse: collapse; }
 .learning-page td, .learning-page th { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
 .learning-page [role="alert"] { color: #ce4242; }
+.learning-region-option { display: inline-block !important; margin: 6px 14px 6px 0 !important; }
+.learning-skill-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 6px 24px; padding-left: 22px; }
+.learning-skill-list li { line-height: 1.5; }

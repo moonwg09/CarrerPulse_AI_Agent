@@ -23,7 +23,7 @@ class Target(StrictModel):
 class PeriodRequest(StrictModel):
     startDate: date
     endDate: date
-    weeklyAvailableHours: Decimal = Field(gt=0, le=168, max_digits=5, decimal_places=2)
+    weeklyAvailableHours: Decimal = Field(ge=Decimal("0.1"), le=168, max_digits=4, decimal_places=1)
     mode: Literal["GEMINI"] = "GEMINI"
     priorities: list[Target] = Field(min_length=1, max_length=500)
 
