@@ -35,7 +35,7 @@ export default function BookmarksPage() {
     <p>저장한 공고를 최근 저장 순서로 보여줍니다.</p>
     {message && <p role="status">{message}</p>}
     {!message && jobs.length === 0 && <p>저장한 관심 공고가 없습니다.</p>}
-    {jobs.length > 0 && <table>
+    {jobs.length > 0 && <table className="bookmark-table">
       <thead><tr><th>공고</th><th>회사</th><th>지역</th><th>마감일</th><th>상태</th><th>관리</th></tr></thead>
       <tbody>{jobs.map((job) => <tr key={job.jobId}>
         <td><Link to={`/jobs/${job.jobId}`}>{job.title}</Link></td>

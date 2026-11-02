@@ -14,6 +14,8 @@ const normalizeCompanyName = (value) => value
   .replace(/[^\p{L}\p{N}]/gu, "")
   .toLocaleLowerCase("ko-KR");
 
+const phonePattern = /^0\d{1,2}-?\d{3,4}-?\d{4}$/;
+
 function MyPage() {
   const [form, setForm] = useState({
     name: "",
@@ -142,10 +144,15 @@ function MyPage() {
     e.preventDefault();
 
     setMessage("");
+    const phone = form.phone.trim();
+    if (phone && !phonePattern.test(phone)) {
+      setMessage("전화번호를 010-1234-5678 형식으로 입력해 주세요.");
+      return;
+    }
 
     const requestData = {
       name: form.name,
-      phone: form.phone,
+      phone,
       careerType: form.careerType,
       careerYears:
         form.careerType === "EXPERIENCED"
@@ -198,10 +205,15 @@ function MyPage() {
         <div className="profile-field">
           <label>전화번호</label>
           <input
-            type="text"
+            type="tel"
             name="phone"
             value={form.phone}
             onChange={handleChange}
+            inputMode="tel"
+            maxLength={13}
+            pattern="0[0-9]{1,2}-?[0-9]{3,4}-?[0-9]{4}"
+            placeholder="010-1234-5678"
+            title="지역번호 또는 010으로 시작하는 전화번호를 입력해 주세요. 하이픈은 생략할 수 있습니다."
           />
         </div>
 

@@ -471,6 +471,22 @@ hr { margin: 32px 0; border: 0; border-top: 2px solid var(--ink); }
   cursor: pointer;
 }
 .application-status-select:hover { filter: brightness(.96); }
+.application-interview-date {
+  display: grid;
+  grid-template-columns: auto minmax(130px, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  width: 100%;
+  margin-top: 4px;
+}
+.application-interview-date label { margin: 0; font-family: var(--mono); font-size: 10px; }
+.application-interview-date input { width: 100%; min-height: 34px; }
+.application-interview-date button { min-height: 34px; }
+
+.bookmark-table td { vertical-align: middle; }
+.bookmark-table th:last-child,
+.bookmark-table td:last-child { width: 78px; text-align: center; }
+.bookmark-table .button-compact { margin: 0 auto; }
 
 @media (max-width: 900px) {
   #root { width: 100%; min-height: 100vh; margin: 0; border-inline: 0; }

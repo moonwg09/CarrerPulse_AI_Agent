@@ -10,6 +10,10 @@ public record UpdateUserRequest(
 
         String name,
 
+        @Pattern(
+                regexp = "^$|^0\\d{1,2}-?\\d{3,4}-?\\d{4}$",
+                message = "전화번호를 010-1234-5678 형식으로 입력해 주세요."
+        )
         String phone,
 
         @Pattern(regexp = "NEW|EXPERIENCED")
