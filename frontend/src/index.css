@@ -224,6 +224,29 @@ hr { margin: 32px 0; border: 0; border-top: 2px solid var(--ink); }
 }
 .analysis-evidence--empty { border-left-style: dashed; color: #666; }
 
+.analysis-response-form {
+  display: grid;
+  grid-template-columns: 150px minmax(220px, 1fr) auto auto;
+  gap: 8px;
+  align-items: stretch;
+  margin: 14px 0 2px;
+}
+.analysis-response-form select,
+.analysis-response-form textarea,
+.analysis-response-form button {
+  width: 100%;
+  min-height: 44px;
+  height: 44px;
+  margin: 0;
+}
+.analysis-response-form textarea {
+  min-width: 0;
+  padding-block: 10px;
+  line-height: 1.4;
+  resize: vertical;
+}
+.analysis-response-form button { white-space: nowrap; }
+
 @media (max-width: 900px) {
   #root { width: 100%; min-height: 100vh; margin: 0; border-inline: 0; }
   main, #root > div:not(.auth-page) { padding-inline: 16px; }
@@ -234,6 +257,8 @@ hr { margin: 32px 0; border: 0; border-top: 2px solid var(--ink); }
   table { display: block; overflow-x: auto; white-space: nowrap; }
   .metric-grid { grid-template-columns: 1fr; }
   .analysis-item { grid-template-columns: 1fr; gap: 8px; }
+  .analysis-response-form { grid-template-columns: 1fr; }
+  .analysis-response-form textarea { min-height: 80px; height: 80px; }
   dl { grid-template-columns: 100px 1fr; }
 }
 

@@ -120,7 +120,7 @@ function AnalysisDetailPage() {
             </div>
           {["EXPERIENCE", "RESPONSIBILITY"].includes(item.comparisonKind) &&
             item.status !== "NO_EXPERIENCE" && (
-              <div>
+              <div className="analysis-response-form">
                 <select
                   value={responses[item.itemId]?.userResponseType || ""}
                   onChange={(event) => setResponses((previous) => ({
