@@ -118,21 +118,23 @@ public class LearningPlanController {
             priorities.add(target);
             nextRank = Math.max(nextRank, item.path("rank").asInt() + 1);
         }
-        var confirmationNames = mapper.createArrayNode();
+        var uniqueConfirmationNames = new LinkedHashSet<String>();
         for (var item : analyzed.path("needsConfirmation")) {
             String name = item.path("name").asText().trim();
-            if (!name.isEmpty()) confirmationNames.add(name);
+            if (!name.isEmpty()) uniqueConfirmationNames.add(name);
         }
+        var confirmationNames = List.copyOf(uniqueConfirmationNames);
+        int totalGroups = (confirmationNames.size() + 49) / 50;
         for (int offset = 0, group = 1; offset < confirmationNames.size(); offset += 50, group++) {
             ObjectNode target = mapper.createObjectNode();
-            target.put("name", confirmationNames.size() > 50
-                    ? "확인 필요 역량 서류 보완 " + group
-                    : "확인 필요 역량 서류 보완");
+            target.put("name", totalGroups > 1
+                    ? "경험·보유 근거 확인 및 서류 보완 (" + group + "/" + totalGroups + ")"
+                    : "경험·보유 근거 확인 및 서류 보완");
             target.put("preparationType", "DOCUMENT");
             target.put("rank", nextRank);
             var targets = mapper.createArrayNode();
             for (int index = offset; index < Math.min(offset + 50, confirmationNames.size()); index++) {
-                targets.add(confirmationNames.get(index).asText());
+                targets.add(confirmationNames.get(index));
             }
             target.set("targets", targets);
             priorities.add(target);

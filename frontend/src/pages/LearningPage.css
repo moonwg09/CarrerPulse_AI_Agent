@@ -3,6 +3,18 @@
 .learning-page textarea { display: block; width: min(720px, 100%); }
 .learning-input, .learning-page article { margin-top: 18px; padding: 16px 0; border-top: 1px solid var(--ink); }
 .learning-table { width: 100%; overflow-x: auto; }
+.learning-table--plan table { min-width: 920px; table-layout: fixed; }
+.learning-table--plan th { white-space: nowrap; word-break: keep-all; }
+.learning-table--plan th:nth-child(1),
+.learning-table--plan td:nth-child(1) { width: 24%; }
+.learning-table--plan th:nth-child(2),
+.learning-table--plan td:nth-child(2) { width: 90px; text-align: center; }
+.learning-table--plan th:nth-child(3),
+.learning-table--plan td:nth-child(3) { width: 120px; }
+.learning-table--plan th:nth-child(4),
+.learning-table--plan td:nth-child(4) { width: auto; }
+.learning-table--plan th:nth-child(5),
+.learning-table--plan td:nth-child(5) { width: 125px; white-space: nowrap; }
 .learning-page [role="alert"] { color: var(--ink); }
 .learning-region-option { display: inline-flex; }
 .learning-skill-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); margin-top: 12px; border-top: 2px solid var(--ink); }

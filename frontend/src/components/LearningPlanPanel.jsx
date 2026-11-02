@@ -5,6 +5,28 @@ import PageToast from "./PageToast";
 
 const activityNames = { TECH_STUDY: "기술 학습", PROJECT: "프로젝트", CERTIFICATE: "자격증", DOCUMENT_IMPROVEMENT: "서류 보완" };
 
+function displayPlanText(value) {
+  return String(value || "").replace(
+    /확인 필요 역량 서류 보완(?:\s+(\d+))?/g,
+    (_, group) => `경험·보유 근거 확인 및 서류 보완${group ? ` (묶음 ${group})` : ""}`,
+  );
+}
+
+function markContinuedActivities(weeks = []) {
+  const seen = new Set();
+  return weeks.map(week => ({
+    ...week,
+    items: (week.items || []).map(item => {
+      const key = [item.name, item.taskName, item.description, item.activityType]
+        .map(value => String(value || "").trim())
+        .join("|");
+      const continued = seen.has(key);
+      seen.add(key);
+      return { ...item, continued };
+    }),
+  }));
+}
+
 // 생성 입력과 저장된 계획의 입력은 별도이다. 조회 결과에는 생성 당시 날짜·시간을
 // 함께 표시하므로 현재 입력창의 값으로 과거 계획을 잘못 해석하지 않는다.
 export default function LearningPlanPanel({ regions, canGenerate }) {
@@ -49,6 +71,8 @@ export default function LearningPlanPanel({ regions, canGenerate }) {
     finally { setBusy(false); }
   }
 
+  const displayedWeeks = markContinuedActivities(plan?.weeks);
+
   return <section aria-label="학습계획">
     <PageToast message={notice} onClose={setNotice} />
     <h2>학습계획 생성</h2>
@@ -72,17 +96,24 @@ export default function LearningPlanPanel({ regions, canGenerate }) {
     {message && <p role="status">{message}</p>}
     {error && <p role="alert">{error}</p>}
     {plan && <section aria-label="저장된 학습계획 상세" aria-live="polite">
-      <h3>계획 #{plan.planId}{plan.mode && " · Gemini 생성 계획"}</h3>
+      <h3>학습 일정</h3>
       <p>입력 기간: {plan.startDate} ~ {plan.endDate} · 주당 가능 시간: {plan.weeklyAvailableHours}시간</p>
       {plan.source && <p>공고 출처: DB 공고 · 분석 기준일: {plan.referenceDate} · 대상 공고: {plan.targetJobCount}건</p>}
       <p>{plan.estimateNotice || "예상 소요 시간은 추정치입니다."}</p>
       {plan.adjustmentMessage && <p>{plan.adjustmentMessage}</p>}
       {!plan.weeks.length && <p>입력한 기간과 시간 안에 배치할 수 있는 활동이 없습니다. 시간을 늘려 다시 생성하세요.</p>}
-      {plan.weeks.map(week => <article key={week.weekNumber}>
+      {displayedWeeks.map(week => <article key={week.weekNumber}>
         <h4>{week.weekNumber}주차 · {week.startDate} ~ {week.endDate}</h4>
         <p>예상 {week.totalEstimatedHours}시간 / 가능 {week.availableHours}시간</p>
-        <div className="learning-table"><table><thead><tr><th>준비 항목</th><th>수행 순서</th><th>활동 유형</th><th>활동·산출물</th><th>예상 시간</th></tr></thead><tbody>
-          {week.items.map((item, i) => <tr key={i}><td>{item.name || item.taskName}{item.targets?.length > 0 && <><br />{item.targets.join(", ")}</>}</td><td>{item.sequenceNo || i + 1}</td><td>{activityNames[item.activityType]}</td><td>{item.taskName}<p>{item.description}</p></td><td>{item.estimatedHours}시간</td></tr>)}
+        <div className="learning-table learning-table--plan"><table><thead><tr><th>준비 항목</th><th>수행 순서</th><th>활동 유형</th><th>활동 내용</th><th>예상 소요시간</th></tr></thead><tbody>
+          {week.items.map((item, i) => <tr key={i}>
+            <td>{item.continued ? "이전 주차에서 계속" : displayPlanText(item.name || item.taskName)}
+              {!item.continued && item.targets?.length > 0 && <><br />{item.targets.join(", ")}</>}</td>
+            <td>{item.sequenceNo || i + 1}</td>
+            <td>{activityNames[item.activityType]}</td>
+            <td>{item.continued ? "이전 주차의 활동을 이어서 진행합니다." : <>{displayPlanText(item.taskName)}<p>{displayPlanText(item.description)}</p></>}</td>
+            <td>{item.estimatedHours}시간</td>
+          </tr>)}
         </tbody></table></div>
       </article>)}
       {!!plan.unscheduled?.length && <><h4>기간 내 배치하지 못한 활동</h4>{plan.unscheduled.map((x, i) => <p key={i}>{x.name}: {x.taskName} · 남은 예상 {x.remainingHours}시간</p>)}</>}

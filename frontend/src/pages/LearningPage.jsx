@@ -10,6 +10,15 @@ const kinds = { SKILL: "기술", CERTIFICATE: "자격증", EXPERIENCE: "수행 �
 const states = { UNKNOWN: "확인 필요", EXPERIENCED: "충분한 경험·보유", PARTIAL: "일부 경험", NO_EXPERIENCE: "경험 없음·미보유 확인" };
 const preparationTypes = { TECHNICAL: "기술 학습", CERTIFICATE: "자격증", PROJECT: "프로젝트", DOCUMENT: "서류 보완" };
 
+function uniqueConfirmationItems(items = []) {
+  const unique = new Map();
+  items.forEach(item => {
+    const key = String(item.name || "").trim().toLocaleLowerCase("ko-KR");
+    if (key && !unique.has(key)) unique.set(key, item);
+  });
+  return [...unique.values()];
+}
+
 function initialRegions() {
   try {
     const saved = JSON.parse(localStorage.getItem("careerpulse.regions") || "[]");
@@ -49,6 +58,8 @@ export default function LearningPage() {
     });
   }
 
+  const confirmationItems = uniqueConfirmationItems(result?.needsConfirmation);
+
   return <main className="learning-page">
     <NavBar />
     <h1>준비 역량 분석</h1>
@@ -85,9 +96,9 @@ export default function LearningPage() {
       {!result.preparation.length && <p>확정된 준비 대상이 없습니다.</p>}
       {result.preparation.map(x => <article key={`${x.type}:${x.name}`}><h4>{x.rank}순위 · {x.name} · {preparationTypes[x.preparationType]}</h4><p>{x.totalJobCount}개 공고 · {states[x.userStatus]}</p><p>준비할 항목: {x.targets.join(", ")}</p><p>근거: {x.evidence}</p></article>)}
       <h3>확인 필요·서류 보완</h3>
-      {!result.needsConfirmation.length && <p>없음</p>}
-      {!!result.needsConfirmation.length && <div className="learning-skill-list">
-        {result.needsConfirmation.map((x, index) => <div key={`${x.type}:${x.name}`}>
+      {!confirmationItems.length && <p>없음</p>}
+      {!!confirmationItems.length && <div className="learning-skill-list">
+        {confirmationItems.map((x, index) => <div key={x.name}>
           <span>{String(index + 1).padStart(2, "0")}</span><strong>{x.name}</strong>
         </div>)}
       </div>}
