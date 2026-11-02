@@ -63,7 +63,7 @@ function MyPage() {
           if (active) {
             setCompanySuggestions([]);
             setCompanySearchComplete(false);
-            setMessage(error.message);
+            setMessage(`${error.message} 기업명을 직접 입력해 등록할 수 있습니다.`);
           }
         })
         .finally(() => {
@@ -78,12 +78,8 @@ function MyPage() {
   }, [companyName, selectedCompanyName]);
 
   const addCompany = async () => {
-    if (companyName.trim() !== selectedCompanyName) {
-      setMessage("고용24 검색 결과에서 기업을 선택해 주세요.");
-      return;
-    }
     try {
-      await addPreferredCompany(selectedCompanyName);
+      await addPreferredCompany(companyName.trim());
       setCompanies(await getPreferredCompanies());
       setCompanyName("");
       setSelectedCompanyName("");
@@ -213,7 +209,7 @@ function MyPage() {
 
       <section className="preferred-company-section">
         <h2>관심 기업</h2>
-        <p>고용24에 채용공고가 등록된 기업을 검색해 최대 3개까지 선택할 수 있습니다.</p>
+        <p>수집된 채용공고와 고용24 검색 결과를 참고하거나, 기업명을 직접 입력해 최대 3개까지 등록할 수 있습니다.</p>
         <div className="company-search-row">
           <input
             value={companyName}
@@ -226,12 +222,12 @@ function MyPage() {
               setCompanySearchComplete(false);
               setMessage("");
             }}
-            placeholder="기업명을 두 글자 이상 입력하세요."
-            aria-label="고용24 기업명 검색"
+            placeholder="기업명을 입력하거나 검색 결과에서 선택하세요."
+            aria-label="관심 기업명 입력"
           />
           <button
             type="button"
-            disabled={!selectedCompanyName || companies.length >= 3}
+            disabled={!companyName.trim() || companies.length >= 3}
             onClick={addCompany}
           >
             관심 기업 추가
@@ -239,7 +235,7 @@ function MyPage() {
         </div>
         {companySearchLoading && <p className="company-search-help">고용24에서 검색 중...</p>}
         {companySearchComplete && !companySearchLoading && !selectedCompanyName && companySuggestions.length === 0 && (
-          <p className="company-search-help">검색 결과가 없습니다.</p>
+          <p className="company-search-help">검색 결과가 없습니다. 입력한 기업명을 직접 등록할 수 있습니다.</p>
         )}
         {companySuggestions.length > 0 && (
           <div className="company-suggestions" role="listbox" aria-label="고용24 기업 검색 결과">

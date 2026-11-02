@@ -117,7 +117,6 @@ function UserJobsPage() {
               <span className="record-index">{String(index + 1).padStart(2, "0")}</span>
               <div>
                 <strong>{job.jobName}</strong>
-                <small className="record-meta">직무 코드 · {job.jobCode}</small>
               </div>
               <button
                 className="button-compact button-danger"

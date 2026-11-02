@@ -8,6 +8,7 @@ import com.careerpulse.job.dto.JobCollectionRequest;
 import com.careerpulse.job.dto.JobCollectionResponse;
 import com.careerpulse.job.dto.JobPostingResponse;
 import com.careerpulse.job.entity.JobPostingStatus;
+import com.careerpulse.job.repository.JobPostingRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -26,6 +27,7 @@ class JobCollectionServiceTest {
     void collectsFromFastApiAndStoresResults() {
         JobCollectionClient client = mock(JobCollectionClient.class);
         JobPostingService postingService = mock(JobPostingService.class);
+        JobPostingRepository postingRepository = mock(JobPostingRepository.class);
         AiRawJobPosting rawJob = rawJob();
         AiJobCollectionResponse aiResponse = new AiJobCollectionResponse(
                 "백엔드 개발자",
@@ -41,7 +43,8 @@ class JobCollectionServiceTest {
 
         JobCollectionResponse response = new JobCollectionService(
                 client,
-                postingService
+                postingService,
+                postingRepository
         ).collectAndStore(new JobCollectionRequest("백엔드 개발자", "서울", 1));
 
         ArgumentCaptor<AiJobCollectionRequest> requestCaptor =
