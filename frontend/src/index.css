@@ -357,6 +357,52 @@ hr { margin: 32px 0; border: 0; border-top: 2px solid var(--ink); }
 .preferred-company-row .button-danger:focus-visible { background: #9b2722; color: var(--paper); }
 .button-danger:disabled { border-color: var(--line); background: var(--wash); color: #999; }
 
+.document-file-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  min-height: 70px;
+  padding: 12px 14px;
+  border: 1px solid var(--ink);
+}
+.document-file-summary--pending { border-style: dashed; }
+.document-file-info { min-width: 0; }
+.document-file-info strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+}
+.document-file-info small { display: block; margin-top: 7px; font-family: var(--mono); font-size: 11px; }
+.document-status {
+  display: inline-block;
+  padding: 5px 9px;
+  border: 1px solid currentColor;
+  background: var(--paper);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.document-status--pending { color: #8a5200; background: #fff6df; }
+.document-status--processing { color: #245784; background: #edf4fa; }
+.document-status--completed { color: #17653a; background: #edf6f0; }
+.document-status--failed { color: #9b2722; background: #fbefee; }
+.document-empty { margin: 0; padding: 20px 14px; border: 1px dashed var(--line); color: var(--muted); }
+.document-processing-error {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-left: 4px solid #9b2722;
+  background: #fbefee;
+  color: #7d201c;
+  font-size: 12px;
+}
+.document-actions { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.document-actions input { flex: 1 1 auto; margin: 0; }
+.document-actions button { flex: 0 0 auto; }
+
 .page-toast {
   position: fixed;
   z-index: 1000;
@@ -449,6 +495,9 @@ hr { margin: 32px 0; border: 0; border-top: 2px solid var(--ink); }
   .application-primary,
   .application-location,
   .application-state { grid-column: 2; }
+  .document-actions { align-items: stretch; flex-direction: column; }
+  .document-actions input,
+  .document-actions button { width: 100%; }
   dl { grid-template-columns: 100px 1fr; }
 }
 

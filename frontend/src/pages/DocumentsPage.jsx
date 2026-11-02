@@ -8,6 +8,21 @@ const types = [
   ["portfolio", "PORTFOLIO", "포트폴리오"],
 ];
 
+const statusLabels = {
+  PENDING: "처리 대기",
+  PROCESSING: "처리 중",
+  COMPLETED: "등록 완료",
+  FAILED: "처리 실패",
+};
+
+function formatFileSize(size) {
+  if (!Number.isFinite(Number(size))) return "크기 정보 없음";
+  const bytes = Number(size);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState([]);
   const [files, setFiles] = useState({});
@@ -77,14 +92,29 @@ export default function DocumentsPage() {
       const pendingFile = files[path];
       return <section key={code}>
         <h2>{label}</h2>
-        {pendingFile
-          ? <p>{pendingFile.name} · 저장 대기{saved ? " (기존 문서 교체 예정)" : ""}</p>
-          : saved
-            ? <p>{saved.originalFilename} · {saved.fileFormat} · {saved.fileSize} bytes · {saved.processingStatus}{saved.processingError ? ` · ${saved.processingError}` : ""}</p>
-            : <p>등록된 문서가 없습니다.</p>}
-        <input ref={element => { fileInputs.current[path] = element; }} type="file" accept=".pdf,.docx" disabled={!!busy}
-          onChange={event => setFiles(old => ({ ...old, [path]: event.target.files?.[0] || null }))} />
-        {saved && <button className="button-compact button-danger" type="button" disabled={!!busy} onClick={() => remove(path, label)}>삭제</button>}
+        {pendingFile ? <div className="document-file-summary document-file-summary--pending">
+          <div className="document-file-info">
+            <strong title={pendingFile.name}>{pendingFile.name}</strong>
+            <small>{formatFileSize(pendingFile.size)}{saved ? " · 기존 문서 교체 예정" : " · 새 문서"}</small>
+          </div>
+          <span className="document-status document-status--pending">저장 대기</span>
+        </div> : saved ? <>
+          <div className="document-file-summary">
+            <div className="document-file-info">
+              <strong title={saved.originalFilename}>{saved.originalFilename}</strong>
+              <small>{saved.fileFormat} · {formatFileSize(saved.fileSize)}</small>
+            </div>
+            <span className={`document-status document-status--${saved.processingStatus.toLowerCase()}`}>
+              {statusLabels[saved.processingStatus] || saved.processingStatus}
+            </span>
+          </div>
+          {saved.processingError && <p className="document-processing-error">{saved.processingError}</p>}
+        </> : <p className="document-empty">등록된 문서가 없습니다.</p>}
+        <div className="document-actions">
+          <input ref={element => { fileInputs.current[path] = element; }} type="file" accept=".pdf,.docx" disabled={!!busy}
+            onChange={event => setFiles(old => ({ ...old, [path]: event.target.files?.[0] || null }))} />
+          {saved && <button className="button-compact button-danger" type="button" disabled={!!busy} onClick={() => remove(path, label)}>삭제</button>}
+        </div>
       </section>;
     })}
     <button type="button" disabled={!Object.values(files).some(Boolean) || !!busy} onClick={save}>
