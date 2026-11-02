@@ -22,6 +22,10 @@ public interface AnalysisResultRepository extends JpaRepository<AnalysisResult, 
             """)
     int invalidateCompletedByUserId(@Param("userId") Long userId);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("DELETE FROM AnalysisResult result WHERE result.user.userId = :userId")
+    int deleteAllByUserId(@Param("userId") Long userId);
+
     @EntityGraph(attributePaths = {"items", "items.requirement"})
     Optional<AnalysisResult> findFirstByUser_UserIdAndJobIdOrderByCreatedAtDesc(
             Long userId,

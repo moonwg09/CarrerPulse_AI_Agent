@@ -10,6 +10,7 @@ import com.careerpulse.user.repository.UserRepository;
 import com.careerpulse.learning.repository.LearningPlanRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -117,6 +118,14 @@ public class AnalysisService {
                 .filter(result -> !findJob(result.getJobId()).isClosed(LocalDate.now()))
                 .map(this::toSummary)
                 .toList();
+    }
+
+    @Transactional
+    public int resetMyAnalyses(String email) {
+        User user = findUser(email);
+        int deletedCount = resultRepository.deleteAllByUserId(user.getUserId());
+        learningPlanRepository.invalidateActive(user.getUserId());
+        return deletedCount;
     }
 
     public AnalysisDetailResponse getDetail(String email, Long analysisId) {

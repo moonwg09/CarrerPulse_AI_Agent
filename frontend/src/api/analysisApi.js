@@ -55,6 +55,20 @@ export async function getAnalyses() {
   return body;
 }
 
+export async function resetAnalyses() {
+  const csrf = await getCsrfToken();
+  const response = await fetch(BASE_URL, {
+    method: "DELETE",
+    headers: { [csrf.headerName]: csrf.token },
+    credentials: "include",
+  });
+  const body = await readBody(response);
+  if (!response.ok) {
+    throw new Error(body?.message || "분석 결과 초기화에 실패했습니다.");
+  }
+  return body;
+}
+
 // 분석 결과 상세
 export async function getAnalysisDetail(analysisId) {
   const response = await fetch(

@@ -56,8 +56,8 @@ export default function LearningPlanPanel({ regions, canGenerate }) {
         <label>시작일 <input required type="date" name="startDate" value={input.startDate} onChange={change} /></label>
         <label>종료일 <input required type="date" name="endDate" min={input.startDate || undefined} value={input.endDate} onChange={change} /></label>
         <label><input type="checkbox" checked={saveAsTarget} onChange={e => setSaveAsTarget(e.target.checked)} /> 이 종료일을 내 준비 목표일로 저장</label>
-        <label>주당 학습 가능 시간 <input required type="number" name="weeklyAvailableHours" min="0.1" max="168" step="0.1" value={input.weeklyAvailableHours} onChange={change}
-          onBlur={e => e.target.value && setInput(old => ({ ...old, weeklyAvailableHours: Number(e.target.value).toFixed(1) }))} /> 시간</label>
+        <label>주당 학습 가능 시간 <input required type="number" name="weeklyAvailableHours" min="0.5" max="168" step="0.5" value={input.weeklyAvailableHours} onChange={change}
+          onBlur={e => e.target.value && setInput(old => ({ ...old, weeklyAvailableHours: (Math.round(Number(e.target.value) * 2) / 2).toFixed(1) }))} /> 시간</label>
         <p>주당 시간은 상한이며 남는 시간을 억지로 채우지 않습니다. 마지막 부분 주차는 일수 비례 상한을 적용합니다.</p>
         <p>검증된 준비 대상·부족 세부 항목·기간·주당 시간을 Gemini에 전달합니다.</p>
         <button type="submit" disabled={!canGenerate}>{busy ? "처리 중…" : "계획 생성·저장"}</button>

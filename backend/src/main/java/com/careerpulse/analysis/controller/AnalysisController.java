@@ -76,6 +76,14 @@ public class AnalysisController {
         );
     }
 
+    @DeleteMapping
+    public ResponseEntity<Map<String, Integer>> resetMyAnalyses(
+            Authentication authentication
+    ) {
+        int deletedCount = analysisService.resetMyAnalyses(authentication.getName());
+        return ResponseEntity.ok(Map.of("deletedCount", deletedCount));
+    }
+
     @GetMapping("/recommendations")
     public ResponseEntity<RecommendationListResponse> getRecommendations(
             Authentication authentication,

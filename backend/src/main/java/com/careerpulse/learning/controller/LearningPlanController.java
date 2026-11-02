@@ -54,7 +54,7 @@ public class LearningPlanController {
     }
 
     public record PlanInput(@NotNull LocalDate startDate, @NotNull LocalDate endDate,
-            @NotNull @DecimalMin("0.1") @DecimalMax("168") @Digits(integer=3, fraction=1) BigDecimal weeklyAvailableHours,
+            @NotNull @DecimalMin("0.5") @DecimalMax("168") @Digits(integer=3, fraction=1) BigDecimal weeklyAvailableHours,
             String region, List<String> regions) {
         public PlanInput(LocalDate startDate, LocalDate endDate,
                 BigDecimal weeklyAvailableHours, String region) {
@@ -99,6 +99,8 @@ public class LearningPlanController {
         List<String> selectedRegions = input.selectedRegions();
         if (input.endDate().isBefore(LocalDate.now()))
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "종료일은 오늘 이후의 준비 목표일이어야 합니다.");
+        if (input.weeklyAvailableHours().remainder(new BigDecimal("0.5")).signum() != 0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "주당 학습 가능 시간은 0.5시간 단위로 입력해주세요.");
         if (input.endDate().isBefore(input.startDate()) || ChronoUnit.DAYS.between(input.startDate(), input.endDate()) >= 730)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "종료일은 시작일 이후여야 하며 최대 기간은 730일입니다.");
         // 브라우저가 보낸 우선순위를 신뢰하지 않고 기존 PLN-01~03 진입점에서 본인 분석을 다시 계산한다.

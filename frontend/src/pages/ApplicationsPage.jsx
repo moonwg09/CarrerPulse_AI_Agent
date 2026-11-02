@@ -15,7 +15,13 @@ export default function ApplicationsPage() {
   const [message, setMessage] = useState("");
 
   const load = () => getApplications().then(setItems).catch((error) => setMessage(error.message));
-  useEffect(load, []);
+  useEffect(() => {
+    let active = true;
+    getApplications()
+      .then(data => { if (active) setItems(data); })
+      .catch(error => { if (active) setMessage(error.message); });
+    return () => { active = false; };
+  }, []);
 
   async function change(item, status, interviewDate) {
     try {

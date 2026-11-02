@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import NavBar from "../components/NavBar";
-import { compareDocumentWithJob, getAnalyses } from "../api/analysisApi";
+import { compareDocumentWithJob, getAnalyses, resetAnalyses } from "../api/analysisApi";
 import { collectJobs, searchJobs } from "../api/jobApi";
 import { getMyJobs } from "../api/userApi";
 import { regions } from "../constants/regions";
@@ -129,6 +129,20 @@ export default function AnalysisPage() {
     finally { setBusy(""); }
   }
 
+  async function resetAllAnalyses() {
+    const confirmed = window.confirm(
+      "분석 결과를 모두 초기화하시겠습니까? 업로드 문서와 수집 공고는 유지되며, 기존 학습계획은 무효화됩니다."
+    );
+    if (!confirmed) return;
+    setBusy("reset"); setMessage("");
+    try {
+      const result = await resetAnalyses();
+      setAnalyses([]);
+      setMessage(`분석 결과 ${result.deletedCount}개를 초기화했습니다.`);
+    } catch (error) { setMessage(error.message); }
+    finally { setBusy(""); }
+  }
+
   return <main>
     <NavBar />
     <h1>채용공고 분석</h1>
@@ -160,6 +174,9 @@ export default function AnalysisPage() {
     </>}
 
     <h2>분석 결과</h2>
+    <button type="button" disabled={!analyses.length || !!busy} onClick={resetAllAnalyses}>
+      {busy === "reset" ? "초기화 중" : "분석 결과 전체 초기화"}
+    </button>
     <table><thead><tr><th>공고</th><th>회사</th><th>상태</th><th>전체 일치율</th><th>평가 가능 비율</th></tr></thead>
       <tbody>{analyses.map(item => <tr key={item.analysisId}>
         <td><Link to={`/analysis/${item.analysisId}`}>{item.jobTitle || `공고 ${item.jobId}`}</Link></td>
