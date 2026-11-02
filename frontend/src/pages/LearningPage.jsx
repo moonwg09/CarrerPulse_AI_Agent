@@ -36,6 +36,7 @@ export default function LearningPage() {
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [activeSection, setActiveSection] = useState("analysis");
 
   async function submit(event) {
     event.preventDefault();
@@ -59,54 +60,77 @@ export default function LearningPage() {
   }
 
   const confirmationItems = uniqueConfirmationItems(result?.needsConfirmation);
+  const canGenerate = !busy && !!result && !!(
+    result.preparation.length || confirmationItems.length
+  );
 
   return <main className="learning-page">
     <NavBar />
     <h1>준비 역량 분석</h1>
-    <p>등록한 관심 직무와 선택 지역에 맞는 모집 중 공고를 최신순 최대 10개 분석합니다.</p>
-    <form onSubmit={submit}>
-      <fieldset disabled={busy}>
-        <legend>분석 지역</legend>
-        {regions.map(item => <label key={item} className="learning-region-option">
-          <input type="checkbox" checked={selectedRegions.includes(item)} onChange={() => toggleRegion(item)} /> {item}
-        </label>)}
-        <button type="submit" disabled={selectedRegions.length === 0}>{busy ? "분석 중…" : "요구 역량 분석하기"}</button>
-      </fieldset>
-    </form>
-    {error && <p role="alert">{error}</p>}
-    {result && <section aria-live="polite">
-      <h2>분석 결과</h2>
-      <p>{result.message} · 지역 {result.region} · 기준일 {result.referenceDate} · 대상 {result.targetJobCount}건</p>
-      {!!result.analysisFailureCount && <p>자동 분석에 실패해 제외된 공고: {result.analysisFailureCount}건</p>}
-      {!!result.skippedJobCount && <p>요구사항 분석이 없어 제외된 공고: {result.skippedJobCount}건</p>}
-      <h3>분석 대상 공고</h3>
-      {!result.targetJobs?.length && <p>분석에 포함된 공고가 없습니다.</p>}
-      {!!result.targetJobs?.length && <div className="detail-list">
-        {result.targetJobs.map((job, index) => <div className="detail-list-row" key={job.jobId}>
-          <span className="record-index">{String(index + 1).padStart(2, "0")}</span>
-          <Link to={`/jobs/${job.jobId}`}>{job.companyName || "회사 미기재"} · {job.title || "공고명 미기재"}</Link>
-        </div>)}
-      </div>}
-      <h3>요구 역량 빈도</h3>
-      <div className="learning-table"><table><thead><tr><th>역량</th><th>종류</th><th>등장 공고</th><th>필수</th><th>우대</th></tr></thead><tbody>
-        {result.frequency.map(x => <tr key={`${x.type}:${x.name}`}><td>{x.name}</td><td>{kinds[x.type]}</td><td>{x.totalJobCount}</td><td>{x.requiredCount}</td><td>{x.preferredCount}</td></tr>)}
-      </tbody></table></div>
-      <h3>준비 대상과 우선순위</h3>
-      <p>등장 공고 수가 같은 항목은 동순위이며 이름순 표시는 추가 우선순위를 뜻하지 않습니다.</p>
-      {!result.preparation.length && <p>확정된 준비 대상이 없습니다.</p>}
-      {result.preparation.map(x => <article key={`${x.type}:${x.name}`}><h4>{x.rank}순위 · {x.name} · {preparationTypes[x.preparationType]}</h4><p>{x.totalJobCount}개 공고 · {states[x.userStatus]}</p><p>준비할 항목: {x.targets.join(", ")}</p><p>근거: {x.evidence}</p></article>)}
-      <h3>확인 필요·서류 보완</h3>
-      {!confirmationItems.length && <p>없음</p>}
-      {!!confirmationItems.length && <div className="learning-skill-list">
-        {confirmationItems.map((x, index) => <div key={x.name}>
-          <span>{String(index + 1).padStart(2, "0")}</span><strong>{x.name}</strong>
-        </div>)}
-      </div>}
-      <h3>충분한 경험·보유로 제외</h3>
-      {!result.excluded.length && <p>없음</p>}
-      {result.excluded.map(x => <p key={`${x.type}:${x.name}`}>{x.name}: {x.evidence}</p>)}
-    </section>}
-    <LearningPlanPanel regions={selectedRegions}
-      canGenerate={!busy && !!result && !!(result.preparation.length || result.needsConfirmation.length)} />
+    <p>공고의 요구 역량을 확인하고 준비 우선순위와 학습 일정을 단계별로 관리합니다.</p>
+
+    <nav className="learning-tabs" role="tablist" aria-label="준비 역량 분석 단계">
+      <button className="learning-tab" type="button" role="tab" aria-selected={activeSection === "analysis"} aria-controls="learning-analysis-panel" onClick={() => setActiveSection("analysis")}>1. 요구 역량 분석</button>
+      <button className="learning-tab" type="button" role="tab" aria-selected={activeSection === "preparation"} aria-controls="learning-preparation-panel" onClick={() => setActiveSection("preparation")}>2. 준비 역량</button>
+      <button className="learning-tab" type="button" role="tab" aria-selected={activeSection === "plan"} aria-controls="learning-plan-panel" onClick={() => setActiveSection("plan")}>3. 학습계획</button>
+    </nav>
+
+    <section id="learning-analysis-panel" className="learning-tab-panel" role="tabpanel" hidden={activeSection !== "analysis"}>
+      <h2>요구 역량 분석</h2>
+      <p>등록한 관심 직무와 선택 지역에 맞는 모집 중 공고를 최신순 최대 10개 분석합니다.</p>
+      <form onSubmit={submit}>
+        <fieldset disabled={busy}>
+          <legend>분석 지역</legend>
+          {regions.map(item => <label key={item} className="learning-region-option">
+            <input type="checkbox" checked={selectedRegions.includes(item)} onChange={() => toggleRegion(item)} /> {item}
+          </label>)}
+          <button type="submit" disabled={selectedRegions.length === 0}>{busy ? "분석 중…" : "요구 역량 분석하기"}</button>
+        </fieldset>
+      </form>
+      {error && <p role="alert">{error}</p>}
+      {result && <section aria-live="polite">
+        <h3>분석 결과</h3>
+        <p>{result.message} · 지역 {result.region} · 기준일 {result.referenceDate} · 대상 {result.targetJobCount}건</p>
+        {!!result.analysisFailureCount && <p>자동 분석에 실패해 제외된 공고: {result.analysisFailureCount}건</p>}
+        {!!result.skippedJobCount && <p>요구사항 분석이 없어 제외된 공고: {result.skippedJobCount}건</p>}
+        <h3>분석 대상 공고</h3>
+        {!result.targetJobs?.length && <p>분석에 포함된 공고가 없습니다.</p>}
+        {!!result.targetJobs?.length && <div className="detail-list">
+          {result.targetJobs.map((job, index) => <div className="detail-list-row" key={job.jobId}>
+            <span className="record-index">{String(index + 1).padStart(2, "0")}</span>
+            <Link to={`/jobs/${job.jobId}`}>{job.companyName || "회사 미기재"} · {job.title || "공고명 미기재"}</Link>
+          </div>)}
+        </div>}
+        <h3>요구 역량 빈도</h3>
+        <div className="learning-table"><table><thead><tr><th>역량</th><th>종류</th><th>등장 공고</th><th>필수</th><th>우대</th></tr></thead><tbody>
+          {result.frequency.map(x => <tr key={`${x.type}:${x.name}`}><td>{x.name}</td><td>{kinds[x.type]}</td><td>{x.totalJobCount}</td><td>{x.requiredCount}</td><td>{x.preferredCount}</td></tr>)}
+        </tbody></table></div>
+      </section>}
+    </section>
+
+    <section id="learning-preparation-panel" className="learning-tab-panel" role="tabpanel" hidden={activeSection !== "preparation"}>
+      <h2>준비 역량</h2>
+      {!result && <p className="learning-step-placeholder">먼저 요구 역량 분석을 실행해 주세요.</p>}
+      {result && <>
+        <h3>준비 대상과 우선순위</h3>
+        <p>등장 공고 수가 같은 항목은 동순위이며 이름순 표시는 추가 우선순위를 뜻하지 않습니다.</p>
+        {!result.preparation.length && <p>확정된 준비 대상이 없습니다.</p>}
+        {result.preparation.map(x => <article key={`${x.type}:${x.name}`}><h4>{x.rank}순위 · {x.name} · {preparationTypes[x.preparationType]}</h4><p>{x.totalJobCount}개 공고 · {states[x.userStatus]}</p><p>준비할 항목: {x.targets.join(", ")}</p><p>근거: {x.evidence}</p></article>)}
+        <h3>확인 필요·서류 보완</h3>
+        {!confirmationItems.length && <p>없음</p>}
+        {!!confirmationItems.length && <div className="learning-skill-list">
+          {confirmationItems.map((x, index) => <div key={x.name}>
+            <span>{String(index + 1).padStart(2, "0")}</span><strong>{x.name}</strong>
+          </div>)}
+        </div>}
+        <h3>충분한 경험·보유로 제외</h3>
+        {!result.excluded.length && <p>없음</p>}
+        {result.excluded.map(x => <p key={`${x.type}:${x.name}`}>{x.name}: {x.evidence}</p>)}
+      </>}
+    </section>
+
+    <section id="learning-plan-panel" className="learning-tab-panel" role="tabpanel" hidden={activeSection !== "plan"}>
+      <LearningPlanPanel regions={selectedRegions} canGenerate={canGenerate} />
+    </section>
   </main>;
 }

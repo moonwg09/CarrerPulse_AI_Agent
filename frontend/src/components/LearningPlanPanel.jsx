@@ -13,16 +13,25 @@ function displayPlanText(value) {
 }
 
 function markContinuedActivities(weeks = []) {
-  const seen = new Set();
+  const seenActivities = new Set();
+  const seenTargets = new Set();
   return weeks.map(week => ({
     ...week,
     items: (week.items || []).map(item => {
-      const key = [item.name, item.taskName, item.description, item.activityType]
+      const activityKey = [item.name, item.taskName, item.description, item.activityType]
         .map(value => String(value || "").trim())
         .join("|");
-      const continued = seen.has(key);
-      seen.add(key);
-      return { ...item, continued };
+      const targetName = displayPlanText(
+        item.name || (item.activityType === "DOCUMENT_IMPROVEMENT"
+          ? "경험·보유 근거 확인 및 서류 보완"
+          : item.taskName),
+      );
+      const targetKey = targetName.trim().toLocaleLowerCase("ko-KR");
+      const continuedActivity = seenActivities.has(activityKey);
+      const continuedTarget = seenTargets.has(targetKey);
+      seenActivities.add(activityKey);
+      seenTargets.add(targetKey);
+      return { ...item, targetName, continuedActivity, continuedTarget };
     }),
   }));
 }
@@ -107,11 +116,11 @@ export default function LearningPlanPanel({ regions, canGenerate }) {
         <p>예상 {week.totalEstimatedHours}시간 / 가능 {week.availableHours}시간</p>
         <div className="learning-table learning-table--plan"><table><thead><tr><th>준비 항목</th><th>수행 순서</th><th>활동 유형</th><th>활동 내용</th><th>예상 소요시간</th></tr></thead><tbody>
           {week.items.map((item, i) => <tr key={i}>
-            <td>{item.continued ? "이전 주차에서 계속" : displayPlanText(item.name || item.taskName)}
-              {!item.continued && item.targets?.length > 0 && <><br />{item.targets.join(", ")}</>}</td>
+            <td>{item.continuedTarget ? <span className="learning-plan-continued">계속</span> : item.targetName}
+              {!item.continuedTarget && item.targets?.length > 0 && <><br />{item.targets.join(", ")}</>}</td>
             <td>{item.sequenceNo || i + 1}</td>
             <td>{activityNames[item.activityType]}</td>
-            <td>{item.continued ? "이전 주차의 활동을 이어서 진행합니다." : <>{displayPlanText(item.taskName)}<p>{displayPlanText(item.description)}</p></>}</td>
+            <td>{item.continuedActivity ? "이전 주차의 활동을 이어서 진행합니다." : <>{displayPlanText(item.taskName)}<p>{displayPlanText(item.description)}</p></>}</td>
             <td>{item.estimatedHours}시간</td>
           </tr>)}
         </tbody></table></div>
