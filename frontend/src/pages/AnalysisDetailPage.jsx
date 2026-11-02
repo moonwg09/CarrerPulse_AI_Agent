@@ -68,6 +68,9 @@ function AnalysisDetailPage() {
     if (!completed) return "재분석 필요";
     return value == null ? "평가 불가" : `${value}%`;
   };
+  const statusClassName = (status) => (
+    `analysis-status analysis-status--${String(status || "UNKNOWN").toLowerCase().replaceAll("_", "-")}`
+  );
   return (
     <main>
       <NavBar />
@@ -95,15 +98,26 @@ function AnalysisDetailPage() {
           <div>
             <h3>{item.requirement}</h3>
             <p>{item.requirementCategory} / {item.comparisonKind}</p>
-            <span className="analysis-status">{item.statusLabel}</span>
+            <span className={statusClassName(item.status)}>{item.statusLabel}</span>
           </div>
           <div>
-            <p>{item.reason || "판정 사유 없음"}</p>
-            <p>
-              {item.evidenceText
-                ? `${item.evidenceDocumentType} · ${item.evidenceSourceLocation || "위치 미확인"}: ${item.evidenceText}`
-                : "확인 가능한 대표 근거 없음"}
-            </p>
+            <div className="analysis-reason">
+              <strong>판정 사유</strong>
+              <p>{item.reason || "판정 사유 없음"}</p>
+            </div>
+            <div className={`analysis-evidence${item.evidenceText ? "" : " analysis-evidence--empty"}`}>
+              <strong>원문 근거</strong>
+              {item.evidenceText ? (
+                <>
+                  <p className="analysis-evidence__source">
+                    {item.evidenceDocumentType} · {item.evidenceSourceLocation || "위치 미확인"}
+                  </p>
+                  <blockquote>{item.evidenceText}</blockquote>
+                </>
+              ) : (
+                <p>확인 가능한 대표 근거 없음</p>
+              )}
+            </div>
           {["EXPERIENCE", "RESPONSIBILITY"].includes(item.comparisonKind) &&
             item.status !== "NO_EXPERIENCE" && (
               <div>
