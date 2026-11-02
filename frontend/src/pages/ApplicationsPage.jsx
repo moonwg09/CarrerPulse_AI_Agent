@@ -51,17 +51,20 @@ export default function ApplicationsPage() {
         </div>
         <div className="application-state">
           <span className="application-label">현재 상태</span>
-          <span className={statusClass(item.status)}>{statusLabels[item.status] || item.status}</span>
-          {item.interviewDate && <small>면접일 · {item.interviewDate}</small>}
-          <label>상태 변경
-            <select value={item.status} onChange={(event) => {
+          <select
+            className={`${statusClass(item.status)} application-status-select`}
+            aria-label={`${item.companyName || "지원 공고"} 지원 상태 변경`}
+            title="클릭하여 지원 상태 변경"
+            value={item.status}
+            onChange={(event) => {
               const status = event.target.value;
               const date = status === "INTERVIEW" ? window.prompt("면접일을 YYYY-MM-DD로 입력하세요.", item.interviewDate || "") : null;
               if (status !== "INTERVIEW" || date) change(item, status, date);
-            }}>
-              {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </select>
-          </label>
+            }}
+          >
+            {Object.entries(statusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+          {item.interviewDate && <small>면접일 · {item.interviewDate}</small>}
         </div>
       </article>)}
     </div>}

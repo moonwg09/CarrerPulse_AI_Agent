@@ -463,8 +463,14 @@ hr { margin: 32px 0; border: 0; border-top: 2px solid var(--ink); }
 .application-status--interview { color: #625174; background: #f3eff7; }
 .application-status--final-pass { color: #17653a; background: #edf6f0; }
 .application-status--rejected { color: #9b2722; background: #fbefee; }
-.application-state label { display: grid; grid-template-columns: auto minmax(120px, 1fr); gap: 8px; width: 100%; margin: 7px 0 0; font-size: 11px; }
-.application-state select { width: 100%; min-height: 36px; }
+.application-status-select {
+  width: auto;
+  min-width: 118px;
+  min-height: 32px;
+  padding: 5px 30px 5px 9px;
+  cursor: pointer;
+}
+.application-status-select:hover { filter: brightness(.96); }
 
 @media (max-width: 900px) {
   #root { width: 100%; min-height: 100vh; margin: 0; border-inline: 0; }
