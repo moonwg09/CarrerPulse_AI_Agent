@@ -195,6 +195,15 @@ export async function getPreferredCompanies() {
   return body;
 }
 
+export async function searchWork24Companies(query) {
+  const response = await fetch(`/api/v1/jobs/companies?query=${encodeURIComponent(query)}`, {
+    credentials: "include",
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(body?.message || "고용24 기업 검색에 실패했습니다.");
+  return body;
+}
+
 export async function addPreferredCompany(companyName) {
   const csrf = await getCsrfToken();
   const response = await fetch("/api/v1/users/me/preferred-companies", {
