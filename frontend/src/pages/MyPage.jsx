@@ -9,6 +9,11 @@ import {
   deletePreferredCompany,
 } from "../api/userApi";
 
+const normalizeCompanyName = (value) => value
+  .replace(/주식회사|\(주\)|㈜/giu, "")
+  .replace(/[^\p{L}\p{N}]/gu, "")
+  .toLocaleLowerCase("ko-KR");
+
 function MyPage() {
   const [form, setForm] = useState({
     name: "",
@@ -55,7 +60,18 @@ function MyPage() {
       searchWork24Companies(query)
         .then((results) => {
           if (active) {
-            setCompanySuggestions(results);
+            const normalizedQuery = normalizeCompanyName(query);
+            const exactMatches = results.filter(
+              (name) => normalizeCompanyName(name) === normalizedQuery,
+            );
+            if (exactMatches.length === 1) {
+              setCompanyName(exactMatches[0]);
+              setSelectedCompanyName(exactMatches[0]);
+              setCompanySuggestions([]);
+              setMessage("검색 결과에서 확인된 기업명으로 선택했습니다.");
+            } else {
+              setCompanySuggestions(results);
+            }
             setCompanySearchComplete(true);
           }
         })
@@ -86,7 +102,7 @@ function MyPage() {
       setCompanySuggestions([]);
       setCompanySearchLoading(false);
       setCompanySearchComplete(false);
-      setMessage("관심 기업을 등록했습니다.");
+      setMessage("");
     } catch (error) { setMessage(error.message); }
   };
 
@@ -234,6 +250,7 @@ function MyPage() {
           </button>
         </div>
         {companySearchLoading && <p className="company-search-help">고용24에서 검색 중...</p>}
+        {selectedCompanyName && <p className="company-search-help">검색 결과의 기업명으로 선택되었습니다.</p>}
         {companySearchComplete && !companySearchLoading && !selectedCompanyName && companySuggestions.length === 0 && (
           <p className="company-search-help">검색 결과가 없습니다. 입력한 기업명을 직접 등록할 수 있습니다.</p>
         )}
