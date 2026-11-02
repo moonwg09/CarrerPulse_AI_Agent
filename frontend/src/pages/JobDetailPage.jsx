@@ -44,10 +44,13 @@ export default function JobDetailPage() {
 
   const requirementList = (title, items) => items.length > 0 && <section>
     <h2>{title}</h2>
-    <ul>{items.map((item) => <li key={item.requirementId}>
-      {item.name}
-      {item.sourceQuote && <small> · 원문: {item.sourceQuote}</small>}
-    </li>)}</ul>
+    <div className="detail-list">{items.map((item, index) => <div className="detail-list-row" key={item.requirementId}>
+      <span className="record-index">{String(index + 1).padStart(2, "0")}</span>
+      <div>
+        <strong>{item.name}</strong>
+        {item.sourceQuote && <small className="record-meta">원문 · {item.sourceQuote}</small>}
+      </div>
+    </div>)}</div>
   </section>;
 
   return <main>
@@ -75,7 +78,7 @@ export default function JobDetailPage() {
       </>}
     {job.originalUrl && <p><a href={job.originalUrl} target="_blank" rel="noreferrer">원문 공고 보기</a></p>}
     <button type="button" onClick={apply}>지원 현황에 등록</button>
-    <button type="button" onClick={toggleBookmark}>
+    <button className={bookmarked ? "button-danger" : ""} type="button" onClick={toggleBookmark}>
       {bookmarked ? "관심 공고 해제" : "관심 공고 저장"}
     </button>
     {message && <p>{message}</p>}

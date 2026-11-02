@@ -51,6 +51,7 @@ function AccountPage() {
       </button>
 
       <button
+        className="button-danger"
         type="button"
         onClick={handleWithdraw}
       >

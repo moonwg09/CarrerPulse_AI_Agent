@@ -162,13 +162,16 @@ function AnalysisDetailPage() {
             {loadingItemId === item.itemId ? "근거 확인 중" : "작성 방향 보기"}
           </button>
           {guidanceByItem[item.itemId] && (
-            <div>
+            <div className="guidance-panel">
               <h4>서류 작성 방향</h4>
-              <ul>
+              <div className="guidance-list">
                 {guidanceByItem[item.itemId].lines.map((line, index) => (
-                  <li key={`${item.itemId}-${index}`}>{line}</li>
+                  <div className="guidance-row" key={`${item.itemId}-${index}`}>
+                    <span className="record-index">{String(index + 1).padStart(2, "0")}</span>
+                    <p>{line.replace(/^\s*-\s*/, "")}</p>
+                  </div>
                 ))}
-              </ul>
+              </div>
               <p>검증에 사용한 근거: {guidanceByItem[item.itemId].evidenceCount}개</p>
             </div>
           )}

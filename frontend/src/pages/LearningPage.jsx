@@ -78,9 +78,11 @@ export default function LearningPage() {
       {result.preparation.map(x => <article key={`${x.type}:${x.name}`}><h4>{x.rank}순위 · {x.name} · {preparationTypes[x.preparationType]}</h4><p>{x.totalJobCount}개 공고 · {states[x.userStatus]}</p><p>준비할 항목: {x.targets.join(", ")}</p><p>근거: {x.evidence}</p></article>)}
       <h3>확인 필요·서류 보완</h3>
       {!result.needsConfirmation.length && <p>없음</p>}
-      {!!result.needsConfirmation.length && <ul className="learning-skill-list">
-        {result.needsConfirmation.map(x => <li key={`${x.type}:${x.name}`}>{x.name}</li>)}
-      </ul>}
+      {!!result.needsConfirmation.length && <div className="learning-skill-list">
+        {result.needsConfirmation.map((x, index) => <div key={`${x.type}:${x.name}`}>
+          <span>{String(index + 1).padStart(2, "0")}</span><strong>{x.name}</strong>
+        </div>)}
+      </div>}
       <h3>충분한 경험·보유로 제외</h3>
       {!result.excluded.length && <p>없음</p>}
       {result.excluded.map(x => <p key={`${x.type}:${x.name}`}>{x.name}: {x.evidence}</p>)}

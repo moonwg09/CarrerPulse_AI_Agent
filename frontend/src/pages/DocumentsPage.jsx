@@ -84,7 +84,7 @@ export default function DocumentsPage() {
             : <p>등록된 문서가 없습니다.</p>}
         <input ref={element => { fileInputs.current[path] = element; }} type="file" accept=".pdf,.docx" disabled={!!busy}
           onChange={event => setFiles(old => ({ ...old, [path]: event.target.files?.[0] || null }))} />
-        {saved && <button type="button" disabled={!!busy} onClick={() => remove(path, label)}>삭제</button>}
+        {saved && <button className="button-compact button-danger" type="button" disabled={!!busy} onClick={() => remove(path, label)}>삭제</button>}
       </section>;
     })}
     <button type="button" disabled={!Object.values(files).some(Boolean) || !!busy} onClick={save}>

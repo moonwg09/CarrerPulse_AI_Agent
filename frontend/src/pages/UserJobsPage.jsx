@@ -109,14 +109,18 @@ function UserJobsPage() {
       <h2>내 관심 직무</h2>
 
       {jobs.length === 0 ? (
-        <p>등록된 관심 직무가 없습니다.</p>
+        <p className="record-list-empty">등록된 관심 직무가 없습니다.</p>
       ) : (
-        <ul>
-          {jobs.map((job) => (
-            <li key={job.userJobId}>
-              {job.jobName} ({job.jobCode})
-
+        <div className="record-list">
+          {jobs.map((job, index) => (
+            <div className="record-row" key={job.userJobId}>
+              <span className="record-index">{String(index + 1).padStart(2, "0")}</span>
+              <div>
+                <strong>{job.jobName}</strong>
+                <small className="record-meta">직무 코드 · {job.jobCode}</small>
+              </div>
               <button
+                className="button-compact button-danger"
                 type="button"
                 disabled={jobs.length <= 1}
                 onClick={() =>
@@ -125,9 +129,9 @@ function UserJobsPage() {
               >
                 삭제
               </button>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
       {jobs.length === 1 && <p>관심 직무는 최소 1개를 유지해야 합니다.</p>}
     </main>

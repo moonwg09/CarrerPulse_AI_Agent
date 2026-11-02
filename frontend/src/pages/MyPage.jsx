@@ -257,7 +257,7 @@ function MyPage() {
             <div className="preferred-company-row" key={company.preferredCompanyId}>
               <span className="preferred-company-index">{String(index + 1).padStart(2, "0")}</span>
               <strong>{company.companyName}</strong>
-              <button type="button" onClick={() => removeCompany(company.preferredCompanyId)}>삭제</button>
+              <button className="button-compact button-danger" type="button" onClick={() => removeCompany(company.preferredCompanyId)}>삭제</button>
             </div>
           ))}
         </div>

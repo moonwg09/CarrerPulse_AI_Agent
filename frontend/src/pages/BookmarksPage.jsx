@@ -43,7 +43,7 @@ export default function BookmarksPage() {
         <td>{job.region || "-"}</td>
         <td>{job.deadline || "-"}</td>
         <td>{job.status}</td>
-        <td><button type="button" disabled={deletingId !== null} onClick={() => remove(job)}>
+        <td><button className="button-compact button-danger" type="button" disabled={deletingId !== null} onClick={() => remove(job)}>
           {deletingId === job.jobId ? "삭제 중" : "삭제"}
         </button></td>
       </tr>)}</tbody>

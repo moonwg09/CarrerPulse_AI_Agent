@@ -174,7 +174,7 @@ export default function AnalysisPage() {
     </>}
 
     <h2>분석 결과</h2>
-    <button type="button" disabled={!analyses.length || !!busy} onClick={resetAllAnalyses}>
+    <button className="button-danger" type="button" disabled={!analyses.length || !!busy} onClick={resetAllAnalyses}>
       {busy === "reset" ? "초기화 중" : "분석 결과 전체 초기화"}
     </button>
     <table><thead><tr><th>공고</th><th>회사</th><th>상태</th><th>전체 일치율</th><th>평가 가능 비율</th></tr></thead>
