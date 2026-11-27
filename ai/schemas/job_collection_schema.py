@@ -6,8 +6,8 @@ from schemas.raw_job_schema import RawJobPosting
 
 
 class JobCollectionRequest(BaseModel):
-    jobKeyword: str
-    region: str
+    jobKeyword: str = Field(min_length=1)
+    region: str = Field(default="전국", min_length=1)
 
     limit: int = Field(
         default=10,
@@ -24,3 +24,8 @@ class JobCollectionResult(BaseModel):
     collectedCount: int
 
     jobs: List[RawJobPosting]
+
+
+class CompanySearchResult(BaseModel):
+    query: str
+    companies: List[str]

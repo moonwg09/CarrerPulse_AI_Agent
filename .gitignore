@@ -8,6 +8,7 @@
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+**/.chroma/
 
 # Node.js
 node_modules/
@@ -34,3 +35,9 @@ Thumbs.db
 
 # old backend backup
 /backend-old/
+
+# Runtime uploads
+/backend/uploads/
+
+# Local demo recordings and automation
+/demo/analysis-video/

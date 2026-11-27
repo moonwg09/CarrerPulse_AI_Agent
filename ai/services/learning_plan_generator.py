@@ -1,11 +1,8 @@
 import json
-import os
 import time
 from math import ceil
 from typing import List
 
-from dotenv import load_dotenv
-from google import genai
 from google.genai import errors
 
 from schemas.learning_candidate_schema import (
@@ -15,27 +12,14 @@ from schemas.learning_plan_schema import (
     LearningPlanRequest,
     LearningPlanResult,
 )
+from services.gemini_client import GEMINI_MODEL, get_gemini_client
 
-
-load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-
-if not api_key:
-    raise ValueError(
-        "GEMINI_API_KEY가 설정되어 있지 않습니다."
-    )
-
-client = genai.Client(
-    api_key=api_key
-)
 
 
 def generate_learning_plan(
     priority_items: List[LearningCandidateItem],
     request: LearningPlanRequest,
 ) -> LearningPlanResult:
-
     # ---------------------------------------------
     # 1. 입력값 검증
     # ---------------------------------------------
@@ -86,6 +70,9 @@ def generate_learning_plan(
                 "partialCount": item.partialCount,
                 "noExperienceCount": (
                     item.noExperienceCount
+                ),
+                "insufficientEvidenceCount": (
+                    item.insufficientEvidenceCount
                 ),
                 "notSatisfiedCount": (
                     item.notSatisfiedCount
@@ -168,6 +155,22 @@ def generate_learning_plan(
    - 실제 코드 또는 프로젝트 적용
    - 필요하면 복습
 
+8-1. insufficientEvidenceCount가 1 이상인 SKILL은
+     실제 경험이 없다고 확정된 항목이 아닙니다.
+
+     해당 항목의 첫 활동은 다음 중 하나로 구성합니다.
+
+     - 현재 경험 수준을 확인하는 자기진단
+     - 작은 기능을 직접 구현하는 확인 실습
+     - 기존 프로젝트에서 관련 경험을 찾아 정리하는 활동
+
+     확인 결과 경험이 부족할 때 이어서
+     핵심 개념 학습과 프로젝트 적용을 배치합니다.
+
+8-2. partialCount가 1 이상인 SKILL은
+     처음부터 다시 배우는 계획보다 부족한 수행 범위를
+     보완하고 실제 프로젝트 경험을 강화하는 활동을 우선합니다.
+
 9. SKILL의 activityType은 학습 내용에 따라 다음을 사용합니다.
 
    - TECH_STUDY
@@ -245,12 +248,13 @@ def generate_learning_plan(
     # 5. Gemini 호출
     # ---------------------------------------------
     max_retries = 3
+    client = get_gemini_client()
 
     for attempt in range(max_retries):
 
         try:
             response = client.models.generate_content(
-                model="gemini-3.5-flash-lite",
+                model=GEMINI_MODEL,
                 contents=prompt,
                 config={
                     "response_mime_type": (

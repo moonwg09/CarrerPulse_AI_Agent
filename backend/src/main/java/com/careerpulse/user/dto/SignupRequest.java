@@ -3,6 +3,7 @@ package com.careerpulse.user.dto;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public record SignupRequest(
 
@@ -30,7 +31,10 @@ public record SignupRequest(
     Boolean consented,
 
     @NotBlank
-    String consentVersion
+    String consentVersion,
+
+    @FutureOrPresent
+    LocalDate preparationTargetDate
 ) {
 
 }

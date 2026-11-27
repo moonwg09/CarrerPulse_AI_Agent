@@ -1,6 +1,6 @@
 export async function getMyInfo() {
   const response = await fetch(
-    "http://localhost:8080/api/v1/users/me",
+    "/api/v1/users/me",
     {
       method: "GET",
       credentials: "include",
@@ -20,7 +20,7 @@ export async function getMyInfo() {
 
 export async function getCsrfToken() {
   const response = await fetch(
-    "http://localhost:8080/api/v1/auth/csrf",
+    "/api/v1/auth/csrf",
     {
       method: "GET",
       credentials: "include",
@@ -40,7 +40,7 @@ export async function updateMyInfo(data) {
   const csrf = await getCsrfToken();
 
   const response = await fetch(
-    "http://localhost:8080/api/v1/users/me",
+    "/api/v1/users/me",
     {
       method: "PATCH",
       headers: {
@@ -63,9 +63,30 @@ export async function updateMyInfo(data) {
   return body;
 }
 
+export async function updatePreparationTargetDate(preparationTargetDate) {
+  const csrf = await getCsrfToken();
+  const response = await fetch(
+    "/api/v1/users/me/preparation-target-date",
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        [csrf.headerName]: csrf.token,
+      },
+      credentials: "include",
+      body: JSON.stringify({ preparationTargetDate }),
+    }
+  );
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(body?.message || "준비 목표일 저장에 실패했습니다.");
+  }
+  return body;
+}
+
 export async function getMyJobs() {
   const response = await fetch(
-    "http://localhost:8080/api/v1/users/me/jobs",
+    "/api/v1/users/me/jobs",
     {
       method: "GET",
       credentials: "include",
@@ -83,11 +104,22 @@ export async function getMyJobs() {
   return body;
 }
 
+export async function getDevelopmentJobCatalog() {
+  const response = await fetch("/api/v1/users/jobs/catalog", {
+    credentials: "include",
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw new Error(body?.message || "개발 직무 목록을 불러오지 못했습니다.");
+  }
+  return body;
+}
+
 export async function addMyJob(data) {
   const csrf = await getCsrfToken();
 
   const response = await fetch(
-    "http://localhost:8080/api/v1/users/me/jobs",
+    "/api/v1/users/me/jobs",
     {
       method: "POST",
       headers: {
@@ -114,7 +146,7 @@ export async function deleteMyJob(userJobId) {
   const csrf = await getCsrfToken();
 
   const response = await fetch(
-    `http://localhost:8080/api/v1/users/me/jobs/${userJobId}`,
+    `/api/v1/users/me/jobs/${userJobId}`,
     {
       method: "DELETE",
       headers: {
@@ -137,7 +169,7 @@ export async function withdraw() {
   const csrf = await getCsrfToken();
 
   const response = await fetch(
-    "http://localhost:8080/api/v1/users/me",
+    "/api/v1/users/me",
     {
       method: "DELETE",
       headers: {
@@ -153,5 +185,47 @@ export async function withdraw() {
     throw new Error(
       body?.message || "회원탈퇴에 실패했습니다."
     );
+  }
+}
+
+export async function getPreferredCompanies() {
+  const response = await fetch("/api/v1/users/me/preferred-companies", { credentials: "include" });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(body?.message || "관심 기업을 불러오지 못했습니다.");
+  return body;
+}
+
+export async function searchWork24Companies(query) {
+  const response = await fetch(`/api/v1/jobs/companies?query=${encodeURIComponent(query)}`, {
+    credentials: "include",
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(body?.message || "고용24 기업 검색에 실패했습니다.");
+  return body;
+}
+
+export async function addPreferredCompany(companyName) {
+  const csrf = await getCsrfToken();
+  const response = await fetch("/api/v1/users/me/preferred-companies", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", [csrf.headerName]: csrf.token },
+    credentials: "include",
+    body: JSON.stringify({ companyName }),
+  });
+  const body = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(body?.message || "관심 기업 등록에 실패했습니다.");
+  return body;
+}
+
+export async function deletePreferredCompany(id) {
+  const csrf = await getCsrfToken();
+  const response = await fetch(`/api/v1/users/me/preferred-companies/${id}`, {
+    method: "DELETE",
+    headers: { [csrf.headerName]: csrf.token },
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new Error(body?.message || "관심 기업 삭제에 실패했습니다.");
   }
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { login, getMyInfo } from "../api/authApi";
+import { login } from "../api/authApi";
 import { Link, useNavigate } from "react-router-dom";
+import NavBar from "../components/NavBar";
 
 function LoginPage() {
   const [form, setForm] = useState({
@@ -38,7 +39,9 @@ function LoginPage() {
   };
 
   return (
-    <div>
+    <div className="auth-page">
+      <NavBar publicPage />
+      <main className="auth-panel">
       <h1>로그인</h1>
 
       <form onSubmit={handleSubmit}>
@@ -85,6 +88,7 @@ function LoginPage() {
           <p>경력 유형: {user.careerType}</p>
         </div>
       )}
+      </main>
     </div>
   );
 }

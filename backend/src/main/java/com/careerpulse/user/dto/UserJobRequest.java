@@ -7,10 +7,6 @@ public record UserJobRequest(
 
         @NotBlank
         @Size(max = 50)
-        String jobCode,
-
-        @NotBlank
-        @Size(max = 100)
-        String jobName
+        String jobCode
 ) {
 }

@@ -1,0 +1,173 @@
+from rag.embedding.embedding import VectorStore
+from rag.processor.metadata import Evidence as RagEvidence
+from rag.processor.retrieval_chunk import RetrievalChunk
+from schemas.document_schema import DocumentType, Evidence
+from schemas.job_schema import ConditionType, JobRequirement, RequirementCategory
+from services.rag_v2_adapter import (
+    build_rag_v2_query,
+    link_indexed_evidence_metadata,
+    retrieve_requirement_evidence_v2,
+)
+from test.test_user_isolation import DeterministicEmbedder
+
+
+def test_main_requirement_and_evidence_are_converted():
+    vector_store = VectorStore(DeterministicEmbedder())
+    rag_evidence = RagEvidence(
+        evidence_id="EV-0001",
+        user_id=7,
+        document_id=31,
+        doc_type="resume",
+        section="project",
+        source_type="document",
+        source_location="p.2",
+        evidence_text="Python FastAPI REST API를 직접 설계하고 구현했습니다.",
+    )
+    chunk = RetrievalChunk(
+        chunk_id="CH-0001",
+        user_id=7,
+        document_id=31,
+        doc_type="resume",
+        semantic_unit_id="UNIT-1",
+        category="PROJECT",
+        section="project",
+        title="API 프로젝트",
+        text=rag_evidence.evidence_text,
+        evidence_ids=[rag_evidence.evidence_id],
+    )
+    vector_store.add_document([rag_evidence], [chunk])
+
+    requirement = JobRequirement(
+        description="REST API 설계 및 구현",
+        category=RequirementCategory.REQUIRED,
+        conditionType=ConditionType.SINGLE,
+        skills=["Python", "FastAPI"],
+        experienceDescription="API를 직접 구현한 경험",
+    )
+
+    query = build_rag_v2_query(requirement)
+    assert "REST API 설계 및 구현" in query
+    assert "FastAPI" in query
+    assert "API를 직접 구현한 경험" in query
+
+    results = retrieve_requirement_evidence_v2(
+        store=vector_store,
+        requirement=requirement,
+        user_id=7,
+        top_k=3,
+    )
+
+    assert len(results) == 1
+    assert results[0].evidenceId == "EV-0001"
+    assert results[0].documentId == 31
+    assert results[0].page == 2
+    assert results[0].source.value == "RESUME"
+
+
+def test_metadata_linking_is_user_scoped_and_rejects_ambiguous_sources():
+    vector_store = VectorStore(DeterministicEmbedder())
+    shared_text = "Java Spring Boot 서버를 구현했습니다."
+    vector_store.add_evidences(
+        [
+            RagEvidence(
+                evidence_id="EV-0001",
+                user_id=7,
+                document_id=31,
+                doc_type="resume",
+                section="project",
+                source_type="document",
+                source_location="문단 2",
+                evidence_text=shared_text,
+            ),
+            RagEvidence(
+                evidence_id="EV-0001",
+                user_id=8,
+                document_id=99,
+                doc_type="resume",
+                section="project",
+                source_type="document",
+                source_location="문단 9",
+                evidence_text=shared_text,
+            ),
+        ]
+    )
+
+    linked = link_indexed_evidence_metadata(
+        store=vector_store,
+        evidences=[Evidence(text=shared_text, source=DocumentType.RESUME)],
+        user_id=7,
+    )
+
+    assert linked[0].documentId == 31
+    assert linked[0].sourceLocation == "문단 2"
+
+    vector_store.add_evidences(
+        [
+            RagEvidence(
+                evidence_id="EV-0002",
+                user_id=7,
+                document_id=32,
+                doc_type="resume",
+                section="project",
+                source_type="document",
+                source_location="문단 4",
+                evidence_text=shared_text,
+            )
+        ]
+    )
+    ambiguous = link_indexed_evidence_metadata(
+        store=vector_store,
+        evidences=[Evidence(text=shared_text, source=DocumentType.RESUME)],
+        user_id=7,
+    )
+
+    assert ambiguous[0].evidenceId is None
+    assert ambiguous[0].documentId is None
+
+
+def test_metadata_linking_accepts_only_unique_source_substring():
+    vector_store = VectorStore(DeterministicEmbedder())
+    vector_store.add_evidences(
+        [
+            RagEvidence(
+                evidence_id="EV-0012",
+                user_id=7,
+                document_id=31,
+                doc_type="resume",
+                section="skill",
+                source_type="document",
+                source_location="표 6 행 2",
+                evidence_text=(
+                    "Java / Spring Framework | 중 | "
+                    "웹 서비스 및 REST API 개발"
+                ),
+            )
+        ]
+    )
+
+    linked = link_indexed_evidence_metadata(
+        store=vector_store,
+        evidences=[
+            Evidence(
+                text="웹 서비스 및 REST API 개발",
+                source=DocumentType.RESUME,
+            )
+        ],
+        user_id=7,
+    )
+    short_name = link_indexed_evidence_metadata(
+        store=vector_store,
+        evidences=[Evidence(text="Java", source=DocumentType.RESUME)],
+        user_id=7,
+    )
+
+    assert linked[0].evidenceId == "EV-0012"
+    assert linked[0].sourceLocation == "표 6 행 2"
+    assert short_name[0].evidenceId is None
+
+
+if __name__ == "__main__":
+    test_main_requirement_and_evidence_are_converted()
+    test_metadata_linking_is_user_scoped_and_rejects_ambiguous_sources()
+    test_metadata_linking_accepts_only_unique_source_substring()
+    print("RAG V2 ADAPTER TEST: PASS")

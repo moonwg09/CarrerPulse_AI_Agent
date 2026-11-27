@@ -1,8 +1,5 @@
-import os
 from typing import Dict, List, Optional
 
-from dotenv import load_dotenv
-from google import genai
 from pydantic import BaseModel
 
 from schemas.document_schema import (
@@ -19,6 +16,7 @@ from schemas.match_schema import (
     JobMatchResult,
     RequirementMatch,
     MatchStatus,
+    ObjectiveStatus,
 )
 
 from schemas.rag_schema import (
@@ -26,8 +24,9 @@ from schemas.rag_schema import (
     RagSearchResult,
 )
 
-from services.rag_retriever import (
-    retrieve_requirement_evidence,
+from services.rag_v2_adapter import (
+    link_indexed_evidence_metadata,
+    retrieve_requirement_evidence_v2,
 )
 
 from services.match_score import (
@@ -41,23 +40,8 @@ from services.recommendation_classifier import (
 from services.match_warning import (
     build_match_warnings,
 )
-
-
-load_dotenv()
-
-api_key = os.getenv(
-    "GEMINI_API_KEY"
-)
-
-if not api_key:
-    raise ValueError(
-        "GEMINI_API_KEY가 설정되어 있지 않습니다."
-    )
-
-
-client = genai.Client(
-    api_key=api_key
-)
+from services.gemini_client import GEMINI_MODEL, get_gemini_client
+from services.job_matcher import enforce_experience_evidence_quality
 
 
 # -------------------------------------------------
@@ -70,6 +54,88 @@ class RagBatchValidationResult(
     matches: List[
         RequirementMatch
     ]
+
+
+EVIDENCE_REQUIRED_STATUSES = {
+    MatchStatus.EXPERIENCED,
+    MatchStatus.PARTIAL,
+}
+
+
+def _evidence_text_key(evidence: Evidence) -> tuple[str, str]:
+    """Legacy Evidence를 원문과 출처로 식별한다."""
+    normalized_text = " ".join(evidence.text.split())
+    source = (
+        evidence.source.value
+        if hasattr(evidence.source, "value")
+        else str(evidence.source)
+    )
+    return normalized_text, source
+
+
+def sanitize_cited_evidence(
+    cited_evidence: List[Evidence],
+    allowed_evidence: List[Evidence],
+) -> List[Evidence]:
+    """LLM이 실제로 제공받은 Evidence만 인용하도록 제한한다.
+
+    RAG v2 Evidence는 evidenceId로 검증하고 원본 객체를 복원한다.
+    ID가 없는 기존 main Evidence는 원문과 출처가 정확히 같은 경우만 허용한다.
+    """
+    allowed_by_id = {
+        evidence.evidenceId: evidence
+        for evidence in allowed_evidence
+        if evidence.evidenceId
+    }
+    allowed_legacy = {
+        _evidence_text_key(evidence): evidence
+        for evidence in allowed_evidence
+        if not evidence.evidenceId
+    }
+    rag_candidates_by_text = {}
+    for evidence in allowed_evidence:
+        if evidence.evidenceId:
+            rag_candidates_by_text.setdefault(
+                _evidence_text_key(evidence),
+                [],
+            ).append(evidence)
+
+    allowed_rag_by_text = {
+        key: candidates[0]
+        for key, candidates in rag_candidates_by_text.items()
+        if len(candidates) == 1
+    }
+
+    sanitized = []
+    seen = set()
+
+    for cited in cited_evidence:
+        original = None
+
+        if cited.evidenceId:
+            original = allowed_by_id.get(cited.evidenceId)
+        else:
+            text_key = _evidence_text_key(cited)
+            original = (
+                allowed_rag_by_text.get(text_key)
+                or allowed_legacy.get(text_key)
+            )
+
+        if original is None:
+            continue
+
+        key = (
+            ("id", original.evidenceId)
+            if original.evidenceId
+            else ("legacy",) + _evidence_text_key(original)
+        )
+        if key in seen:
+            continue
+
+        seen.add(key)
+        sanitized.append(original.model_copy(deep=True))
+
+    return sanitized
 
 
 # -------------------------------------------------
@@ -328,6 +394,12 @@ Spring Boot 경험을 자동 확정하지 않습니다.
 20. 입력 순서와 출력 matches의 순서를
     반드시 동일하게 유지합니다.
 
+21. RAG Evidence를 사용했다면 제공된 evidenceId를
+    변경하지 말고 userEvidence에 그대로 포함합니다.
+
+22. 제공되지 않은 evidenceId를 생성하거나
+    다른 Evidence의 원문으로 바꾸지 않습니다.
+
 
 ====================
 RAG 재검증 대상
@@ -339,8 +411,10 @@ RAG 재검증 대상
     # ---------------------------------------------
     # 공고 하나당 Gemini 재검증 1회
     # ---------------------------------------------
+    client = get_gemini_client()
+
     response = client.models.generate_content(
-        model="gemini-3.5-flash-lite",
+        model=GEMINI_MODEL,
         contents=prompt,
         config={
             "response_mime_type": (
@@ -375,9 +449,9 @@ def validate_match_result_with_rag(
     user_analysis: DocumentAnalysisResult,
     job_analysis: JobAnalysisResult,
     match_result: JobMatchResult,
-    embedded_chunks: List[
-        EmbeddedDocumentChunk
-    ],
+    embedded_chunks: Optional[List[EmbeddedDocumentChunk]] = None,
+    rag_store=None,
+    user_id: Optional[int] = None,
     top_k: int = 3,
 ) -> JobMatchResult:
 
@@ -419,26 +493,29 @@ def validate_match_result_with_rag(
         # 검색은 각각 수행
         # Gemini 판단만 나중에 한 번에 수행
         # -----------------------------------------
-        rag_results = (
-            retrieve_requirement_evidence(
+        if rag_store is not None and user_id is not None:
+            rag_evidence = retrieve_requirement_evidence_v2(
+                store=rag_store,
                 requirement=requirement,
-                embedded_chunks=(
-                    embedded_chunks
-                ),
+                user_id=user_id,
                 top_k=top_k,
             )
-        )
+        else:
+            # 기존 JSON API 호환 경로. 신규 파일 분석은 RAG v2를 우선 사용한다.
+            from services.rag_retriever import retrieve_requirement_evidence
+
+            rag_results = retrieve_requirement_evidence(
+                requirement=requirement,
+                embedded_chunks=embedded_chunks or [],
+                top_k=top_k,
+            )
+
+            rag_evidence = convert_rag_results_to_evidence(rag_results)
 
         # 검색 결과가 없으면
         # 기존 상태 그대로 유지
-        if not rag_results:
+        if not rag_evidence:
             continue
-
-        rag_evidence = (
-            convert_rag_results_to_evidence(
-                rag_results
-            )
-        )
 
         validation_items.append(
             {
@@ -462,6 +539,11 @@ def validate_match_result_with_rag(
             "RAG 재검증 대상 없음"
         )
 
+        link_match_result_evidence_metadata(
+            match_result=match_result,
+            rag_store=rag_store,
+            user_id=user_id,
+        )
         return match_result
 
     print(
@@ -531,6 +613,15 @@ def validate_match_result_with_rag(
             current_match.jobEvidence
         )
 
+        allowed_evidence = [
+            *current_match.userEvidence,
+            *validation_item["ragEvidence"],
+        ]
+        validated_match.userEvidence = sanitize_cited_evidence(
+            cited_evidence=validated_match.userEvidence,
+            allowed_evidence=allowed_evidence,
+        )
+
         # -----------------------------------------
         # RAG 재검증 단계에서
         # 새로운 NO_EXPERIENCE 생성 방지
@@ -544,9 +635,34 @@ def validate_match_result_with_rag(
                 .INSUFFICIENT_EVIDENCE
             )
 
+        # 실제 입력으로 제공된 Evidence를 하나도 인용하지 못했다면
+        # EXPERIENCED/PARTIAL 판정을 허용하지 않는다.
+        if (
+            validated_match.status in EVIDENCE_REQUIRED_STATUSES
+            and not validated_match.userEvidence
+        ):
+            validated_match.status = MatchStatus.INSUFFICIENT_EVIDENCE
+            validated_match.matchedSkills = []
+            validated_match.reason = (
+                "검증 가능한 사용자 Evidence 인용이 없어 "
+                "경험 여부를 확정할 수 없습니다."
+            )
+
         match_result.requirementMatches[
             target_index
         ] = validated_match
+
+    # 1차 Matcher가 선택한 근거도 색인 원문과 정확히 일치하면
+    # Evidence ID와 문서 위치를 최종 응답에 연결한다.
+    link_match_result_evidence_metadata(
+        match_result=match_result,
+        rag_store=rag_store,
+        user_id=user_id,
+    )
+
+    # RAG 재검증 이후에도 기술 목록이나 숙련도 표만으로
+    # EXPERIENCED가 확정되지 않도록 동일한 규칙을 적용한다.
+    enforce_experience_evidence_quality(match_result)
 
     # ---------------------------------------------
     # RAG 적용 후 점수 다시 계산
@@ -574,5 +690,70 @@ def validate_match_result_with_rag(
             match_result
         )
     )
+
+    return match_result
+
+
+def link_match_result_evidence_metadata(
+    match_result: JobMatchResult,
+    rag_store,
+    user_id: Optional[int],
+) -> JobMatchResult:
+    """최종 비교 결과의 기존 근거를 RAG v2 원본 메타데이터와 연결한다."""
+    if rag_store is None or user_id is None:
+        return match_result
+
+    for requirement_match in [
+        *match_result.requirementMatches,
+        *match_result.responsibilityMatches,
+    ]:
+        linked_evidence = link_indexed_evidence_metadata(
+            store=rag_store,
+            evidences=requirement_match.userEvidence,
+            user_id=user_id,
+        )
+        requirement_match.userEvidence = [
+            evidence
+            for evidence in linked_evidence
+            if evidence.evidenceId is not None
+        ]
+
+        if (
+            requirement_match.status in EVIDENCE_REQUIRED_STATUSES
+            and not requirement_match.userEvidence
+        ):
+            requirement_match.status = MatchStatus.INSUFFICIENT_EVIDENCE
+            requirement_match.matchedSkills = []
+            requirement_match.reason = (
+                "색인된 사용자 원문과 연결되는 근거가 없어 "
+                "경험 여부를 확정할 수 없습니다."
+            )
+
+    for objective_match in match_result.objectiveConditionMatches:
+        linked_evidence = link_indexed_evidence_metadata(
+            store=rag_store,
+            evidences=objective_match.userEvidence,
+            user_id=user_id,
+        )
+        objective_match.userEvidence = [
+            evidence
+            for evidence in linked_evidence
+            if evidence.evidenceId is not None
+        ]
+
+        if (
+            objective_match.status
+            in {ObjectiveStatus.SATISFIED, ObjectiveStatus.NOT_SATISFIED}
+            and not objective_match.userEvidence
+        ):
+            objective_match.status = ObjectiveStatus.UNCLEAR
+            objective_match.reason = (
+                "객관 조건 판단에 사용한 사용자 정보가 색인된 원문 근거와 "
+                "연결되지 않아 충족 여부를 확정할 수 없습니다."
+            )
+
+    match_result.score = calculate_match_score(match_result)
+    match_result.recommendationStatus = classify_job(match_result)
+    match_result.warnings = build_match_warnings(match_result)
 
     return match_result

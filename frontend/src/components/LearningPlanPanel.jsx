@@ -1,0 +1,157 @@
+import { useEffect, useState } from "react";
+import { generateLearningPlan, getLatestLearningPlan } from "../api/learningApi";
+import { getMyInfo, updatePreparationTargetDate } from "../api/userApi";
+import PageToast from "./PageToast";
+
+const activityNames = { TECH_STUDY: "기술 학습", PROJECT: "프로젝트", CERTIFICATE: "자격증", DOCUMENT_IMPROVEMENT: "서류 보완" };
+
+function displayPlanText(value) {
+  return String(value || "").replace(
+    /확인 필요 역량 서류 보완(?:\s+(\d+))?/g,
+    (_, group) => `경험·보유 근거 확인 및 서류 보완${group ? ` (묶음 ${group})` : ""}`,
+  );
+}
+
+function buildPlanRows(weeks = []) {
+  const seenActivities = new Set();
+  const rows = [];
+  weeks.forEach(week => {
+    (week.items || []).forEach((item, itemIndex) => {
+      const activityKey = [item.name, item.taskName, item.description, item.activityType]
+        .map(value => String(value || "").trim())
+        .join("|");
+      const targetName = displayPlanText(
+        item.name || (item.activityType === "DOCUMENT_IMPROVEMENT"
+          ? "경험·보유 근거 확인 및 서류 보완"
+          : item.taskName),
+      );
+      const targetKey = targetName.trim().toLocaleLowerCase("ko-KR");
+      const continuedActivity = seenActivities.has(activityKey);
+      seenActivities.add(activityKey);
+      rows.push({
+        ...item,
+        weekNumber: week.weekNumber,
+        weekStartDate: week.startDate,
+        weekEndDate: week.endDate,
+        weekTotalHours: week.totalEstimatedHours,
+        weekAvailableHours: week.availableHours,
+        sequenceNo: item.sequenceNo || itemIndex + 1,
+        targetName,
+        targetKey,
+        continuedActivity,
+        weekRowSpan: 0,
+        targetRowSpan: 0,
+      });
+    });
+  });
+
+  rows.forEach((row, index) => {
+    if (index === 0 || rows[index - 1].weekNumber !== row.weekNumber) {
+      let span = 1;
+      while (rows[index + span]?.weekNumber === row.weekNumber) span += 1;
+      row.weekRowSpan = span;
+    }
+    if (index === 0 || rows[index - 1].targetKey !== row.targetKey) {
+      let span = 1;
+      while (rows[index + span]?.targetKey === row.targetKey) span += 1;
+      row.targetRowSpan = span;
+    }
+  });
+  return rows;
+}
+
+// 생성 입력과 저장된 계획의 입력은 별도이다. 조회 결과에는 생성 당시 날짜·시간을
+// 함께 표시하므로 현재 입력창의 값으로 과거 계획을 잘못 해석하지 않는다.
+export default function LearningPlanPanel({ regions, canGenerate }) {
+  const [input, setInput] = useState({ startDate: "", endDate: "", weeklyAvailableHours: "" });
+  const [plan, setPlan] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [saveAsTarget, setSaveAsTarget] = useState(false);
+  const [notice, setNotice] = useState("");
+  const change = e => setInput(old => ({ ...old, [e.target.name]: e.target.value }));
+
+  useEffect(() => {
+    getMyInfo().then((user) => {
+      if (user.preparationTargetDate) {
+        setInput((old) => ({ ...old, endDate: user.preparationTargetDate }));
+      }
+    }).catch(() => {});
+  }, []);
+
+  async function generate(event) {
+    event.preventDefault();
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const saved = await generateLearningPlan({ ...input, regions,
+        weeklyAvailableHours: Number(input.weeklyAvailableHours) });
+      if (saveAsTarget) {
+        await updatePreparationTargetDate(input.endDate);
+      }
+      setPlan(saved);
+      setNotice("학습계획을 생성하고 저장했습니다.");
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
+  }
+  async function load() {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const saved = await getLatestLearningPlan();
+      setPlan(saved);
+      if (!saved) setMessage("생성된 학습계획이 없습니다. 시작일·종료일·주당 학습 가능 시간을 입력해 생성하세요.");
+    } catch (e) { setError(e.message); }
+    finally { setBusy(false); }
+  }
+
+  const planRows = buildPlanRows(plan?.weeks);
+
+  return <section aria-label="학습계획">
+    <PageToast message={notice} onClose={setNotice} />
+    <h2>학습계획 생성</h2>
+    <p>준비 역량 분석 결과의 학습 대상과 확인이 필요한 서류 보완 항목으로 계획을 생성합니다.</p>
+    <form onSubmit={generate}>
+      <fieldset disabled={busy}>
+        <legend>학습 기간과 시간</legend>
+        <label>시작일 <input required type="date" name="startDate" value={input.startDate} onChange={change} /></label>
+        <label>종료일 <input required type="date" name="endDate" min={input.startDate || undefined} value={input.endDate} onChange={change} /></label>
+        <label><input type="checkbox" checked={saveAsTarget} onChange={e => setSaveAsTarget(e.target.checked)} /> 이 종료일을 내 준비 목표일로 저장</label>
+        <label>주당 학습 가능 시간 <input required type="number" name="weeklyAvailableHours" min="0.5" max="168" step="0.5" value={input.weeklyAvailableHours} onChange={change}
+          onBlur={e => e.target.value && setInput(old => ({ ...old, weeklyAvailableHours: (Math.round(Number(e.target.value) * 2) / 2).toFixed(1) }))} /> 시간</label>
+        <button type="submit" disabled={!canGenerate}>{busy ? "처리 중…" : "계획 생성·저장"}</button>
+        {!canGenerate && <p>준비 역량 분석 후 학습 대상 또는 확인·서류 보완 항목이 있어야 생성할 수 있습니다.</p>}
+      </fieldset>
+    </form>
+    <h2>학습계획 조회</h2>
+    <button type="button" disabled={busy} onClick={load}>내 최신 계획 불러오기</button>
+    {message && <p role="status">{message}</p>}
+    {error && <p role="alert">{error}</p>}
+    {plan && <section aria-label="저장된 학습계획 상세" aria-live="polite">
+      <h3>학습 일정</h3>
+      <p>입력 기간: {plan.startDate} ~ {plan.endDate} · 주당 가능 시간: {plan.weeklyAvailableHours}시간</p>
+      {plan.source && <p>공고 출처: DB 공고 · 분석 기준일: {plan.referenceDate} · 대상 공고: {plan.targetJobCount}건</p>}
+      <p>{plan.estimateNotice || "예상 소요 시간은 추정치입니다."}</p>
+      {plan.adjustmentMessage && <p>{plan.adjustmentMessage}</p>}
+      {!plan.weeks.length && <p>입력한 기간과 시간 안에 배치할 수 있는 활동이 없습니다. 시간을 늘려 다시 생성하세요.</p>}
+      {!!planRows.length && <div className="learning-table learning-table--plan"><table>
+        <thead><tr><th>주차</th><th>준비 항목</th><th>수행 순서</th><th>활동 유형</th><th>활동 내용</th><th>예상 소요시간</th></tr></thead>
+        <tbody>{planRows.map((item, index) => <tr key={`${item.weekNumber}-${index}`}>
+          {item.weekRowSpan > 0 && <td rowSpan={item.weekRowSpan} className="learning-plan-week">
+            <strong>{item.weekNumber}주차</strong>
+            <span>{item.weekStartDate} ~ {item.weekEndDate}</span>
+            <span>예상 {item.weekTotalHours}시간 / 가능 {item.weekAvailableHours}시간</span>
+          </td>}
+          {item.targetRowSpan > 0 && <td rowSpan={item.targetRowSpan}>
+            {item.targetName}
+            {item.targets?.length > 0 && <><br />{item.targets.join(", ")}</>}
+          </td>}
+          <td>{item.sequenceNo}</td>
+          <td>{activityNames[item.activityType]}</td>
+          <td>{item.continuedActivity ? "이전 주차의 활동을 이어서 진행합니다." : <>{displayPlanText(item.taskName)}<p>{displayPlanText(item.description)}</p></>}</td>
+          <td>{item.estimatedHours}시간</td>
+        </tr>)}</tbody>
+      </table></div>}
+      {!!plan.unscheduled?.length && <><h4>기간 내 배치하지 못한 활동</h4>{plan.unscheduled.map((x, i) => <p key={i}>{x.name}: {x.taskName} · 남은 예상 {x.remainingHours}시간</p>)}</>}
+    </section>}
+  </section>;
+}

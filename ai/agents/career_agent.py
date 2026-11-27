@@ -92,7 +92,9 @@ def rag_validation_node(
             user_analysis=state["userAnalysis"],
             job_analysis=state["jobAnalysis"],
             match_result=state["matchResult"],
-            embedded_chunks=state["embeddedChunks"],
+            embedded_chunks=state.get("embeddedChunks", []),
+            rag_store=state.get("ragStore"),
+            user_id=state.get("userId"),
             top_k=3,
         )
     )

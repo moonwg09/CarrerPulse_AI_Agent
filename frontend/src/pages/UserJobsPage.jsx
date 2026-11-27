@@ -1,33 +1,45 @@
 import { useEffect, useState } from "react";
 import NavBar from "../components/NavBar";
+import PageToast from "../components/PageToast";
 import {
   getMyJobs,
+  getDevelopmentJobCatalog,
   addMyJob,
   deleteMyJob,
 } from "../api/userApi";
 
 function UserJobsPage() {
   const [jobs, setJobs] = useState([]);
+  const [catalog, setCatalog] = useState([]);
 
   const [form, setForm] = useState({
     jobCode: "",
-    jobName: "",
   });
 
   const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState("");
 
-  useEffect(() => {
-    loadJobs();
-  }, []);
-
-  const loadJobs = async () => {
+  async function loadJobs() {
     try {
       const data = await getMyJobs();
       setJobs(data);
     } catch (error) {
       setMessage(error.message);
     }
-  };
+  }
+
+  useEffect(() => {
+    let active = true;
+    getMyJobs()
+      .then((items) => { if (active) setJobs(items); })
+      .catch((error) => { if (active) setMessage(error.message); });
+    getDevelopmentJobCatalog().then((items) => {
+      if (!active) return;
+      setCatalog(items);
+      if (items.length) setForm({ jobCode: items[0].jobCode });
+    }).catch((error) => { if (active) setMessage(error.message); });
+    return () => { active = false; };
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -47,11 +59,10 @@ function UserJobsPage() {
       await addMyJob(form);
 
       setForm({
-        jobCode: "",
-        jobName: "",
+        jobCode: catalog[0]?.jobCode || "",
       });
 
-      setMessage("관심 직무가 등록되었습니다.");
+      setNotice("관심 직무가 등록되었습니다.");
 
       await loadJobs();
     } catch (error) {
@@ -65,7 +76,7 @@ function UserJobsPage() {
     try {
       await deleteMyJob(userJobId);
 
-      setMessage("관심 직무가 삭제되었습니다.");
+      setNotice("관심 직무가 삭제되었습니다.");
 
       await loadJobs();
     } catch (error) {
@@ -74,38 +85,24 @@ function UserJobsPage() {
   };
 
   return (
-    <div>
+    <main>
         <NavBar />
+      <PageToast message={notice} onClose={setNotice} />
       <h1>관심 직무 관리</h1>
 
       <form onSubmit={handleAdd}>
-        <div>
-          <label>직무 코드</label>
+        <label>개발 직무
+          <select name="jobCode" value={form.jobCode} onChange={handleChange} required>
+            {catalog.map((job) => (
+              <option key={job.jobCode} value={job.jobCode}>{job.jobName}</option>
+            ))}
+          </select>
+        </label>
 
-          <input
-            type="text"
-            name="jobCode"
-            value={form.jobCode}
-            onChange={handleChange}
-            placeholder="예: BACKEND"
-          />
-        </div>
-
-        <div>
-          <label>직무 이름</label>
-
-          <input
-            type="text"
-            name="jobName"
-            value={form.jobName}
-            onChange={handleChange}
-            placeholder="예: 백엔드 개발자"
-          />
-        </div>
-
-        <button type="submit">
+        <button type="submit" disabled={jobs.length >= 3 || !form.jobCode}>
           관심 직무 추가
         </button>
+        {jobs.length >= 3 && <p>관심 직무는 최대 3개까지 등록할 수 있습니다.</p>}
       </form>
 
       {message && <p>{message}</p>}
@@ -115,26 +112,31 @@ function UserJobsPage() {
       <h2>내 관심 직무</h2>
 
       {jobs.length === 0 ? (
-        <p>등록된 관심 직무가 없습니다.</p>
+        <p className="record-list-empty">등록된 관심 직무가 없습니다.</p>
       ) : (
-        <ul>
-          {jobs.map((job) => (
-            <li key={job.userJobId}>
-              {job.jobName} ({job.jobCode})
-
+        <div className="record-list">
+          {jobs.map((job, index) => (
+            <div className="record-row" key={job.userJobId}>
+              <span className="record-index">{String(index + 1).padStart(2, "0")}</span>
+              <div>
+                <strong>{job.jobName}</strong>
+              </div>
               <button
+                className="button-compact button-danger"
                 type="button"
+                disabled={jobs.length <= 1}
                 onClick={() =>
                   handleDelete(job.userJobId)
                 }
               >
                 삭제
               </button>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
-    </div>
+      {jobs.length === 1 && <p>관심 직무는 최소 1개를 유지해야 합니다.</p>}
+    </main>
   );
 }
 

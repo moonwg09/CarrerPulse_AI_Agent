@@ -4,6 +4,9 @@ import com.careerpulse.user.dto.UpdateUserRequest;
 import com.careerpulse.user.dto.UserJobRequest;
 import com.careerpulse.user.dto.UserJobResponse;
 import com.careerpulse.user.dto.UserResponse;
+import com.careerpulse.user.dto.PreparationTargetDateRequest;
+import com.careerpulse.user.dto.DevelopmentJobResponse;
+import com.careerpulse.user.model.DevelopmentJobCatalog;
 import com.careerpulse.user.entity.User;
 import com.careerpulse.user.entity.UserJob;
 import com.careerpulse.user.repository.UserJobRepository;
@@ -47,6 +50,7 @@ public class UserService {
                 user.getPhone(),
                 user.getCareerType(),
                 user.getCareerYears(),
+                user.getPreparationTargetDate(),
                 user.getAccountStatus()
         );
     }
@@ -97,8 +101,23 @@ public class UserService {
                 user.getPhone(),
                 user.getCareerType(),
                 user.getCareerYears(),
+                user.getPreparationTargetDate(),
                 user.getAccountStatus()
         );
+    }
+
+    @Transactional
+    public UserResponse updatePreparationTargetDate(
+            String email,
+            PreparationTargetDateRequest request
+    ) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "사용자를 찾을 수 없습니다."
+                ));
+        user.updatePreparationTargetDate(request.preparationTargetDate());
+        return getMyInfo(email);
     }
     @Transactional
     public UserJobResponse addUserJob(
@@ -114,10 +133,24 @@ public class UserService {
                         )
                 );
 
+        if (userJobRepository.countByUser_UserId(user.getUserId()) >= 3) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "관심 직무는 최대 3개까지 등록할 수 있습니다."
+            );
+        }
+
+        DevelopmentJobCatalog catalog;
+        try {
+            catalog = DevelopmentJobCatalog.fromCode(request.jobCode());
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage());
+        }
+
         boolean exists =
                 userJobRepository.existsByUser_UserIdAndJobCode(
                         user.getUserId(),
-                        request.jobCode()
+                        catalog.name()
                 );
 
         if (exists) {
@@ -129,8 +162,8 @@ public class UserService {
 
         UserJob userJob = new UserJob(
                 user,
-                request.jobCode(),
-                request.jobName()
+                catalog.name(),
+                catalog.displayName()
         );
 
         UserJob savedJob =
@@ -139,8 +172,21 @@ public class UserService {
         return new UserJobResponse(
                 savedJob.getUserJobId(),
                 savedJob.getJobCode(),
-                savedJob.getJobName()
+                savedJob.getJobName(),
+                catalog.searchKeyword(),
+                catalog.searchExpressions()
         );
+    }
+
+    public List<DevelopmentJobResponse> getDevelopmentJobCatalog() {
+        return java.util.Arrays.stream(DevelopmentJobCatalog.values())
+                .map(job -> new DevelopmentJobResponse(
+                        job.name(),
+                        job.displayName(),
+                        job.searchKeyword(),
+                        job.searchExpressions()
+                ))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -162,13 +208,20 @@ public class UserService {
                 )
                 .stream()
                 .map(job ->
-                        new UserJobResponse(
-                                job.getUserJobId(),
-                                job.getJobCode(),
-                                job.getJobName()
-                        )
+                        response(job)
                 )
                 .toList();
+    }
+
+    private UserJobResponse response(UserJob job) {
+        DevelopmentJobCatalog catalog = DevelopmentJobCatalog.fromCode(job.getJobCode());
+        return new UserJobResponse(
+                job.getUserJobId(),
+                job.getJobCode(),
+                job.getJobName(),
+                catalog.searchKeyword(),
+                catalog.searchExpressions()
+        );
     }
 
     @Transactional
@@ -197,6 +250,13 @@ public class UserService {
                                         "관심 직무를 찾을 수 없습니다."
                                 )
                         );
+
+        if (userJobRepository.countByUser_UserId(user.getUserId()) <= 1) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "관심 직무는 최소 1개를 유지해야 합니다. 다른 직무를 먼저 등록해 주세요."
+            );
+        }
 
         userJobRepository.delete(userJob);
     }

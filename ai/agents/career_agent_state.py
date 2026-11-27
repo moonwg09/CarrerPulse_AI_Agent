@@ -30,6 +30,10 @@ class CareerAgentState(TypedDict):
         EmbeddedDocumentChunk
     ]
 
+    # RAG v2 입력. 기존 JSON API는 None으로 전달할 수 있다.
+    userId: Optional[int]
+    ragStore: Optional[object]
+
     # Agent 실행 중 생성되는 값
     jobAnalysis: Optional[
         JobAnalysisResult

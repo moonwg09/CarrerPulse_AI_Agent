@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { logout } from "../api/authApi";
 import { withdraw } from "../api/userApi";
+import NavBar from "../components/NavBar";
 
 function AccountPage() {
   const [message, setMessage] = useState("");
@@ -38,7 +39,8 @@ function AccountPage() {
   };
 
   return (
-    <div>
+    <main>
+      <NavBar />
       <h1>계정 관리</h1>
 
       <button
@@ -49,6 +51,7 @@ function AccountPage() {
       </button>
 
       <button
+        className="button-danger"
         type="button"
         onClick={handleWithdraw}
       >
@@ -56,7 +59,7 @@ function AccountPage() {
       </button>
 
       {message && <p>{message}</p>}
-    </div>
+    </main>
   );
 }
 

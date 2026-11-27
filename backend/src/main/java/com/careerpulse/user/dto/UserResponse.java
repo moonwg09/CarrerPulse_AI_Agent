@@ -1,6 +1,7 @@
 package com.careerpulse.user.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public record UserResponse(
 
@@ -10,6 +11,7 @@ public record UserResponse(
         String phone,
         String careerType,
         BigDecimal careerYears,
+        LocalDate preparationTargetDate,
         String accountStatus
 ) {
 }

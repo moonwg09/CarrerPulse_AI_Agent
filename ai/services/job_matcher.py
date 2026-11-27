@@ -1,34 +1,97 @@
-import os
 import time
 
-from dotenv import load_dotenv
-from google import genai
 from google.genai import errors
 from pathlib import Path
 
 from schemas.document_schema import DocumentAnalysisResult
 from schemas.job_schema import JobAnalysisResult
 from schemas.match_schema import JobMatchResult
-from schemas.match_schema import MatchStatus
+from schemas.match_schema import MatchStatus, ObjectiveStatus
 from services.match_score import calculate_match_score
 from services.recommendation_classifier import classify_job
 from services.match_warning import build_match_warnings
+from services.gemini_client import GEMINI_MODEL, get_gemini_client
 
 
-load_dotenv()
+PERFORMANCE_TERMS = (
+    "개발",
+    "구현",
+    "설계",
+    "구축",
+    "운영",
+    "배포",
+    "연동",
+    "관리",
+    "자동화",
+    "개선",
+    "수행",
+    "담당",
+    "적용",
+    "전환",
+    "구성",
+)
 
-api_key = os.getenv("GEMINI_API_KEY")
 
-if not api_key:
-    raise ValueError("GEMINI_API_KEY가 설정되어 있지 않습니다.")
+def _is_skill_list_only(text: str) -> bool:
+    normalized = " ".join(text.split())
+    lowered = normalized.lower()
 
-client = genai.Client(api_key=api_key)
+    if "사용 기술" in normalized or "기술 스택" in normalized:
+        return True
+
+    proficiency_cells = ("| 상 |", "| 중 |", "| 하 |", "| 상", "| 중", "| 하")
+    if any(cell in normalized for cell in proficiency_cells):
+        return True
+
+    if lowered.startswith(("skills:", "skill:", "tech stack:")):
+        return True
+
+    return False
+
+
+def _has_performance_evidence(text: str) -> bool:
+    if _is_skill_list_only(text):
+        return False
+
+    normalized = " ".join(text.split())
+    return any(term in normalized for term in PERFORMANCE_TERMS)
+
+
+def enforce_experience_evidence_quality(
+    result: JobMatchResult,
+) -> JobMatchResult:
+    """기술명·숙련도 표만으로 확정 경험이 되는 것을 차단한다."""
+    for requirement in [
+        *result.requirementMatches,
+        *result.responsibilityMatches,
+    ]:
+        if requirement.status != MatchStatus.EXPERIENCED:
+            continue
+
+        has_performance_evidence = any(
+            _has_performance_evidence(evidence.text)
+            for evidence in requirement.userEvidence
+        )
+        if has_performance_evidence:
+            continue
+
+        requirement.status = MatchStatus.PARTIAL
+        requirement.reason = (
+            "관련 기술 보유 근거는 확인되지만 실제 구현·운영 등 "
+            "구체적인 수행 경험 근거가 부족합니다."
+        )
+
+    return result
+
 
 def normalize_match_statuses(
     result: JobMatchResult
 ) -> JobMatchResult:
 
-    for requirement in result.requirementMatches:
+    for requirement in [
+        *result.requirementMatches,
+        *result.responsibilityMatches,
+    ]:
 
         # NO_EXPERIENCE는
         # 사용자가 "경험이 없다"고 명확하게 밝힌 근거가 있어야 함
@@ -59,12 +122,28 @@ def normalize_match_statuses(
                 MatchStatus.INSUFFICIENT_EVIDENCE
             )
 
+    for condition in result.objectiveConditionMatches:
+        if (
+            condition.status in {
+                ObjectiveStatus.SATISFIED,
+                ObjectiveStatus.NOT_SATISFIED,
+            }
+            and not condition.userEvidence
+        ):
+            condition.status = ObjectiveStatus.UNCLEAR
+            condition.reason = (
+                "객관 조건 판단에 사용한 사용자 문서 원문 근거가 없어 "
+                "충족 여부를 확정할 수 없습니다."
+            )
+
     return result
 
 def match_user_to_job(
     user_analysis: DocumentAnalysisResult,
     job_analysis: JobAnalysisResult
 ) -> JobMatchResult:
+
+    client = get_gemini_client()
 
     print("사용자 JSON 로딩 성공")
     print("공고 JSON 로딩 성공")
@@ -78,7 +157,7 @@ def match_user_to_job(
 당신은 사용자의 경력 및 역량과 채용공고 요구사항을 비교하는 AI 시스템입니다.
 
 아래 USER ANALYSIS와 JOB ANALYSIS를 비교하여
-각 채용공고 requirement에 대한 판단 결과를 생성하세요.
+각 채용공고 requirement와 주요 업무에 대한 판단 결과를 생성하세요.
 
 반드시 다음 규칙을 지키세요.
 
@@ -142,6 +221,13 @@ def match_user_to_job(
     해당 조건들은 objectiveConditionMatches에서 별도로 비교합니다.
 
 18. 모든 requirement에 대해 반드시 하나의 RequirementMatch를 생성합니다.
+
+18-1. JOB ANALYSIS의 responsibilities도 하나씩 사용자 경험과 비교합니다.
+    각 주요 업무마다 responsibilityMatches에 하나의 RequirementMatch를 생성합니다.
+    requirement에는 responsibilities의 원문을 그대로 사용하고
+    requirementCategory는 UNCLEAR로 설정합니다.
+    jobEvidence에는 해당 주요 업무 원문을 넣고 section은 responsibilities로 설정합니다.
+    주요 업무 비교 결과는 자격요건 일치율 계산에 포함하지 않습니다.
 
 19. conditionType이 OR이고 하나 이상의 선택 조건을 충분히 충족하여
     status가 EXPERIENCED인 경우, 충족하지 않은 대안 기술은
@@ -224,6 +310,12 @@ def match_user_to_job(
 38. JOB ANALYSIS의 모든 objectiveRequirement에 대해
     빠짐없이 하나의 ObjectiveConditionMatch를 생성합니다.   
 
+38-1. objectiveConditionMatch의 userEvidence에는 학력·경력·자격증 판정에
+    실제로 사용한 USER ANALYSIS의 evidence를 그대로 포함합니다.
+    SATISFIED 또는 NOT_SATISFIED를 반환하려면 원문 evidence가 최소 1개
+    있어야 하며, evidence가 없으면 UNCLEAR로 판단합니다.
+    USER ANALYSIS에 없는 evidence를 만들거나 문구를 바꾸지 않습니다.
+
 39. 사용자 문서에서 해당 기술이나 경험이 확인되지 않는다는 이유만으로
     NO_EXPERIENCE를 사용하지 않습니다.
 
@@ -267,7 +359,7 @@ JOB ANALYSIS
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model="gemini-3.5-flash-lite",
+                model=GEMINI_MODEL,
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",
@@ -296,6 +388,7 @@ JOB ANALYSIS
         result = JobMatchResult.model_validate_json(response.text)
 
     result = normalize_match_statuses(result)
+    result = enforce_experience_evidence_quality(result)
 
     result.score = calculate_match_score(result)
 

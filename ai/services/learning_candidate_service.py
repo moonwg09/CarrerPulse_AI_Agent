@@ -12,7 +12,9 @@ from schemas.match_schema import (
     MatchStatus,
     ObjectiveConditionType,
     ObjectiveStatus,
+    RecommendationStatus,
 )
+from schemas.job_schema import RequirementCategory
 from schemas.recommendation_schema import JobRecommendationItem
 
 from services.requirement_normalizer import (
@@ -53,6 +55,17 @@ def build_learning_candidates(
 
         for requirement in job.matchResult.requirementMatches:
 
+            # 추천 공고는 필수·우대 역량을 모두 반영한다.
+            # 성장 후보와 제외 공고는 필수 역량만 장기 학습 후보로 남겨
+            # 관련성이 낮은 공고의 우대 기술이 계획을 채우지 않도록 한다.
+            if (
+                job.matchResult.recommendationStatus
+                != RecommendationStatus.RECOMMENDED
+                and requirement.requirementCategory
+                != RequirementCategory.REQUIRED
+            ):
+                continue
+
             # 경험 있음
             if requirement.status == MatchStatus.EXPERIENCED:
 
@@ -72,7 +85,14 @@ def build_learning_candidates(
             # 일부 경험
             elif requirement.status == MatchStatus.PARTIAL:
 
-                for skill in requirement.missingSkills:
+                # 일부 경험이지만 빠진 기술명이 따로 없을 수 있다.
+                # 이 경우 확인된 기술 자체를 경험 강화 대상으로 집계한다.
+                partial_skills = (
+                    requirement.missingSkills
+                    or requirement.matchedSkills
+                )
+
+                for skill in partial_skills:
 
                     skill_name = normalize_requirement_name(
                         skill,
@@ -162,6 +182,14 @@ def build_learning_candidates(
             ):
                 continue
 
+            if (
+                job.matchResult.recommendationStatus
+                != RecommendationStatus.RECOMMENDED
+                and objective.requirementCategory
+                != RequirementCategory.REQUIRED
+            ):
+                continue
+
             certificate_name = normalize_requirement_name(
                 objective.requirement,
                 LearningCandidateType.CERTIFICATE.value,
@@ -205,6 +233,7 @@ def build_learning_candidates(
             candidate.isLearningTarget = (
                 candidate.partialCount > 0
                 or candidate.noExperienceCount > 0
+                or candidate.insufficientEvidenceCount > 0
             )
 
         elif (

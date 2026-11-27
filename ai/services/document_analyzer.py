@@ -1,24 +1,12 @@
-import os
 import time
 from typing import List, Dict
 
-from dotenv import load_dotenv
-from google import genai
 from google.genai import errors
 
 from schemas.document_schema import DocumentAnalysisResult, DocumentType
 from services.document_parser import extract_document
+from services.gemini_client import GEMINI_MODEL, get_gemini_client
 
-
-# .env 로드
-load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-
-if not api_key:
-    raise ValueError("GEMINI_API_KEY가 설정되어 있지 않습니다.")
-
-client = genai.Client(api_key=api_key)
 
 
 def format_document(
@@ -52,6 +40,8 @@ def analyze_documents(
     self_intro_contents: List[Dict],
     portfolio_contents: List[Dict] | None = None
 ) -> DocumentAnalysisResult:
+
+    client = get_gemini_client()
 
     resume_text = format_document(
         DocumentType.RESUME,
@@ -236,7 +226,7 @@ PORTFOLIO
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model="gemini-3.5-flash-lite",
+                model=GEMINI_MODEL,
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",

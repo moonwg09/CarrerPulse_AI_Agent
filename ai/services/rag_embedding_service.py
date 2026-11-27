@@ -1,30 +1,12 @@
-import os
 from typing import List
 
-from dotenv import load_dotenv
-from google import genai
 from google.genai import types
 
 from schemas.rag_schema import (
     DocumentChunk,
     EmbeddedDocumentChunk,
 )
-
-
-load_dotenv()
-
-api_key = os.getenv("GEMINI_API_KEY")
-
-if not api_key:
-    raise ValueError(
-        "GEMINI_API_KEY가 설정되어 있지 않습니다."
-    )
-
-
-client = genai.Client(
-    api_key=api_key
-)
-
+from services.gemini_client import get_gemini_client
 
 EMBEDDING_MODEL = "gemini-embedding-001"
 EMBEDDING_DIMENSION = 768
@@ -33,9 +15,10 @@ EMBEDDING_DIMENSION = 768
 def embed_document_chunks(
     chunks: List[DocumentChunk],
 ) -> List[EmbeddedDocumentChunk]:
-
     if not chunks:
         return []
+
+    client = get_gemini_client()
 
     texts = [
         chunk.text
@@ -83,13 +66,14 @@ def embed_document_chunks(
 def embed_query(
     query: str,
 ) -> List[float]:
-
     query = query.strip()
 
     if not query:
         raise ValueError(
             "RAG 검색 query가 비어 있습니다."
         )
+
+    client = get_gemini_client()
 
     response = client.models.embed_content(
         model=EMBEDDING_MODEL,
